@@ -133,6 +133,14 @@ class TranslationManager(QObject):
         self.thread = None
 
     def initialize(self, directory: str, provider: str = None, model: str = None) -> None:
+        """
+        Inicializa el administrador de traducción con un directorio de trabajo.
+
+        Args:
+            directory: Ruta al directorio de trabajo
+            provider: Proveedor de traducción
+            model: Modelo de traducción
+        """
         self.working_directory = directory
         self.db = TranslationDatabase(directory)
         self.current_provider = provider
@@ -142,6 +150,17 @@ class TranslationManager(QObject):
                        source_lang: str, target_lang: str, api_key: str,
                        status_callback: Optional[Callable[[str, str], None]] = None,
                        custom_terms: str = "") -> None:
+        """
+        Inicia la traducción de archivos.
+
+        Args:
+            files_to_translate: Lista de diccionarios con información de archivos
+            source_lang: Idioma de origen
+            target_lang: Idioma de destino
+            api_key: API key del servicio
+            status_callback: Función para actualizar el estado en la UI
+            custom_terms: Términos personalizados para la traducción
+        """
         if not self.working_directory or not self.db:
             self.error_occurred.emit("No se ha inicializado el directorio de trabajo")
             return
@@ -175,6 +194,12 @@ class TranslationManager(QObject):
         self.worker.all_translations_completed.connect(self.all_translations_completed)
         self.worker.error_occurred.connect(self.error_occurred)
 
+        # Conectar el callback de estado si existe
+        if status_callback:
+            self.worker.translation_completed.connect(
+                lambda filename, success: status_callback(filename, "Traducido" if success else "Error")
+            )
+
         # Limpieza cuando termine
         self.worker.all_translations_completed.connect(self.thread.quit)
         self.worker.all_translations_completed.connect(self.worker.deleteLater)
@@ -184,14 +209,17 @@ class TranslationManager(QObject):
         self.thread.start()
 
     def stop_translation(self) -> None:
+        """Detiene el proceso de traducción en curso"""
         if self.worker:
             self.worker.stop()
             self.progress_updated.emit("Deteniendo traducción...")
 
     def get_supported_languages(self) -> Dict[str, str]:
-        return self.translator.lang_codes
+        """Obtiene la lista de idiomas soportados"""
+        return self.translator.get_supported_languages()
 
     def get_custom_terms(self) -> str:
+        """Obtiene los términos personalizados guardados"""
         if self.db:
             return self.db.get_custom_terms()
         return ""

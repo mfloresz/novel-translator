@@ -80,11 +80,13 @@ class TranslatePanel(QWidget):
 
         # Start chapter input
         self.start_chapter_spin = QLineEdit()
+        self.start_chapter_spin.setPlaceholderText("Desde")
         range_layout.addWidget(QLabel("Capítulo Inicio:"))
         range_layout.addWidget(self.start_chapter_spin)
 
         # End chapter input
         self.end_chapter_spin = QLineEdit()
+        self.end_chapter_spin.setPlaceholderText("Hasta")
         range_layout.addWidget(QLabel("Capítulo Fin:"))
         range_layout.addWidget(self.end_chapter_spin)
 
@@ -113,6 +115,10 @@ class TranslatePanel(QWidget):
 
         # Cargar proveedores y modelos
         self.load_translation_models()
+
+        # Conectar cambios en los inputs de rango
+        self.start_chapter_spin.textChanged.connect(self.adjust_chapter_range)
+        self.end_chapter_spin.textChanged.connect(self.adjust_chapter_range)
 
     def load_translation_models(self):
         """Carga los proveedores y modelos desde el JSON"""
@@ -160,20 +166,20 @@ class TranslatePanel(QWidget):
         self.translation_manager.all_translations_completed.connect(self.handle_all_completed)
         self.translation_manager.error_occurred.connect(self.handle_error)
 
-        # Conectar cambios en los SpinBox
-        self.start_chapter_spin.valueChanged.connect(self.adjust_chapter_range)
-        self.end_chapter_spin.valueChanged.connect(self.adjust_chapter_range)
-
     def set_chapter_range(self, max_chapters):
         """Configura el rango máximo de capítulos"""
-        self.start_chapter_spin.setMaximum(max_chapters)
-        self.end_chapter_spin.setMaximum(max_chapters)
-        self.end_chapter_spin.setValue(max_chapters)
+        self.start_chapter_spin.setText("1")
+        self.end_chapter_spin.setText(str(max_chapters))
 
     def adjust_chapter_range(self):
-        """Ajusta los valores de los SpinBox para mantener un rango válido"""
-        if self.start_chapter_spin.value() > self.end_chapter_spin.value():
-            self.end_chapter_spin.setValue(self.start_chapter_spin.value())
+        """Ajusta los valores de los inputs para mantener un rango válido"""
+        try:
+            start_value = int(self.start_chapter_spin.text())
+            end_value = int(self.end_chapter_spin.text())
+            if start_value > end_value:
+                self.end_chapter_spin.setText(self.start_chapter_spin.text())
+        except ValueError:
+            pass
 
     def load_saved_terms(self):
         """Carga los términos guardados cuando se selecciona un directorio"""
@@ -217,8 +223,12 @@ class TranslatePanel(QWidget):
             return
 
         # Obtener rango de capítulos
-        start_chapter = self.start_chapter_spin.value()
-        end_chapter = self.end_chapter_spin.value()
+        try:
+            start_chapter = int(self.start_chapter_spin.text())
+            end_chapter = int(self.end_chapter_spin.text())
+        except ValueError:
+            self.main_window.statusBar().showMessage("Error: Los valores de rango deben ser números")
+            return
 
         # Obtener términos personalizados
         custom_terms = self.terms_input.toPlainText().strip()
