@@ -102,7 +102,7 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 3. Usar rangos pequeños para pruebas iniciales
 4. Revisar los archivos procesados
 5. Mantener registro de cambios realizados
-```
+
 
 ### Creación de EPUB
 ![epub](assets/ebook.webp)
