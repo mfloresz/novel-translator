@@ -8,7 +8,8 @@ class TranslatorLogic:
     def __init__(self):
         """Inicializa el traductor con los idiomas soportados"""
         self.lang_codes = {
-            'Español': 'Spanish',
+            'Español (MX)': 'Spanish (es_MX)',
+            'Español (ES)': 'Spanish (es_ES)',
             'Inglés': 'English',
             'Francés': 'French',
             'Alemán': 'German',
@@ -81,34 +82,42 @@ class TranslatorLogic:
         try:
             url = f"{self.models_config['gemini']['base_url']}/{model_config['endpoint']}?key={api_key}"
 
-            # Construir el prompt con el template base
+            # Construir el prompt base
             prompt = self.prompt_template.replace(
                 "{source_lang}", self.lang_codes[source_lang]
             ).replace(
                 "{target_lang}", self.lang_codes[target_lang]
             )
 
-            # Si hay términos personalizados, insertarlos en el lugar correcto
+            # Añadir términos personalizados si existen (método más seguro)
             if custom_terms:
-                ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
-                final_instructions = "\nFinal Instructions:"
+                # Buscar la sección donde insertar los términos
+                sections = prompt.split("\n\n")
+                terms_section_idx = -1
 
-                pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
-                post_terms = prompt[prompt.find(final_instructions):]
+                for i, section in enumerate(sections):
+                    if "Use the following predefined translations" in section:
+                        terms_section_idx = i
+                        break
 
-                # Asegurar que cada línea comience con "- "
-                terms = custom_terms.strip().split('\n')
-                terms = [
-                    line if line.strip().startswith('- ') else f'- {line.strip()}'
-                    for line in terms
-                    if line.strip()
-                ]
-                formatted_terms = '\n'.join(terms)
+                if terms_section_idx >= 0:
+                    # Formatear términos
+                    formatted_terms = "\n".join([
+                        f"- {line.strip()}" if not line.strip().startswith('-') else line.strip()
+                        for line in custom_terms.strip().split('\n')
+                        if line.strip()
+                    ])
 
-                prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
+                    # Insertar términos al final de la sección correspondiente
+                    sections[terms_section_idx] += "\n" + formatted_terms
+                    prompt = "\n\n".join(sections)
 
-            # Agregar el texto a traducir al final del prompt
+            # Añadir el texto a traducir
             prompt += f"\n\n{text}"
+
+            # Depuración
+            print(f"URL: {url}")
+            print(f"Longitud del prompt: {len(prompt)} caracteres")
 
             headers = {'Content-Type': 'application/json'}
             data = {
@@ -126,6 +135,8 @@ class TranslatorLogic:
 
         except requests.exceptions.RequestException as e:
             print(f"Error en la solicitud HTTP: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                print("Respuesta detallada:", e.response.text)
             return None
         except Exception as e:
             print(f"Error en la traducción con Gemini: {str(e)}")
