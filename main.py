@@ -57,6 +57,9 @@ class NovelManagerApp(QMainWindow):
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
 
+        # Establecer un ancho mínimo para el panel izquierdo
+        left_panel.setMinimumWidth(550)
+
         # Directory section
         dir_layout = QHBoxLayout()
         dir_label = QLabel("Directorio:")
@@ -86,10 +89,9 @@ class NovelManagerApp(QMainWindow):
         vertical_header.setObjectName("Capítulos")
 
         # Configure column stretching
-        self.chapters_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        self.chapters_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.chapters_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.chapters_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.chapters_table.setColumnWidth(0, 380)
 
         left_layout.addLayout(dir_layout)
         left_layout.addWidget(self.chapters_table)
@@ -118,7 +120,7 @@ class NovelManagerApp(QMainWindow):
         splitter.addWidget(right_panel)
 
         # Set initial sizes (left:right ratio roughly 2:1)
-        splitter.setSizes([600, 400])
+        splitter.setSizes([650, 350])
 
         # Status bar
         self.statusBar().showMessage("Estado: Esperando selección de directorio")
@@ -146,6 +148,8 @@ class NovelManagerApp(QMainWindow):
             # Configurar el directorio en el convertidor EPUB
             self.epub_converter.set_directory(directory)
             self.load_chapters()
+            # Cargar los términos personalizados guardados
+            self.translate_panel.load_saved_terms()
 
     def load_chapters(self):
         if not self.current_directory:

@@ -192,21 +192,36 @@ class EpubConverterLogic(QObject):
                 file_name=f'chapter_{file_info["chapter"]}.xhtml',
                 lang='es'
             )
-
-            # Formatear el contenido
-            chapter.content = f'''
+            
+            # Crear partes del HTML por separado para evitar problemas con backslashes en f-strings
+            html_start = '''
                 <!DOCTYPE html>
                 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
                 <head>
-                    <title>{chapter_title}</title>
+                    <title>'''
+                    
+            html_middle1 = '''</title>
                     <link rel="stylesheet" type="text/css" href="style/default.css"/>
                 </head>
                 <body>
-                    <h1>{chapter_title}</h1>
-                    {"".join(f'<p>{p.strip()}</p>' for p in chapter_content.split('\n\n') if p.strip())}
+                    <h1>'''
+                    
+            html_middle2 = '''</h1>
+                    '''
+                    
+            html_end = '''
                 </body>
                 </html>
             '''
+            
+            # Procesar párrafos
+            paragraphs = ""
+            for p in chapter_content.split('\n\n'):
+                if p.strip():
+                    paragraphs += f'<p>{p.strip()}</p>'
+            
+            # Unir todo el contenido
+            chapter.content = html_start + chapter_title + html_middle1 + chapter_title + html_middle2 + paragraphs + html_end
 
             book.add_item(chapter)
             return chapter

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional, Dict
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                            QPushButton, QLineEdit, QGroupBox, QComboBox,
-                           QSpinBox, QFormLayout)
+                           QSpinBox, QFormLayout, QPlainTextEdit)
 from PyQt6.QtCore import Qt
 from src.logic.translation_manager import TranslationManager
 from src.logic.functions import show_confirmation_dialog
@@ -54,29 +54,51 @@ class TranslatePanel(QWidget):
         self.target_lang_combo.addItems(languages)
         form_layout.addRow("Idioma Destino:", self.target_lang_combo)
 
+        # Custom Terms section
+        terms_group = QGroupBox("Términos Personalizados")
+        terms_layout = QVBoxLayout()
+
+        # Instrucciones para los términos
+        terms_instructions = QLabel(
+            "Ingrese los términos y sus traducciones (uno por línea)"
+        )
+        terms_instructions.setWordWrap(True)
+        terms_layout.addWidget(terms_instructions)
+
+        # Campo para los términos personalizados
+        self.terms_input = QPlainTextEdit()
+        self.terms_input.setMinimumHeight(100)
+        terms_layout.addWidget(self.terms_input)
+
+        terms_group.setLayout(terms_layout)
+        main_layout.addLayout(form_layout)
+        main_layout.addWidget(terms_group)
+
         # Chapter range group
         range_group = QGroupBox("Rango de Capítulos")
-        range_layout = QFormLayout()
+        range_layout = QHBoxLayout()
 
-        # Start chapter SpinBox
-        self.start_chapter_spin = QSpinBox()
-        self.start_chapter_spin.setMinimum(1)
-        self.start_chapter_spin.setMaximum(9999)
-        range_layout.addRow("Capítulo Inicio:", self.start_chapter_spin)
+        # Start chapter input
+        self.start_chapter_spin = QLineEdit()
+        self.start_chapter_spin.setPlaceholderText("Desde")
+        range_layout.addWidget(QLabel("Capítulo Inicio:"))
+        range_layout.addWidget(self.start_chapter_spin)
 
-        # End chapter SpinBox
-        self.end_chapter_spin = QSpinBox()
-        self.end_chapter_spin.setMinimum(1)
-        self.end_chapter_spin.setMaximum(9999)
-        range_layout.addRow("Capítulo Fin:", self.end_chapter_spin)
+        # End chapter input
+        self.end_chapter_spin = QLineEdit()
+        self.end_chapter_spin.setPlaceholderText("Hasta")
+        range_layout.addWidget(QLabel("Capítulo Fin:"))
+        range_layout.addWidget(self.end_chapter_spin)
 
         range_group.setLayout(range_layout)
+        main_layout.addWidget(range_group)
 
         # Buttons layout
         buttons_layout = QHBoxLayout()
 
         # Translate button
         self.translate_button = QPushButton("Traducir")
+        self.translate_button.setEnabled(True)
 
         # Stop button
         self.stop_button = QPushButton("Detener")
@@ -86,8 +108,6 @@ class TranslatePanel(QWidget):
         buttons_layout.addWidget(self.stop_button)
 
         # Add all layouts to main layout
-        main_layout.addLayout(form_layout)
-        main_layout.addWidget(range_group)
         main_layout.addLayout(buttons_layout)
         main_layout.addStretch()
 
@@ -95,6 +115,10 @@ class TranslatePanel(QWidget):
 
         # Cargar proveedores y modelos
         self.load_translation_models()
+
+        # Conectar cambios en los inputs de rango
+        self.start_chapter_spin.textChanged.connect(self.adjust_chapter_range)
+        self.end_chapter_spin.textChanged.connect(self.adjust_chapter_range)
 
     def load_translation_models(self):
         """Carga los proveedores y modelos desde el JSON"""
@@ -142,20 +166,29 @@ class TranslatePanel(QWidget):
         self.translation_manager.all_translations_completed.connect(self.handle_all_completed)
         self.translation_manager.error_occurred.connect(self.handle_error)
 
-        # Conectar cambios en los SpinBox
-        self.start_chapter_spin.valueChanged.connect(self.adjust_chapter_range)
-        self.end_chapter_spin.valueChanged.connect(self.adjust_chapter_range)
-
     def set_chapter_range(self, max_chapters):
         """Configura el rango máximo de capítulos"""
-        self.start_chapter_spin.setMaximum(max_chapters)
-        self.end_chapter_spin.setMaximum(max_chapters)
-        self.end_chapter_spin.setValue(max_chapters)
+        self.start_chapter_spin.setText("1")
+        self.end_chapter_spin.setText(str(max_chapters))
 
     def adjust_chapter_range(self):
-        """Ajusta los valores de los SpinBox para mantener un rango válido"""
-        if self.start_chapter_spin.value() > self.end_chapter_spin.value():
-            self.end_chapter_spin.setValue(self.start_chapter_spin.value())
+        """Ajusta los valores de los inputs para mantener un rango válido"""
+        try:
+            start_value = int(self.start_chapter_spin.text())
+            end_value = int(self.end_chapter_spin.text())
+            if start_value > end_value:
+                self.end_chapter_spin.setText(self.start_chapter_spin.text())
+        except ValueError:
+            pass
+
+    def load_saved_terms(self):
+        """Carga los términos guardados cuando se selecciona un directorio"""
+        if self.main_window.current_directory:
+            if not self.translation_manager.working_directory:
+                self.translation_manager.initialize(self.main_window.current_directory)
+            saved_terms = self.translation_manager.get_custom_terms()
+            if saved_terms:
+                self.terms_input.setPlainText(saved_terms)
 
     def start_translation(self):
         """Inicia el proceso de traducción"""
@@ -190,8 +223,15 @@ class TranslatePanel(QWidget):
             return
 
         # Obtener rango de capítulos
-        start_chapter = self.start_chapter_spin.value()
-        end_chapter = self.end_chapter_spin.value()
+        try:
+            start_chapter = int(self.start_chapter_spin.text())
+            end_chapter = int(self.end_chapter_spin.text())
+        except ValueError:
+            self.main_window.statusBar().showMessage("Error: Los valores de rango deben ser números")
+            return
+
+        # Obtener términos personalizados
+        custom_terms = self.terms_input.toPlainText().strip()
 
         # Confirmar la operación
         if not show_confirmation_dialog(
@@ -231,7 +271,8 @@ class TranslatePanel(QWidget):
             source_lang,
             target_lang,
             api_key,
-            self.update_file_status
+            self.update_file_status,
+            custom_terms
         )
 
     def stop_translation(self):
@@ -255,6 +296,7 @@ class TranslatePanel(QWidget):
         """Maneja la finalización de todas las traducciones"""
         self.translate_button.setEnabled(True)
         self.stop_button.setEnabled(False)
+        self.main_window.statusBar().showMessage("Traducción completada", 5000)
 
     def handle_error(self, error_message):
         """Maneja los errores durante la traducción"""

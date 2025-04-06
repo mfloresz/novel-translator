@@ -2,6 +2,7 @@ import sqlite3
 import os
 import json
 from typing import List, Dict, Union, Optional
+from datetime import datetime
 
 class TranslationDatabase:
     def __init__(self, directory: str):
@@ -16,10 +17,11 @@ class TranslationDatabase:
         self.initialize_database()
 
     def initialize_database(self) -> None:
-        """Crea la base de datos y la tabla si no existen"""
+        """Crea la base de datos y las tablas si no existen"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+                # Tabla de traducciones existente
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS translations (
                         filename TEXT PRIMARY KEY,
@@ -28,10 +30,17 @@ class TranslationDatabase:
                         translated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
+                # Nueva tabla para términos personalizados
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS custom_terms (
+                        directory TEXT PRIMARY KEY,
+                        terms TEXT,
+                        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
                 conn.commit()
         except sqlite3.Error as e:
             print(f"Error inicializando la base de datos: {e}")
-            # Si falla SQLite, intentar crear un JSON como respaldo
             self._create_json_backup()
 
     def _create_json_backup(self) -> None:
@@ -39,7 +48,7 @@ class TranslationDatabase:
         json_path = os.path.join(self.directory, '.translation_records.json')
         if not os.path.exists(json_path):
             with open(json_path, 'w', encoding='utf-8') as f:
-                json.dump({"translations": []}, f)
+                json.dump({"translations": [], "custom_terms": ""}, f)
 
     def is_file_translated(self, filename: str) -> bool:
         """
@@ -55,7 +64,6 @@ class TranslationDatabase:
                 count = cursor.fetchone()[0]
                 return count > 0
         except sqlite3.Error:
-            # Si falla SQLite, intentar leer del JSON
             return self._check_json_record(filename)
 
     def _check_json_record(self, filename: str) -> bool:
@@ -93,7 +101,6 @@ class TranslationDatabase:
                 conn.commit()
                 return True
         except sqlite3.Error:
-            # Si falla SQLite, intentar guardar en JSON
             return self._add_json_record(filename, source_lang, target_lang)
 
     def _add_json_record(self, filename: str, source_lang: str,
@@ -101,14 +108,12 @@ class TranslationDatabase:
         """Añade un registro al archivo JSON de respaldo"""
         json_path = os.path.join(self.directory, '.translation_records.json')
         try:
-            # Leer registros existentes
             if os.path.exists(json_path):
                 with open(json_path, 'r', encoding='utf-8') as f:
                     records = json.load(f)
             else:
-                records = {"translations": []}
+                records = {"translations": [], "custom_terms": ""}
 
-            # Añadir nuevo registro
             record = {
                 "filename": filename,
                 "source_lang": source_lang,
@@ -116,7 +121,6 @@ class TranslationDatabase:
                 "translated_date": str(datetime.now())
             }
 
-            # Actualizar o añadir registro
             translations = records.get('translations', [])
             for i, existing in enumerate(translations):
                 if existing['filename'] == filename:
@@ -126,7 +130,6 @@ class TranslationDatabase:
                 translations.append(record)
             records['translations'] = translations
 
-            # Guardar actualizaciones
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(records, f, indent=2)
             return True
@@ -158,7 +161,6 @@ class TranslationDatabase:
                     for row in cursor.fetchall()
                 ]
         except sqlite3.Error:
-            # Si falla SQLite, intentar leer del JSON
             return self._get_json_records()
 
     def _get_json_records(self) -> List[Dict[str, str]]:
@@ -186,3 +188,73 @@ class TranslationDatabase:
                 return True
         except sqlite3.Error:
             return False
+
+    def save_custom_terms(self, terms: str) -> bool:
+        """
+        Guarda los términos personalizados para el directorio actual.
+
+        Args:
+            terms (str): Términos personalizados a guardar
+
+        Returns:
+            bool: True si se guardaron correctamente, False en caso contrario
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO custom_terms (directory, terms, last_updated)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                ''', (self.directory, terms))
+                conn.commit()
+                return True
+        except sqlite3.Error:
+            return self._save_terms_to_json(terms)
+
+    def get_custom_terms(self) -> str:
+        """
+        Recupera los términos personalizados para el directorio actual.
+
+        Returns:
+            str: Términos personalizados guardados o cadena vacía si no hay
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT terms FROM custom_terms WHERE directory = ?",
+                    (self.directory,)
+                )
+                result = cursor.fetchone()
+                return result[0] if result else ""
+        except sqlite3.Error:
+            return self._get_terms_from_json()
+
+    def _save_terms_to_json(self, terms: str) -> bool:
+        """Guarda los términos en el archivo JSON de respaldo"""
+        json_path = os.path.join(self.directory, '.translation_records.json')
+        try:
+            if os.path.exists(json_path):
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    records = json.load(f)
+            else:
+                records = {"translations": [], "custom_terms": ""}
+
+            records['custom_terms'] = terms
+
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(records, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error guardando términos en JSON: {e}")
+            return False
+
+    def _get_terms_from_json(self) -> str:
+        """Recupera los términos del archivo JSON de respaldo"""
+        json_path = os.path.join(self.directory, '.translation_records.json')
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                records = json.load(f)
+                return records.get('custom_terms', "")
+        except (FileNotFoundError, json.JSONDecodeError):
+            return ""

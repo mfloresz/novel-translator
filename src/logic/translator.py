@@ -8,7 +8,8 @@ class TranslatorLogic:
     def __init__(self):
         """Inicializa el traductor con los idiomas soportados"""
         self.lang_codes = {
-            'Español': 'Spanish',
+            'Español (MX)': 'Spanish (es_MX)',
+            'Español (ES)': 'Spanish (es_ES)',
             'Inglés': 'English',
             'Francés': 'French',
             'Alemán': 'German',
@@ -37,7 +38,9 @@ class TranslatorLogic:
             print(f"Error cargando el prompt base: {str(e)}")
             return ""
 
-    def translate_text(self, text: str, source_lang: str, target_lang: str, api_key: str, provider: str, model: str) -> Optional[str]:
+    def translate_text(self, text: str, source_lang: str, target_lang: str,
+                      api_key: str, provider: str, model: str,
+                      custom_terms: str = "") -> Optional[str]:
         """
         Traduce el texto utilizando el proveedor y modelo especificados.
 
@@ -48,6 +51,7 @@ class TranslatorLogic:
             api_key (str): API key del servicio
             provider (str): Identificador del proveedor
             model (str): Identificador del modelo
+            custom_terms (str): Términos personalizados para la traducción
 
         Returns:
             Optional[str]: Texto traducido o None si hay error
@@ -62,9 +66,9 @@ class TranslatorLogic:
                 raise ValueError(f"Modelo no soportado: {model}")
 
             if provider == 'gemini':
-                return self._translate_gemini(text, source_lang, target_lang, api_key, model_config)
+                return self._translate_gemini(text, source_lang, target_lang, api_key, model_config, custom_terms)
             elif provider == 'together':
-                return self._translate_together(text, source_lang, target_lang, api_key, model_config)
+                return self._translate_together(text, source_lang, target_lang, api_key, model_config, custom_terms)
             else:
                 raise ValueError(f"Proveedor no implementado: {provider}")
 
@@ -72,16 +76,48 @@ class TranslatorLogic:
             print(f"Error en la traducción: {str(e)}")
             return None
 
-    def _translate_gemini(self, text: str, source_lang: str, target_lang: str, api_key: str, model_config: Dict) -> Optional[str]:
+    def _translate_gemini(self, text: str, source_lang: str, target_lang: str,
+                         api_key: str, model_config: Dict, custom_terms: str = "") -> Optional[str]:
         """Traduce usando la API de Google Gemini"""
         try:
             url = f"{self.models_config['gemini']['base_url']}/{model_config['endpoint']}?key={api_key}"
 
+            # Construir el prompt base
             prompt = self.prompt_template.replace(
                 "{source_lang}", self.lang_codes[source_lang]
             ).replace(
                 "{target_lang}", self.lang_codes[target_lang]
-            ) + f"\n\n{text}"
+            )
+
+            # Añadir términos personalizados si existen (método más seguro)
+            if custom_terms:
+                # Buscar la sección donde insertar los términos
+                sections = prompt.split("\n\n")
+                terms_section_idx = -1
+
+                for i, section in enumerate(sections):
+                    if "Use the following predefined translations" in section:
+                        terms_section_idx = i
+                        break
+
+                if terms_section_idx >= 0:
+                    # Formatear términos
+                    formatted_terms = "\n".join([
+                        f"- {line.strip()}" if not line.strip().startswith('-') else line.strip()
+                        for line in custom_terms.strip().split('\n')
+                        if line.strip()
+                    ])
+
+                    # Insertar términos al final de la sección correspondiente
+                    sections[terms_section_idx] += "\n" + formatted_terms
+                    prompt = "\n\n".join(sections)
+
+            # Añadir el texto a traducir
+            prompt += f"\n\n{text}"
+
+            # Depuración
+            print(f"URL: {url}")
+            print(f"Longitud del prompt: {len(prompt)} caracteres")
 
             headers = {'Content-Type': 'application/json'}
             data = {
@@ -99,12 +135,15 @@ class TranslatorLogic:
 
         except requests.exceptions.RequestException as e:
             print(f"Error en la solicitud HTTP: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                print("Respuesta detallada:", e.response.text)
             return None
         except Exception as e:
             print(f"Error en la traducción con Gemini: {str(e)}")
             return None
 
-    def _translate_together(self, text: str, source_lang: str, target_lang: str, api_key: str, model_config: Dict) -> Optional[str]:
+    def _translate_together(self, text: str, source_lang: str, target_lang: str,
+                          api_key: str, model_config: Dict, custom_terms: str = "") -> Optional[str]:
         """Traduce usando la API de Together AI"""
         try:
             url = self.models_config['together']['base_url']
@@ -113,13 +152,35 @@ class TranslatorLogic:
                 'Content-Type': 'application/json'
             }
 
+            # Construir el prompt con el template base
             prompt = self.prompt_template.replace(
                 "{source_lang}", self.lang_codes[source_lang]
             ).replace(
                 "{target_lang}", self.lang_codes[target_lang]
-            ) + f"\n\n{text}"
+            )
 
-            # Formato actualizado según la API de Together
+            # Si hay términos personalizados, insertarlos en el lugar correcto
+            if custom_terms:
+                ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
+                final_instructions = "\nFinal Instructions:"
+
+                pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
+                post_terms = prompt[prompt.find(final_instructions):]
+
+                # Asegurar que cada línea comience con "- "
+                terms = custom_terms.strip().split('\n')
+                terms = [
+                    line if line.strip().startswith('- ') else f'- {line.strip()}'
+                    for line in terms
+                    if line.strip()
+                ]
+                formatted_terms = '\n'.join(terms)
+
+                prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
+
+            # Agregar el texto a traducir al final del prompt
+            prompt += f"\n\n{text}"
+
             data = {
                 "model": model_config['model_id'],
                 "messages": [{"role": "user", "content": prompt}],
