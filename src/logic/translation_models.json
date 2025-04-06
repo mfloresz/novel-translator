@@ -1,0 +1,23 @@
+{
+  "gemini": {
+    "name": "Google Gemini",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
+    "models": {
+      "gemini-flash": {
+        "name": "Gemini Flash 2.0 Exp",
+        "endpoint": "gemini-2.0-flash-exp:generateContent"
+      }
+    }
+  },
+  "together": {
+    "name": "Together AI",
+    "base_url": "https://api.together.xyz/v1/chat/completions",
+    "models": {
+      "llama3.3-70b": {
+        "name": "Llama 3.3 70B",
+        "model_id": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        "max_tokens": 100000
+      }
+    }
+  }
+}
