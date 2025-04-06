@@ -3,9 +3,17 @@
     "name": "Google Gemini",
     "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
     "models": {
-      "gemini-flash": {
+      "gemini-flash-exp": {
         "name": "Gemini Flash 2.0 Exp",
         "endpoint": "gemini-2.0-flash-exp:generateContent"
+      },
+      "gemini-flash-lite": {
+        "name": "Gemini Flash 2.0 Lite",
+        "endpoint": "gemini-2.0-flash-lite:generateContent"
+      },
+      "gemini-flash": {
+        "name": "Gemini Flash 2.0",
+        "endpoint": "gemini-2.0-flash:generateContent"
       }
     }
   },
@@ -13,9 +21,14 @@
     "name": "Together AI",
     "base_url": "https://api.together.xyz/v1/chat/completions",
     "models": {
-      "llama4-scout-moe": {
-        "name": "Llama 4 Scout (17Bx16E)",
-        "model_id": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+      "llama4-maverick-moe": {
+        "name": "Llama 4 Maverick (17Bx16E)",
+        "model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+        "max_tokens": 100000
+      },
+      "llama3.3-70b": {
+        "name": "Llama 3.3 70B",
+        "model_id": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
         "max_tokens": 100000
       }
     }

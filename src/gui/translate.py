@@ -60,15 +60,13 @@ class TranslatePanel(QWidget):
 
         # Instrucciones para los términos
         terms_instructions = QLabel(
-            "Ingrese los términos y sus traducciones (uno por línea)\n"
-            "Formato: Término → Traducción"
+            "Ingrese los términos y sus traducciones (uno por línea)"
         )
         terms_instructions.setWordWrap(True)
         terms_layout.addWidget(terms_instructions)
 
         # Campo para los términos personalizados
         self.terms_input = QPlainTextEdit()
-        self.terms_input.setPlaceholderText("Ejemplo:\nBirth Chart → Carta Natal")
         self.terms_input.setMinimumHeight(100)
         terms_layout.addWidget(self.terms_input)
 
@@ -78,19 +76,17 @@ class TranslatePanel(QWidget):
 
         # Chapter range group
         range_group = QGroupBox("Rango de Capítulos")
-        range_layout = QFormLayout()
+        range_layout = QHBoxLayout()
 
-        # Start chapter SpinBox
-        self.start_chapter_spin = QSpinBox()
-        self.start_chapter_spin.setMinimum(1)
-        self.start_chapter_spin.setMaximum(9999)
-        range_layout.addRow("Capítulo Inicio:", self.start_chapter_spin)
+        # Start chapter input
+        self.start_chapter_spin = QLineEdit()
+        range_layout.addWidget(QLabel("Capítulo Inicio:"))
+        range_layout.addWidget(self.start_chapter_spin)
 
-        # End chapter SpinBox
-        self.end_chapter_spin = QSpinBox()
-        self.end_chapter_spin.setMinimum(1)
-        self.end_chapter_spin.setMaximum(9999)
-        range_layout.addRow("Capítulo Fin:", self.end_chapter_spin)
+        # End chapter input
+        self.end_chapter_spin = QLineEdit()
+        range_layout.addWidget(QLabel("Capítulo Fin:"))
+        range_layout.addWidget(self.end_chapter_spin)
 
         range_group.setLayout(range_layout)
         main_layout.addWidget(range_group)
@@ -100,6 +96,7 @@ class TranslatePanel(QWidget):
 
         # Translate button
         self.translate_button = QPushButton("Traducir")
+        self.translate_button.setEnabled(True)
 
         # Stop button
         self.stop_button = QPushButton("Detener")
@@ -181,11 +178,8 @@ class TranslatePanel(QWidget):
     def load_saved_terms(self):
         """Carga los términos guardados cuando se selecciona un directorio"""
         if self.main_window.current_directory:
-            # Inicializa el translation_manager con el directorio actual si no está inicializado
             if not self.translation_manager.working_directory:
                 self.translation_manager.initialize(self.main_window.current_directory)
-
-            # Obtiene los términos guardados
             saved_terms = self.translation_manager.get_custom_terms()
             if saved_terms:
                 self.terms_input.setPlainText(saved_terms)
@@ -292,6 +286,7 @@ class TranslatePanel(QWidget):
         """Maneja la finalización de todas las traducciones"""
         self.translate_button.setEnabled(True)
         self.stop_button.setEnabled(False)
+        self.main_window.statusBar().showMessage("Traducción completada", 5000)
 
     def handle_error(self, error_message):
         """Maneja los errores durante la traducción"""
