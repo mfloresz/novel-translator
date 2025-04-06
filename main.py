@@ -146,6 +146,8 @@ class NovelManagerApp(QMainWindow):
             # Configurar el directorio en el convertidor EPUB
             self.epub_converter.set_directory(directory)
             self.load_chapters()
+            # Cargar los términos personalizados guardados
+            self.translate_panel.load_saved_terms()
 
     def load_chapters(self):
         if not self.current_directory:

@@ -31,14 +31,78 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 ### Limpieza de Archivos
 ![Limpieza](assets/clean.webp)
 
-- Múltiples modos de limpieza:
-  - Eliminar contenido después de texto específico
-  - Eliminar duplicados
-  - Eliminar líneas específicas
-  - Eliminar líneas en blanco múltiples
-  - Buscar y reemplazar texto
-- Vista previa de cambios
-- Procesamiento por lotes
+#### Modos de Limpieza
+
+1. **Eliminar contenido después de texto específico**
+   - Elimina todo el contenido del archivo a partir de un texto indicado
+   - Útil para:
+     - Remover anuncios o contenido promocional al final de capítulos
+     - Eliminar notas de autor no deseadas
+     - Quitar enlaces o referencias
+   - Requiere:
+     - Texto exacto desde donde comenzar la eliminación
+
+2. **Eliminar duplicados**
+   - Identifica y elimina secciones duplicadas de texto
+   - Especialmente útil para:
+     - Limpiar capítulos con contenido repetido
+     - Eliminar resúmenes duplicados
+     - Remover disclaimers repetitivos
+   - Requiere:
+     - Texto que marca el inicio de la sección duplicada
+
+3. **Eliminar línea específica**
+   - Elimina líneas que comienzan con un texto determinado
+   - Ideal para:
+     - Remover líneas de formato específico
+     - Eliminar marcadores o etiquetas
+     - Limpiar líneas de metadata
+   - Requiere:
+     - Texto inicial de las líneas a eliminar
+
+4. **Eliminar líneas en blanco múltiples**
+   - Reduce múltiples líneas en blanco consecutivas a una sola
+   - Utilizado para:
+     - Mejorar el formato del texto
+     - Normalizar el espaciado entre párrafos
+     - Reducir el tamaño del archivo
+   - No requiere parámetros adicionales
+
+5. **Buscar y reemplazar texto**
+   - Reemplaza todas las ocurrencias de un texto por otro
+   - Aplicaciones:
+     - Corregir errores tipográficos comunes
+     - Unificar términos o nombres
+     - Adaptar formatos de texto
+   - Requiere:
+     - Texto a buscar
+     - Texto de reemplazo
+
+#### Control de Rango
+- Procesamiento selectivo por rango de capítulos
+- Opciones:
+  - Todos los capítulos
+  - Rango específico (desde - hasta)
+
+#### Características Adicionales
+- Vista previa de cambios antes de aplicar
+- Procesamiento por lotes de múltiples archivos
+- Respaldo automático de archivos originales
+- Sistema de recuperación en caso de errores
+- Registro de operaciones realizadas
+
+#### Requisitos del Sistema
+- Permisos de escritura en el directorio
+- Archivos en formato .txt
+- Codificación UTF-8
+
+#### Recomendaciones de Uso
+1. Realizar respaldo de archivos antes de procesar
+2. Verificar el texto de búsqueda/reemplazo
+3. Usar rangos pequeños para pruebas iniciales
+4. Revisar los archivos procesados
+5. Mantener registro de cambios realizados
+```
 
 ### Creación de EPUB
 ![epub](assets/ebook.webp)

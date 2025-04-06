@@ -54,7 +54,8 @@ class TranslationManager(QObject):
                        source_lang: str,
                        target_lang: str,
                        api_key: str,
-                       status_callback: Optional[Callable[[str, str], None]] = None) -> None:
+                       status_callback: Optional[Callable[[str, str], None]] = None,
+                       custom_terms: str = "") -> None:
         """
         Traduce una lista de archivos.
 
@@ -64,10 +65,15 @@ class TranslationManager(QObject):
             target_lang (str): Idioma de destino
             api_key (str): API key para el servicio de traducción
             status_callback (Callable): Función para actualizar el estado en la UI
+            custom_terms (str): Términos personalizados para la traducción
         """
         if not self.working_directory or not self.db:
             self.error_occurred.emit("No se ha inicializado el directorio de trabajo")
             return
+
+        # Guardar términos personalizados en la base de datos
+        if custom_terms.strip():
+            self.db.save_custom_terms(custom_terms)
 
         total_files = len(files_to_translate)
         successful_translations = 0
@@ -89,7 +95,8 @@ class TranslationManager(QObject):
                 filename,
                 source_lang,
                 target_lang,
-                api_key
+                api_key,
+                custom_terms
             )
 
             if success:
@@ -119,7 +126,8 @@ class TranslationManager(QObject):
                              filename: str,
                              source_lang: str,
                              target_lang: str,
-                             api_key: str) -> bool:
+                             api_key: str,
+                             custom_terms: str) -> bool:
         """
         Traduce un único archivo.
 
@@ -128,6 +136,7 @@ class TranslationManager(QObject):
             source_lang (str): Idioma de origen
             target_lang (str): Idioma de destino
             api_key (str): API key para el servicio de traducción
+            custom_terms (str): Términos personalizados para la traducción
 
         Returns:
             bool: True si la traducción fue exitosa, False en caso contrario
@@ -147,7 +156,8 @@ class TranslationManager(QObject):
                 target_lang,
                 api_key,
                 self.current_provider,
-                self.current_model
+                self.current_model,
+                custom_terms
             )
 
             if not translated_text:
@@ -185,3 +195,14 @@ class TranslationManager(QObject):
             Dict[str, str]: Diccionario de idiomas soportados
         """
         return self.translator.lang_codes
+
+    def get_custom_terms(self) -> str:
+        """
+        Recupera los términos personalizados guardados para el directorio actual.
+
+        Returns:
+            str: Términos personalizados o cadena vacía si no hay
+        """
+        if self.db:
+            return self.db.get_custom_terms()
+        return ""
