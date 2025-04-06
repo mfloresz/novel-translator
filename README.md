@@ -2,56 +2,54 @@
 
 Una aplicación de escritorio para gestionar, procesar y traducir novelas y documentos de texto, con funcionalidades específicas para el manejo de capítulos y creación de ebooks.
 
-## Características Principales
+## Características
 
-### 1. Gestión de Archivos
-- Interfaz gráfica intuitiva para navegación de archivos
-- Visualización organizada de capítulos
-- Vista previa y acceso rápido a archivos
-- Soporte para múltiples formatos de texto
+### Gestión de Archivos
+- Interfaz gráfica intuitiva para navegación y organización de archivos
+- Vista previa y acceso rápido a documentos
+- Soporte para archivos de texto (.txt)
+- Sistema de seguimiento del estado de los archivos
 
-### 2. Traducción Automática
+### Traducción Automática
+![Traducción](assets/translate.webp)
 
-![Traducción](../assets/translate.webp)
-
-- Integración con API de Google Gemini
+- Integración con APIs de traducción:
+  - Google Gemini
+  - Together AI
 - Soporte para múltiples idiomas:
   - Español
   - Inglés
   - Francés
   - Alemán
   - Italiano
-- Control de rango de capítulos
-- Seguimiento del estado de traducción
-- Base de datos para registro de traducciones
-- Pausas automáticas entre traducciones
+- Funciones avanzadas:
+  - Control de rango de capítulos
+  - Sistema de pausas automáticas
+  - Base de datos para registro de traducciones
+  - Gestión de errores y recuperación
 
-### 3. Limpieza de Archivos
-
-![Limpieza](../assets/clean.webp)
+### Limpieza de Archivos
+![Limpieza](assets/clean.webp)
 
 - Múltiples modos de limpieza:
   - Eliminar contenido después de texto específico
   - Eliminar duplicados
   - Eliminar líneas específicas
   - Eliminar líneas en blanco múltiples
-- Procesamiento por lotes
+  - Buscar y reemplazar texto
 - Vista previa de cambios
+- Procesamiento por lotes
 
-### 4. Creación de EPUB
+### Creación de EPUB
+![epub](assets/ebook.webp)
 
-![epub](../assets/ebook.webp)
-
-- Conversión de archivos de texto a EPUB
-- Personalización de metadatos:
-  - Título
-  - Autor
-  - Portada
-- Estilización automática del contenido
+- Conversión de archivos de texto a formato EPUB
+- Personalización de metadatos
 - Soporte para imágenes de portada
 - Numeración automática de capítulos
+- Estilos CSS predefinidos
 
-## Requisitos del Sistema
+## Requisitos
 
 ### Dependencias
 ```bash
@@ -61,7 +59,7 @@ requests
 sqlite3
 ```
 
-### Sistemas Operativos Soportados
+### Sistemas Operativos
 - Windows
 - Linux (KDE, GNOME)
 - macOS
@@ -70,11 +68,11 @@ sqlite3
 
 1. Clonar el repositorio:
 ```bash
-git clone [URL-del-repositorio]
+git clone https://github.com/usuario/novel-manager.git
 cd novel-manager
 ```
 
-2. Crear y activar entorno virtual (opcional pero recomendado):
+2. Crear entorno virtual:
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
@@ -96,28 +94,26 @@ python main.py
 ### Flujo de Trabajo Básico
 
 1. **Selección de Directorio**
-   - Clic en "Navegar" para seleccionar el directorio de trabajo
+   - Usar el botón "Navegar" para seleccionar la carpeta de trabajo
    - Los archivos .txt se cargarán automáticamente
 
 2. **Limpieza de Archivos**
-   - Seleccionar la pestaña "Limpiar"
+   - Seleccionar pestaña "Limpiar"
    - Elegir modo de limpieza
    - Especificar rango de capítulos (opcional)
-   - Clic en "Limpiar"
+   - Confirmar operación
 
 3. **Traducción**
-   - Seleccionar la pestaña "Traducir"
-   - Ingresar API key de Google
-   - Seleccionar idiomas de origen y destino
-   - Especificar rango de capítulos
-   - Clic en "Traducir"
+   - Seleccionar pestaña "Traducir"
+   - Configurar API key y proveedor
+   - Seleccionar idiomas de origen/destino
+   - Iniciar traducción
 
 4. **Creación de EPUB**
-   - Seleccionar la pestaña "Ebook"
+   - Seleccionar pestaña "Ebook"
    - Completar metadatos
    - Seleccionar imagen de portada (opcional)
-   - Especificar rango de capítulos (opcional)
-   - Clic en "Crear EPUB"
+   - Crear EPUB
 
 ## Estructura del Proyecto
 
