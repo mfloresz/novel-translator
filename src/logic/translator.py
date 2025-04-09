@@ -188,7 +188,7 @@ class TranslatorLogic:
                     time.sleep(2)
 
             # Unir todos los segmentos traducidos
-            return '\n\n'.join(s.strip() for s in translated_segments)
+            return '\n\n'.join(translated_segments)
 
         except Exception as e:
             print(f"Error en la traducción: {str(e)}")
@@ -208,6 +208,11 @@ class TranslatorLogic:
                 )
             elif provider == 'together':
                 return self._translate_together(
+                    text, source_lang, target_lang, api_key, model_config,
+                    custom_terms
+                )
+            elif provider == 'deepinfra':
+                return self._translate_deepinfra(
                     text, source_lang, target_lang, api_key, model_config,
                     custom_terms
                 )
@@ -335,6 +340,64 @@ class TranslatorLogic:
             print(f"Error en Together AI: {str(e)}")
             return None
 
+    def _translate_deepinfra(self, text: str, source_lang: str, target_lang: str,
+                           api_key: str, model_config: Dict, custom_terms: str = "") -> Optional[str]:
+        """Traduce usando la API de DeepInfra (formato OpenAI compatible)"""
+        try:
+            url = self.models_config['deepinfra']['base_url']
+            headers = {
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            }
+
+            # Construir el prompt con el template base
+            prompt = self.prompt_template.replace(
+                "{source_lang}", self.lang_codes[source_lang]
+            ).replace(
+                "{target_lang}", self.lang_codes[target_lang]
+            )
+
+            # Si hay términos personalizados, insertarlos en el lugar correcto
+            if custom_terms:
+                ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
+                final_instructions = "\nFinal Instructions:"
+
+                pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
+                post_terms = prompt[prompt.find(final_instructions):]
+
+                terms = custom_terms.strip().split('\n')
+                terms = [
+                    line if line.strip().startswith('- ') else f'- {line.strip()}'
+                    for line in terms
+                    if line.strip()
+                ]
+                formatted_terms = '\n'.join(terms)
+
+                prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
+
+            # Agregar el texto a traducir al final del prompt
+            prompt += f"\n\n{text}"
+
+            data = {
+                "model": model_config['model_id'],
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.6,
+                "top_p": 0.95,
+                "max_tokens": 100000,
+                "stream": False  # Podemos dejarlo como False para traducciones
+            }
+
+            response = requests.post(url, headers=headers, json=data)
+            response.raise_for_status()
+
+            return self._process_deepinfra_response(response.json())
+
+        except Exception as e:
+            print(f"Error en DeepInfra: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                print("Respuesta detallada:", e.response.text)
+            return None
+
     def _process_gemini_response(self, response: Dict) -> Optional[str]:
         """
         Procesa la respuesta de la API de Gemini y extrae el texto traducido.
@@ -374,6 +437,24 @@ class TranslatorLogic:
 
         except Exception as e:
             print(f"Error procesando respuesta de Together: {str(e)}")
+            return None
+
+    def _process_deepinfra_response(self, response: Dict) -> Optional[str]:
+        """
+        Procesa la respuesta de la API de DeepInfra y extrae el texto traducido.
+        """
+        try:
+            if 'choices' not in response or not response['choices']:
+                return None
+
+            message = response['choices'][0]['message']
+            if 'content' not in message:
+                return None
+
+            return self._clean_translation(message['content'])
+
+        except Exception as e:
+            print(f"Error procesando respuesta de DeepInfra: {str(e)}")
             return None
 
     def _clean_translation(self, text: str) -> str:

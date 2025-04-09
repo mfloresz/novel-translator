@@ -35,7 +35,7 @@
   },
   "deepinfra": {
     "name": "DeepInfra",
-    "base_url": "https://api.deepinfra.com/v1/inference/",
+    "base_url": "https://api.deepinfra.com/v1/openai/chat/completions",
     "models": {
       "llama-sao10k": {
         "name": "Sao10K L3.3-70B-Euryale",
