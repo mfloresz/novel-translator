@@ -2,3 +2,4 @@
 __pycache__
 chapters
 __init__.py
+.env

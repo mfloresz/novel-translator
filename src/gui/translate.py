@@ -1,12 +1,14 @@
 import requests
 import time
 import json
+import os
 from pathlib import Path
 from typing import Optional, Dict
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                            QPushButton, QLineEdit, QGroupBox, QComboBox,
                            QSpinBox, QFormLayout, QPlainTextEdit, QRadioButton)
 from PyQt6.QtCore import Qt
+from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
 from src.logic.functions import show_confirmation_dialog
 
@@ -15,6 +17,12 @@ class TranslatePanel(QWidget):
         super().__init__()
         self.main_window = main_window
         self.translation_manager = TranslationManager()
+
+        # Cargar variables de entorno desde .env en la carpeta padre
+        env_path = Path(__file__).parent.parent.parent / '.env'
+        if env_path.exists():
+            load_dotenv(dotenv_path=env_path)
+
         self.init_ui()
         self.connect_signals()
 
@@ -152,13 +160,34 @@ class TranslatePanel(QWidget):
             self.provider_combo.clear()
             self.provider_combo.addItems([config['name'] for config in self.models_config.values()])
 
-            # Conectar señal de cambio de proveedor
-            self.provider_combo.currentTextChanged.connect(self.update_models)
+            # Conectar señal de cambio de proveedor para actualizar API key
+            self.provider_combo.currentTextChanged.connect(self.update_provider_api_key)
 
             # Cargar modelos iniciales
             self.update_models()
+
+            # Establecer la API key inicial si existe
+            self.update_provider_api_key()
+
         except Exception as e:
             print(f"Error cargando modelos: {e}")
+
+    def update_provider_api_key(self):
+        """Actualiza la API key según el proveedor seleccionado"""
+        try:
+            provider_key = next(
+                (k for k, v in self.models_config.items()
+                 if v['name'] == self.provider_combo.currentText()),
+                None
+            )
+
+            if provider_key:
+                # Construir el nombre de la variable de entorno (ej: GEMINI_API_KEY)
+                env_var_name = f"{provider_key.upper()}_API_KEY"
+                api_key = os.getenv(env_var_name, "")
+                self.api_input.setText(api_key)
+        except Exception as e:
+            print(f"Error actualizando API key: {e}")
 
     def update_models(self):
         """Actualiza la lista de modelos según el proveedor seleccionado"""
