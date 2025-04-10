@@ -5,7 +5,7 @@ from typing import Optional, Dict, List
 from pathlib import Path
 
 class TranslatorLogic:
-    def __init__(self):
+    def __init__(self, segment_size=None):
         """Inicializa el traductor con los idiomas soportados"""
         self.lang_codes = {
             'Español (MX)': 'Spanish (es_MX)',
@@ -22,7 +22,7 @@ class TranslatorLogic:
             self.models_config = json.load(f)
 
         self.prompt_template = self._load_prompt_template()
-        self.segment_size = 5000  # Tamaño objetivo para cada segmento
+        self.segment_size = segment_size  # Tamaño objetivo para cada segmento
 
     def _load_prompt_template(self) -> str:
         """
@@ -50,6 +50,8 @@ class TranslatorLogic:
         Returns:
             List[str]: Lista de segmentos de texto
         """
+        if self.segment_size is None:  # ¡Importante!
+            return [text]
         segments = []
         current_segment = []
         current_length = 0

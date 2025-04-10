@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional, Dict
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                            QPushButton, QLineEdit, QGroupBox, QComboBox,
-                           QSpinBox, QFormLayout, QPlainTextEdit)
+                           QSpinBox, QFormLayout, QPlainTextEdit, QRadioButton)
 from PyQt6.QtCore import Qt
 from src.logic.translation_manager import TranslationManager
 from src.logic.functions import show_confirmation_dialog
@@ -41,18 +41,36 @@ class TranslatePanel(QWidget):
 
         form_layout.addRow(provider_layout)
 
-        # Language selection
-        languages = list(self.translation_manager.get_supported_languages().keys())
-
-        # Source Language ComboBox
+        # Language selection - now in one line
+        lang_layout = QHBoxLayout()
         self.source_lang_combo = QComboBox()
-        self.source_lang_combo.addItems(languages)
-        form_layout.addRow("Idioma Origen:", self.source_lang_combo)
-
-        # Target Language ComboBox
         self.target_lang_combo = QComboBox()
+
+        # Populate language combos
+        languages = list(self.translation_manager.get_supported_languages().keys())
+        self.source_lang_combo.addItems(languages)
         self.target_lang_combo.addItems(languages)
-        form_layout.addRow("Idioma Destino:", self.target_lang_combo)
+
+        lang_layout.addWidget(QLabel("Idioma Origen:"))
+        lang_layout.addWidget(self.source_lang_combo)
+        lang_layout.addWidget(QLabel("Idioma Destino:"))
+        lang_layout.addWidget(self.target_lang_combo)
+
+        form_layout.addRow(lang_layout)
+
+        # Text segmentation options
+        segmentation_layout = QHBoxLayout()
+        self.segment_checkbox = QRadioButton("Segmentar texto (caracteres)")
+        self.segment_size_input = QLineEdit()
+        self.segment_size_input.setPlaceholderText("Caracteres por segmento")
+        self.segment_size_input.setEnabled(False)
+        self.segment_size_input.setText("5000")  # Valor por defecto
+
+        segmentation_layout.addWidget(self.segment_checkbox)
+        segmentation_layout.addWidget(self.segment_size_input)
+        segmentation_layout.addStretch()
+
+        form_layout.addRow(segmentation_layout)
 
         # Custom Terms section
         terms_group = QGroupBox("Términos Personalizados")
@@ -119,6 +137,9 @@ class TranslatePanel(QWidget):
         # Conectar cambios en los inputs de rango
         self.start_chapter_spin.textChanged.connect(self.adjust_chapter_range)
         self.end_chapter_spin.textChanged.connect(self.adjust_chapter_range)
+
+        # Conectar el checkbox de segmentación
+        self.segment_checkbox.toggled.connect(self.segment_size_input.setEnabled)
 
     def load_translation_models(self):
         """Carga los proveedores y modelos desde el JSON"""
@@ -233,6 +254,17 @@ class TranslatePanel(QWidget):
         # Obtener términos personalizados
         custom_terms = self.terms_input.toPlainText().strip()
 
+        # Obtener configuración de segmentación
+        segment_size = None  # None = no segmentar
+        if self.segment_checkbox.isChecked():
+            try:
+                segment_size = int(self.segment_size_input.text() or 5000)  # Usa 5000 si está vacío
+                if segment_size <= 0:
+                    segment_size = 5000  # Valor por defecto si es negativo
+            except ValueError:
+                self.main_window.statusBar().showMessage("Error: El tamaño debe ser un número positivo")
+                return
+
         # Confirmar la operación
         if not show_confirmation_dialog(
             "Esta operación modificará los archivos originales.\n"
@@ -272,7 +304,8 @@ class TranslatePanel(QWidget):
             target_lang,
             api_key,
             self.update_file_status,
-            custom_terms
+            custom_terms,
+            segment_size
         )
 
     def stop_translation(self):
