@@ -16,6 +16,7 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 - Integración con APIs de traducción:
   - Google Gemini
   - Together AI
+  - DeepInfra
 - Soporte para múltiples idiomas:
   - Español
   - Inglés
