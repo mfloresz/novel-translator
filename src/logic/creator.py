@@ -139,8 +139,12 @@ class EpubConverterLogic(QObject):
             # Determinar el tipo de imagen
             image_type = "image/jpeg"
 
-            # Configurar la portada usando solo set_cover
-            book.set_cover("images/cover.jpg", cover_image)
+            # Crear el item de la portada
+            cover = epub.EpubImage()
+            cover.file_name = 'images/cover.jpg'
+            cover.media_type = image_type
+            cover.content = cover_image
+            book.add_item(cover)
 
             # Crear la página de portada
             cover_page = epub.EpubHtml(
@@ -162,6 +166,7 @@ class EpubConverterLogic(QObject):
                 </html>
             '''
             book.add_item(cover_page)
+            book.set_cover("images/cover.jpg", cover_image)
 
         except Exception as e:
             show_error_dialog(f"Error al procesar la portada: {str(e)}")
@@ -188,20 +193,35 @@ class EpubConverterLogic(QObject):
                 lang='es'
             )
 
-            # Formatear el contenido
-            chapter.content = f'''
+            # Crear partes del HTML por separado para evitar problemas con backslashes en f-strings
+            html_start = '''
                 <!DOCTYPE html>
                 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
                 <head>
-                    <title>{chapter_title}</title>
+                    <title>'''
+
+            html_middle1 = '''</title>
                     <link rel="stylesheet" type="text/css" href="style/default.css"/>
                 </head>
                 <body>
-                    <h1>{chapter_title}</h1>
-                    {"".join(f'<p>{p.strip()}</p>' for p in chapter_content.split('\n\n') if p.strip())}
+                    <h1>'''
+
+            html_middle2 = '''</h1>
+                    '''
+
+            html_end = '''
                 </body>
                 </html>
             '''
+
+            # Procesar párrafos
+            paragraphs = ""
+            for p in chapter_content.split('\n\n'):
+                if p.strip():
+                    paragraphs += f'<p>{p.strip()}</p>'
+
+            # Unir todo el contenido
+            chapter.content = html_start + chapter_title + html_middle1 + chapter_title + html_middle2 + paragraphs + html_end
 
             book.add_item(chapter)
             return chapter
@@ -214,7 +234,7 @@ class EpubConverterLogic(QObject):
         """Limpia y formatea el título del capítulo"""
         # Remover marcadores Markdown comunes
         title = title.strip()
-        for marker in ['##', '#', '**']:
+        for marker in ['##', '**']:
             if title.startswith(marker):
                 title = title[len(marker):].strip()
             if title.endswith(marker):
