@@ -32,5 +32,15 @@
         "max_tokens": 100000
       }
     }
+  },
+  "deepinfra": {
+    "name": "DeepInfra",
+    "base_url": "https://api.deepinfra.com/v1/openai/chat/completions",
+    "models": {
+      "llama-sao10k": {
+        "name": "Sao10K L3.3-70B-Euryale",
+        "model_id": "Sao10K/L3.3-70B-Euryale-v2.3"
+      }
+    }
   }
 }

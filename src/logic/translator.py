@@ -1,11 +1,11 @@
 import requests
 import time
 import json
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from pathlib import Path
 
 class TranslatorLogic:
-    def __init__(self):
+    def __init__(self, segment_size=None):
         """Inicializa el traductor con los idiomas soportados"""
         self.lang_codes = {
             'Español (MX)': 'Spanish (es_MX)',
@@ -22,6 +22,7 @@ class TranslatorLogic:
             self.models_config = json.load(f)
 
         self.prompt_template = self._load_prompt_template()
+        self.segment_size = segment_size  # Tamaño objetivo para cada segmento
 
     def _load_prompt_template(self) -> str:
         """
@@ -37,6 +38,107 @@ class TranslatorLogic:
         except Exception as e:
             print(f"Error cargando el prompt base: {str(e)}")
             return ""
+
+    def _segment_text(self, text: str) -> List[str]:
+        """
+        Segmenta el texto en partes manejables respetando oraciones y párrafos.
+        Asegura que los segmentos terminen en una línea en blanco después de un marcador de fin.
+
+        Args:
+            text (str): Texto completo a segmentar
+
+        Returns:
+            List[str]: Lista de segmentos de texto
+        """
+        if self.segment_size is None:  # ¡Importante!
+            return [text]
+        segments = []
+        current_segment = []
+        current_length = 0
+
+        # Normalizar saltos de línea y dividir en párrafos
+        text = text.replace('\r\n', '\n')
+        paragraphs = text.split('\n\n')
+
+        # Definir marcadores de fin de oración comunes en novelas
+        sentence_endings = [
+            '. ', '? ', '! ',           # Puntuación básica
+            '] ', '] \n', ']\n',        # Diálogos con corchetes
+            '..." ', '..." \n',         # Diálogos con puntos suspensivos
+            '…" ', '…" \n',             # Puntos suspensivos (Unicode)
+            '" ', '" \n',               # Diálogos con comillas
+            '."', '?"', '!"',           # Puntuación dentro de comillas
+            '." ', '?" ', '!" '         # Puntuación dentro de comillas con espacio
+        ]
+
+        current_text = '\n\n'.join(paragraphs)
+        current_position = 0
+
+        while current_position < len(current_text):
+            # Buscar el próximo final de segmento válido
+            next_end = -1
+            valid_end = False
+            search_position = current_position
+
+            while not valid_end and search_position < len(current_text):
+                # Encontrar el próximo final de oración
+                next_candidate = float('inf')
+                for ending in sentence_endings:
+                    pos = current_text.find(ending, search_position)
+                    if pos != -1 and pos < next_candidate:
+                        next_candidate = pos
+                        next_end = pos + len(ending)
+
+                if next_candidate == float('inf'):
+                    # No se encontraron más finales, tomar el resto del texto
+                    break
+
+                # Verificar si después del final hay una línea en blanco
+                end_pos = next_end
+                while end_pos < len(current_text) and current_text[end_pos].isspace():
+                    if end_pos + 1 < len(current_text) and current_text[end_pos:end_pos+2] == '\n\n':
+                        valid_end = True
+                        break
+                    end_pos += 1
+
+                if not valid_end:
+                    search_position = next_end
+
+                # Verificar el tamaño del segmento potencial
+                potential_segment = current_text[current_position:end_pos].strip()
+                if len(potential_segment) >= self.segment_size * 1.5:
+                    # Si el segmento es demasiado grande, forzar el corte
+                    valid_end = True
+
+            if next_end == -1 or not valid_end:
+                # No se encontraron más finales válidos, añadir el resto como último segmento
+                remaining_text = current_text[current_position:].strip()
+                if remaining_text:
+                    segments.append(remaining_text)
+                break
+
+            # Encontrar el final real del segmento (incluyendo la línea en blanco)
+            segment_end = next_end
+            while segment_end < len(current_text):
+                if current_text[segment_end:segment_end+2] == '\n\n':
+                    segment_end += 2
+                    break
+                segment_end += 1
+
+            # Extraer y añadir el segmento
+            segment_text = current_text[current_position:segment_end].strip()
+            if segment_text:
+                segments.append(segment_text)
+
+            current_position = segment_end
+
+        # Asegurar que los segmentos terminen con doble salto de línea
+        segments = [
+            seg if seg.endswith('\n\n') else seg + '\n\n'
+            for seg in segments[:-1]
+        ] + [segments[-1]] if segments else []
+
+        return segments
 
     def translate_text(self, text: str, source_lang: str, target_lang: str,
                       api_key: str, provider: str, model: str,
@@ -65,15 +167,61 @@ class TranslatorLogic:
             if not model_config:
                 raise ValueError(f"Modelo no soportado: {model}")
 
-            if provider == 'gemini':
-                return self._translate_gemini(text, source_lang, target_lang, api_key, model_config, custom_terms)
-            elif provider == 'together':
-                return self._translate_together(text, source_lang, target_lang, api_key, model_config, custom_terms)
-            else:
-                raise ValueError(f"Proveedor no implementado: {provider}")
+            # Segmentar el texto
+            segments = self._segment_text(text)
+            translated_segments = []
+
+            # Traducir cada segmento
+            for i, segment in enumerate(segments, 1):
+                print(f"Traduciendo segmento {i} de {len(segments)}")
+
+                translated_segment = self._translate_segment(
+                    segment, source_lang, target_lang, api_key,
+                    provider, model_config, custom_terms
+                )
+
+                if translated_segment is None:
+                    raise ValueError(f"Error traduciendo segmento {i}")
+
+                translated_segments.append(translated_segment)
+
+                # Esperar entre segmentos para evitar límites de rate
+                if i < len(segments):
+                    time.sleep(2)
+
+            # Unir todos los segmentos traducidos
+            return '\n\n'.join(translated_segments)
 
         except Exception as e:
             print(f"Error en la traducción: {str(e)}")
+            return None
+
+    def _translate_segment(self, text: str, source_lang: str, target_lang: str,
+                         api_key: str, provider: str, model_config: Dict,
+                         custom_terms: str = "") -> Optional[str]:
+        """
+        Traduce un segmento individual de texto.
+        """
+        try:
+            if provider == 'gemini':
+                return self._translate_gemini(
+                    text, source_lang, target_lang, api_key, model_config,
+                    custom_terms
+                )
+            elif provider == 'together':
+                return self._translate_together(
+                    text, source_lang, target_lang, api_key, model_config,
+                    custom_terms
+                )
+            elif provider == 'deepinfra':
+                return self._translate_deepinfra(
+                    text, source_lang, target_lang, api_key, model_config,
+                    custom_terms
+                )
+            else:
+                raise ValueError(f"Proveedor no implementado: {provider}")
+        except Exception as e:
+            print(f"Error traduciendo segmento: {str(e)}")
             return None
 
     def _translate_gemini(self, text: str, source_lang: str, target_lang: str,
@@ -89,9 +237,8 @@ class TranslatorLogic:
                 "{target_lang}", self.lang_codes[target_lang]
             )
 
-            # Añadir términos personalizados si existen (método más seguro)
+            # Añadir términos personalizados si existen
             if custom_terms:
-                # Buscar la sección donde insertar los términos
                 sections = prompt.split("\n\n")
                 terms_section_idx = -1
 
@@ -101,23 +248,17 @@ class TranslatorLogic:
                         break
 
                 if terms_section_idx >= 0:
-                    # Formatear términos
                     formatted_terms = "\n".join([
                         f"- {line.strip()}" if not line.strip().startswith('-') else line.strip()
                         for line in custom_terms.strip().split('\n')
                         if line.strip()
                     ])
 
-                    # Insertar términos al final de la sección correspondiente
                     sections[terms_section_idx] += "\n" + formatted_terms
                     prompt = "\n\n".join(sections)
 
             # Añadir el texto a traducir
             prompt += f"\n\n{text}"
-
-            # Depuración
-            print(f"URL: {url}")
-            print(f"Longitud del prompt: {len(prompt)} caracteres")
 
             headers = {'Content-Type': 'application/json'}
             data = {
@@ -167,7 +308,6 @@ class TranslatorLogic:
                 pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
                 post_terms = prompt[prompt.find(final_instructions):]
 
-                # Asegurar que cada línea comience con "- "
                 terms = custom_terms.strip().split('\n')
                 terms = [
                     line if line.strip().startswith('- ') else f'- {line.strip()}'
@@ -202,15 +342,67 @@ class TranslatorLogic:
             print(f"Error en Together AI: {str(e)}")
             return None
 
+    def _translate_deepinfra(self, text: str, source_lang: str, target_lang: str,
+                           api_key: str, model_config: Dict, custom_terms: str = "") -> Optional[str]:
+        """Traduce usando la API de DeepInfra (formato OpenAI compatible)"""
+        try:
+            url = self.models_config['deepinfra']['base_url']
+            headers = {
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            }
+
+            # Construir el prompt con el template base
+            prompt = self.prompt_template.replace(
+                "{source_lang}", self.lang_codes[source_lang]
+            ).replace(
+                "{target_lang}", self.lang_codes[target_lang]
+            )
+
+            # Si hay términos personalizados, insertarlos en el lugar correcto
+            if custom_terms:
+                ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
+                final_instructions = "\nFinal Instructions:"
+
+                pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
+                post_terms = prompt[prompt.find(final_instructions):]
+
+                terms = custom_terms.strip().split('\n')
+                terms = [
+                    line if line.strip().startswith('- ') else f'- {line.strip()}'
+                    for line in terms
+                    if line.strip()
+                ]
+                formatted_terms = '\n'.join(terms)
+
+                prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
+
+            # Agregar el texto a traducir al final del prompt
+            prompt += f"\n\n{text}"
+
+            data = {
+                "model": model_config['model_id'],
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.6,
+                "top_p": 0.95,
+                "max_tokens": 100000,
+                "stream": False  # Podemos dejarlo como False para traducciones
+            }
+
+            response = requests.post(url, headers=headers, json=data)
+            response.raise_for_status()
+
+            return self._process_deepinfra_response(response.json())
+
+        except Exception as e:
+            print(f"Error en DeepInfra: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                print("Respuesta detallada:", e.response.text)
+            return None
+
     def _process_gemini_response(self, response: Dict) -> Optional[str]:
         """
         Procesa la respuesta de la API de Gemini y extrae el texto traducido.
-
-        Args:
-            response (Dict): Respuesta de la API
-
-        Returns:
-            Optional[str]: Texto traducido o None si hay error
         """
         try:
             if 'candidates' not in response or not response['candidates']:
@@ -234,12 +426,6 @@ class TranslatorLogic:
     def _process_together_response(self, response: Dict) -> Optional[str]:
         """
         Procesa la respuesta de la API de Together y extrae el texto traducido.
-
-        Args:
-            response (Dict): Respuesta de la API
-
-        Returns:
-            Optional[str]: Texto traducido o None si hay error
         """
         try:
             if 'choices' not in response or not response['choices']:
@@ -255,15 +441,27 @@ class TranslatorLogic:
             print(f"Error procesando respuesta de Together: {str(e)}")
             return None
 
+    def _process_deepinfra_response(self, response: Dict) -> Optional[str]:
+        """
+        Procesa la respuesta de la API de DeepInfra y extrae el texto traducido.
+        """
+        try:
+            if 'choices' not in response or not response['choices']:
+                return None
+
+            message = response['choices'][0]['message']
+            if 'content' not in message:
+                return None
+
+            return self._clean_translation(message['content'])
+
+        except Exception as e:
+            print(f"Error procesando respuesta de DeepInfra: {str(e)}")
+            return None
+
     def _clean_translation(self, text: str) -> str:
         """
         Limpia y formatea el texto traducido.
-
-        Args:
-            text (str): Texto a limpiar
-
-        Returns:
-            str: Texto limpio
         """
         lines = text.split('\n')
         actual_translation = []
@@ -283,8 +481,5 @@ class TranslatorLogic:
     def get_supported_languages(self) -> Dict[str, str]:
         """
         Obtiene la lista de idiomas soportados.
-
-        Returns:
-            Dict[str, str]: Diccionario de idiomas soportados
         """
         return self.lang_codes.copy()

@@ -139,12 +139,8 @@ class EpubConverterLogic(QObject):
             # Determinar el tipo de imagen
             image_type = "image/jpeg"
 
-            # Crear el item de la portada
-            cover = epub.EpubImage()
-            cover.file_name = 'images/cover.jpg'
-            cover.media_type = image_type
-            cover.content = cover_image
-            book.add_item(cover)
+            # Configurar la portada usando solo set_cover
+            book.set_cover("images/cover.jpg", cover_image)
 
             # Crear la página de portada
             cover_page = epub.EpubHtml(
@@ -166,7 +162,6 @@ class EpubConverterLogic(QObject):
                 </html>
             '''
             book.add_item(cover_page)
-            book.set_cover("images/cover.jpg", cover_image)
 
         except Exception as e:
             show_error_dialog(f"Error al procesar la portada: {str(e)}")
@@ -234,7 +229,7 @@ class EpubConverterLogic(QObject):
         """Limpia y formatea el título del capítulo"""
         # Remover marcadores Markdown comunes
         title = title.strip()
-        for marker in ['##', '**']:
+        for marker in ['##', '#', '**']:
             if title.startswith(marker):
                 title = title[len(marker):].strip()
             if title.endswith(marker):

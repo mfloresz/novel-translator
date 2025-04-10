@@ -28,6 +28,33 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
   - Base de datos para registro de traducciones
   - Gestión de errores y recuperación
 
+**Pestaña Traducir:** Permite traducir archivos de texto utilizando APIs de traducción.
+
+*   **API Key:** Ingresa la clave de la API del proveedor de traducción que se utilizará.
+
+*   **Proveedor:** Selecciona el proveedor de la API de traducción (ej: Google Gemini, Together AI).
+
+*   **Modelo:** Elige el modelo de traducción específico del proveedor seleccionado.
+
+*   **Idioma Origen:** Selecciona el idioma original del texto a traducir.
+
+*   **Idioma Destino:** Define el idioma al que se traducirá el texto.
+
+*   **Segmentar texto (caracteres):** Divide el texto en segmentos más pequeños para optimizar la traducción, especialmente para archivos grandes.
+
+    *   **Caracteres por segmento:** Especifica la cantidad de caracteres por cada segmento.
+
+*   **Términos Personalizados:** Introduce términos específicos con su traducción correspondiente para garantizar la coherencia y precisión en la traducción.
+
+*   **Rango de Capítulos:** Define el rango de capítulos a traducir.
+
+    *   **Capítulo Inicio:** El primer capítulo a traducir en el rango.
+    *   **Capítulo Fin:** El último capítulo a traducir en el rango.
+
+*   **Traducir:** Inicia el proceso de traducción.
+
+*   **Detener:** Interrumpe el proceso de traducción en curso.
+
 ### Limpieza de Archivos
 ![Limpieza](assets/clean.webp)
 
@@ -47,7 +74,7 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
    - Especialmente útil para:
      - Limpiar capítulos con contenido repetido
      - Eliminar resúmenes duplicados
-     - Remover disclaimers repetitivos
+     - Remover disclaimers repetidos
    - Requiere:
      - Texto que marca el inicio de la sección duplicada
 
@@ -103,6 +130,29 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 4. Revisar los archivos procesados
 5. Mantener registro de cambios realizados
 
+**Pestaña Limpiar:** Permite realizar tareas de limpieza y formateo en archivos de texto.
+
+*   **Texto:** Introduce el texto específico requerido para la tarea de limpieza seleccionada. Este campo puede ser el texto a partir del cual se eliminará el contenido, el texto a buscar para eliminar líneas, o el texto a buscar y reemplazar.
+
+*   **Reemplazar por:**  (Solo para "Buscar y reemplazar") Introduce el texto que sustituirá al texto buscado.
+
+*   **Tarea:**
+
+    *   **Eliminar a partir del texto:** Elimina todo el contenido del archivo desde el texto especificado.
+    *   **Eliminar duplicados:** Elimina secciones duplicadas de texto, buscando el texto especificado como inicio del duplicado.
+    *   **Eliminar línea:** Elimina líneas que comienzan con el texto especificado.
+    *   **Eliminar líneas en blanco múltiples:** Reduce múltiples líneas en blanco consecutivas a una sola.
+    *   **Buscar y reemplazar:** Reemplaza todas las instancias de un texto por otro.
+
+*   **Rango:**
+
+    *   **Todos:** Aplica la tarea de limpieza a todos los archivos en el directorio seleccionado.
+    *   **De - a:** Aplica la tarea solo a un rango específico de archivos.
+
+        *   **De:** El primer archivo a procesar.
+        *   **a:** El último archivo a procesar.
+
+*   **Limpiar:** Inicia el proceso de limpieza de los archivos.
 
 ### Creación de EPUB
 ![epub](assets/ebook.webp)
@@ -112,6 +162,20 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 - Soporte para imágenes de portada
 - Numeración automática de capítulos
 - Estilos CSS predefinidos
+
+**Pestaña Ebook:** Facilita la creación de archivos EPUB a partir de los archivos de texto.
+
+*   **Título:** Introduce el título del libro que se reflejará en el archivo EPUB.
+*   **Autor:** Introduce el nombre del autor del libro.
+*   **Portada:**
+    *   **Seleccionar:** Permite seleccionar una imagen para usar como portada del EPUB.
+    *   **Limpiar:** Remueve la imagen de portada seleccionada, si la hubiera.
+*   **Rango de Capítulos:** Especifica qué capítulos se incluirán en el EPUB.
+    *   **Todos los capítulos:** Incluye todos los archivos de texto en el directorio en el EPUB.
+    *   **Especificar rango:** Permite definir un rango específico de archivos a incluir.
+        *   **Desde:** El primer capítulo a incluir en el EPUB.
+        *   **Hasta:** El último capítulo a incluir en el EPUB.
+*   **Crear EPUB:** Inicia el proceso de creación del archivo EPUB con las configuraciones especificadas.
 
 ## Requisitos
 
