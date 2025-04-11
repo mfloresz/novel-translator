@@ -41,8 +41,8 @@ class TranslatorLogic:
 
     def _segment_text(self, text: str) -> List[str]:
         """
-        Segmenta el texto en partes manejables respetando oraciones y párrafos.
-        Asegura que los segmentos terminen en una línea en blanco después de un marcador de fin.
+        Segmenta el texto en partes manejables basadas en un tamaño objetivo,
+        respetando oraciones y párrafos.
 
         Args:
             text (str): Texto completo a segmentar
@@ -50,17 +50,16 @@ class TranslatorLogic:
         Returns:
             List[str]: Lista de segmentos de texto
         """
-        if self.segment_size is None:  # ¡Importante!
+        if self.segment_size is None:
             return [text]
+
         segments = []
-        current_segment = []
-        current_length = 0
+        current_position = 0
 
-        # Normalizar saltos de línea y dividir en párrafos
+        # Normalizar saltos de línea
         text = text.replace('\r\n', '\n')
-        paragraphs = text.split('\n\n')
 
-        # Definir marcadores de fin de oración comunes en novelas
+        # Definir marcadores de fin de oración
         sentence_endings = [
             '. ', '? ', '! ',           # Puntuación básica
             '] ', '] \n', ']\n',        # Diálogos con corchetes
@@ -71,72 +70,58 @@ class TranslatorLogic:
             '." ', '?" ', '!" '         # Puntuación dentro de comillas con espacio
         ]
 
-        current_text = '\n\n'.join(paragraphs)
-        current_position = 0
+        while current_position < len(text):
+            # 1. Avanzar hasta el tamaño de segmento objetivo
+            target_position = min(current_position + self.segment_size, len(text))
 
-        while current_position < len(current_text):
-            # Buscar el próximo final de segmento válido
-            next_end = -1
-            valid_end = False
-            search_position = current_position
+            # 2. Desde esa posición, buscar el próximo final de oración válido
+            best_end_pos = -1
+            search_position = target_position
 
-            while not valid_end and search_position < len(current_text):
+            # Buscar hacia adelante para encontrar un final de oración válido
+            while search_position < len(text):
                 # Encontrar el próximo final de oración
-                next_candidate = float('inf')
+                next_end = -1
                 for ending in sentence_endings:
-                    pos = current_text.find(ending, search_position)
-                    if pos != -1 and pos < next_candidate:
-                        next_candidate = pos
+                    pos = text.find(ending, search_position)
+                    if pos != -1 and (next_end == -1 or pos < next_end):
                         next_end = pos + len(ending)
 
-                if next_candidate == float('inf'):
+                if next_end == -1:
                     # No se encontraron más finales, tomar el resto del texto
                     break
 
                 # Verificar si después del final hay una línea en blanco
                 end_pos = next_end
-                while end_pos < len(current_text) and current_text[end_pos].isspace():
-                    if end_pos + 1 < len(current_text) and current_text[end_pos:end_pos+2] == '\n\n':
-                        valid_end = True
+                while end_pos < len(text) and text[end_pos].isspace():
+                    if end_pos + 1 < len(text) and text[end_pos:end_pos+2] == '\n\n':
+                        best_end_pos = end_pos + 2  # Incluir la línea en blanco
                         break
                     end_pos += 1
 
-                if not valid_end:
-                    search_position = next_end
+                if best_end_pos != -1:
+                    break  # Encontramos un buen punto de corte
 
-                # Verificar el tamaño del segmento potencial
-                potential_segment = current_text[current_position:end_pos].strip()
-                if len(potential_segment) >= self.segment_size * 1.5:
-                    # Si el segmento es demasiado grande, forzar el corte
-                    valid_end = True
+                # Si no encontramos línea en blanco, seguir buscando
+                search_position = next_end
 
-            if next_end == -1 or not valid_end:
-                # No se encontraron más finales válidos, añadir el resto como último segmento
-                remaining_text = current_text[current_position:].strip()
-                if remaining_text:
-                    segments.append(remaining_text)
-                break
-
-            # Encontrar el final real del segmento (incluyendo la línea en blanco)
-            segment_end = next_end
-            while segment_end < len(current_text):
-                if current_text[segment_end:segment_end+2] == '\n\n':
-                    segment_end += 2
+                # Verificar si hemos buscado demasiado lejos (1.5 veces el tamaño objetivo)
+                if search_position > current_position + (self.segment_size * 1.5):
+                    # Forzar el corte en el último final de oración encontrado
+                    best_end_pos = next_end
                     break
-                segment_end += 1
+
+            # Si no encontramos un buen punto de corte, usar el final del texto
+            if best_end_pos == -1:
+                best_end_pos = len(text)
 
             # Extraer y añadir el segmento
-            segment_text = current_text[current_position:segment_end].strip()
+            segment_text = text[current_position:best_end_pos].strip()
             if segment_text:
                 segments.append(segment_text)
 
-            current_position = segment_end
-
-        # Asegurar que los segmentos terminen con doble salto de línea
-        segments = [
-            seg if seg.endswith('\n\n') else seg + '\n\n'
-            for seg in segments[:-1]
-        ] + [segments[-1]] if segments else []
+            # Avanzar al siguiente segmento (después de la línea en blanco)
+            current_position = best_end_pos
 
         return segments
 
@@ -239,23 +224,21 @@ class TranslatorLogic:
 
             # Añadir términos personalizados si existen
             if custom_terms:
-                sections = prompt.split("\n\n")
-                terms_section_idx = -1
+                ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
+                final_instructions = "\n# Final Instructions:"
 
-                for i, section in enumerate(sections):
-                    if "Use the following predefined translations" in section:
-                        terms_section_idx = i
-                        break
+                pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
+                post_terms = prompt[prompt.find(final_instructions):]
 
-                if terms_section_idx >= 0:
-                    formatted_terms = "\n".join([
-                        f"- {line.strip()}" if not line.strip().startswith('-') else line.strip()
-                        for line in custom_terms.strip().split('\n')
-                        if line.strip()
-                    ])
+                terms = custom_terms.strip().split('\n')
+                terms = [
+                    line if line.strip().startswith('- ') else f'- {line.strip()}'
+                    for line in terms
+                    if line.strip()
+                ]
+                formatted_terms = '\n'.join(terms)
 
-                    sections[terms_section_idx] += "\n" + formatted_terms
-                    prompt = "\n\n".join(sections)
+                prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
 
             # Añadir el texto a traducir
             prompt += f"\n\n{text}"
@@ -303,7 +286,7 @@ class TranslatorLogic:
             # Si hay términos personalizados, insertarlos en el lugar correcto
             if custom_terms:
                 ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
-                final_instructions = "\nFinal Instructions:"
+                final_instructions = "\n# Final Instructions:"
 
                 pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
                 post_terms = prompt[prompt.find(final_instructions):]
@@ -362,7 +345,7 @@ class TranslatorLogic:
             # Si hay términos personalizados, insertarlos en el lugar correcto
             if custom_terms:
                 ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
-                final_instructions = "\nFinal Instructions:"
+                final_instructions = "\n# Final Instructions:"
 
                 pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
                 post_terms = prompt[prompt.find(final_instructions):]

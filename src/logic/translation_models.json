@@ -22,8 +22,13 @@
     "base_url": "https://api.together.xyz/v1/chat/completions",
     "models": {
       "llama4-maverick-moe": {
-        "name": "Llama 4 Maverick (17Bx16E)",
+        "name": "Llama 4 Maverick (17Bx128E)",
         "model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+        "max_tokens": 100000
+      },
+      "llama4-scout-moe": {
+        "name": "Llama 4 Scout (17Bx16E)",
+        "model_id": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
         "max_tokens": 100000
       },
       "llama3.3-70b": {
