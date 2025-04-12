@@ -225,7 +225,7 @@ class TranslatorLogic:
             # Añadir términos personalizados si existen
             if custom_terms:
                 ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
-                final_instructions = "\n# Final Instructions:"
+                final_instructions = "\n5. Final Output Constraint:"
 
                 pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
                 post_terms = prompt[prompt.find(final_instructions):]
@@ -286,7 +286,7 @@ class TranslatorLogic:
             # Si hay términos personalizados, insertarlos en el lugar correcto
             if custom_terms:
                 ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
-                final_instructions = "\n# Final Instructions:"
+                final_instructions = "\n5. Final Output Constraint:"
 
                 pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
                 post_terms = prompt[prompt.find(final_instructions):]
@@ -345,7 +345,7 @@ class TranslatorLogic:
             # Si hay términos personalizados, insertarlos en el lugar correcto
             if custom_terms:
                 ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
-                final_instructions = "\n# Final Instructions:"
+                final_instructions = "\n5. Final Output Constraint:"
 
                 pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
                 post_terms = prompt[prompt.find(final_instructions):]
