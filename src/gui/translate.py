@@ -160,7 +160,10 @@ class TranslatePanel(QWidget):
             self.provider_combo.clear()
             self.provider_combo.addItems([config['name'] for config in self.models_config.values()])
 
-            # Conectar señal de cambio de proveedor para actualizar API key
+            # Conectar señal de cambio de proveedor
+            self.provider_combo.currentTextChanged.connect(self.update_models)
+
+            # Conectar señal de cambio de proveedor para API key
             self.provider_combo.currentTextChanged.connect(self.update_provider_api_key)
 
             # Cargar modelos iniciales
