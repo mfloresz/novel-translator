@@ -12,42 +12,32 @@ class EpubConverterLogic(QObject):
     def __init__(self):
         super().__init__()
         self.directory = None
-        self.default_css = '''@charset "UTF-8";
-
-        body {
-            font-family: serif;
-            line-height: 1.6;
-            margin: 1em auto;
-            max-width: 40em;
-            padding: 0 1em;
-            text-align: justify;
-        }
-        h1 {
-            text-align: center;
-            font-size: 1.5em;
-            margin: 1em 0;
-            page-break-before: always;
-        }
-        p {
-            text-indent: 1.5em;
-            margin: 0 0 0.5em 0;
-            text-align: justify;
-        }
-        img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 1em auto;
-        }
-        .cover {
-            width: 100%;
-            height: 100%;
-            text-align: center;
-        }
-        .cover img {
-            max-height: 100%;
-            max-width: 100%;
-        }
+        self.default_css = '''
+            body {
+                font-family: "Libre Baskerville", Georgia, serif;
+                line-height: 1.6;
+                margin: 1em auto;
+                max-width: 40em;
+                padding: 0 1em;
+                text-align: justify;
+            }
+            h1 {
+                text-align: center;
+                font-size: 2em;
+                margin: 1em 0;
+                page-break-before: always;
+            }
+            p {
+                text-indent: 1.5em;
+                margin: 0;
+                text-align: justify;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+                display: block;
+                margin: 1em auto;
+            }
         '''
 
     def set_directory(self, directory):
@@ -95,10 +85,9 @@ class EpubConverterLogic(QObject):
             book.add_item(style)
 
             # Procesar portada si existe
-            has_cover = False
             if data['cover_path'] and os.path.exists(data['cover_path']):
                 self.progress_updated.emit("Procesando portada...")
-                has_cover = self.add_cover(book, data['cover_path'])
+                self.add_cover(book, data['cover_path'])
 
             # Obtener archivos según el rango especificado
             self.progress_updated.emit("Obteniendo lista de archivos...")
@@ -110,7 +99,7 @@ class EpubConverterLogic(QObject):
 
             # Procesar capítulos
             chapters = []
-            spine = ['nav'] if not has_cover else ['cover', 'nav']
+            spine = ['nav']
 
             self.progress_updated.emit("Procesando capítulos...")
             for file_info in files:
@@ -123,8 +112,7 @@ class EpubConverterLogic(QObject):
             self.progress_updated.emit("Finalizando estructura del libro...")
             book.toc = tuple(chapters)
             book.add_item(epub.EpubNcx())
-            nav = epub.EpubNav()
-            book.add_item(nav)
+            book.add_item(epub.EpubNav())
             book.spine = spine
 
             # Generar nombre de archivo y guardar
@@ -148,28 +136,15 @@ class EpubConverterLogic(QObject):
             with open(cover_path, 'rb') as file:
                 cover_image = file.read()
 
-            # Determinar el tipo de imagen basado en la extensión
-            ext = os.path.splitext(cover_path)[1].lower()
-            if ext == '.jpg' or ext == '.jpeg':
-                image_type = "image/jpeg"
-            elif ext == '.png':
-                image_type = "image/png"
-            elif ext == '.gif':
-                image_type = "image/gif"
-            else:
-                image_type = "image/jpeg"  # Por defecto
+            # Determinar el tipo de imagen
+            image_type = "image/jpeg"
 
             # Crear el item de la portada
-            cover_img = epub.EpubImage(
-                uid='cover-image',
-                file_name='images/cover' + ext,  # Mantener la extensión original
-                media_type=image_type,
-                content=cover_image
-            )
-            book.add_item(cover_img)
-
-            # Configurar como portada
-            book.set_cover('images/cover' + ext, cover_image)
+            cover = epub.EpubImage()
+            cover.file_name = 'images/cover.jpg'
+            cover.media_type = image_type
+            cover.content = cover_image
+            book.add_item(cover)
 
             # Crear la página de portada
             cover_page = epub.EpubHtml(
@@ -177,25 +152,24 @@ class EpubConverterLogic(QObject):
                 file_name='cover.xhtml',
                 lang='es'
             )
-            cover_page.content = f'''<?xml version='1.0' encoding='utf-8'?>
-                <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="es">
+            cover_page.content = f'''
+                <html>
                 <head>
                     <title>Cover</title>
                     <link rel="stylesheet" href="style/default.css" type="text/css"/>
                 </head>
                 <body>
                     <div class="cover">
-                        <img src="images/cover{ext}" alt="cover"/>
+                        <img src="images/cover.jpg" alt="cover"/>
                     </div>
                 </body>
                 </html>
             '''
             book.add_item(cover_page)
-            return True
+            book.set_cover("images/cover.jpg", cover_image)
 
         except Exception as e:
             show_error_dialog(f"Error al procesar la portada: {str(e)}")
-            return False
 
     def process_chapter(self, book, file_info):
         """Procesa un capítulo individual"""
@@ -219,19 +193,35 @@ class EpubConverterLogic(QObject):
                 lang='es'
             )
 
-            # Crear el contenido HTML correctamente formateado
-            chapter.content = f'''<?xml version='1.0' encoding='utf-8'?>
-            <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="es">
-            <head>
-                <title>{chapter_title}</title>
-                <link rel="stylesheet" type="text/css" href="style/default.css"/>
-            </head>
-            <body>
-                <h1>{chapter_title}</h1>
-                {''.join(f'<p>{p.strip()}</p>' for p in chapter_content.split('\n\n') if p.strip())}
-            </body>
-            </html>
+            # Crear partes del HTML por separado para evitar problemas con backslashes en f-strings
+            html_start = '''
+                <!DOCTYPE html>
+                <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+                <head>
+                    <title>'''
+
+            html_middle1 = '''</title>
+                    <link rel="stylesheet" type="text/css" href="style/default.css"/>
+                </head>
+                <body>
+                    <h1>'''
+
+            html_middle2 = '''</h1>
+                    '''
+
+            html_end = '''
+                </body>
+                </html>
             '''
+
+            # Procesar párrafos
+            paragraphs = ""
+            for p in chapter_content.split('\n\n'):
+                if p.strip():
+                    paragraphs += f'<p>{p.strip()}</p>'
+
+            # Unir todo el contenido
+            chapter.content = html_start + chapter_title + html_middle1 + chapter_title + html_middle2 + paragraphs + html_end
 
             book.add_item(chapter)
             return chapter
