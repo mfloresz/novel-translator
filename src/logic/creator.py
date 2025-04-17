@@ -234,7 +234,7 @@ class EpubConverterLogic(QObject):
         """Limpia y formatea el título del capítulo"""
         # Remover marcadores Markdown comunes
         title = title.strip()
-        for marker in ['##', '**']:
+        for marker in ['##', '#', '**']:
             if title.startswith(marker):
                 title = title[len(marker):].strip()
             if title.endswith(marker):

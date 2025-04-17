@@ -237,11 +237,11 @@ class TranslatePanel(QWidget):
     def load_saved_terms(self):
         """Carga los términos guardados cuando se selecciona un directorio"""
         if self.main_window.current_directory:
-            if not self.translation_manager.working_directory:
+                # Siempre reinicializar con el nuevo directorio
                 self.translation_manager.initialize(self.main_window.current_directory)
-            saved_terms = self.translation_manager.get_custom_terms()
-            if saved_terms:
-                self.terms_input.setPlainText(saved_terms)
+                saved_terms = self.translation_manager.get_custom_terms()
+                if saved_terms:
+                    self.terms_input.setPlainText(saved_terms)
 
     def start_translation(self):
         """Inicia el proceso de traducción"""
