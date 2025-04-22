@@ -26,166 +26,75 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 - Funciones avanzadas:
   - Control de rango de capítulos
   - Sistema de pausas automáticas
-  - Base de datos para registro de traducciones
+  - Base de datos para registro de traducciones y términos personalizados
   - Gestión de errores y recuperación
 
-**Pestaña Traducir:** Permite traducir archivos de texto utilizando APIs de traducción.
+**Pestaña Traducir:** Permite traducir archivos de texto utilizando APIs de traducción, con soporte para segmentación y revisión de la traducción.
 
 *   **API Key:** Ingresa la clave de la API del proveedor de traducción que se utilizará.
-
-*   **Proveedor:** Selecciona el proveedor de la API de traducción (ej: Google Gemini, Together AI).
-
+*   **Proveedor:** Selecciona el proveedor de la API de traducción (ej: Google Gemini, Together AI, DeepInfra).
 *   **Modelo:** Elige el modelo de traducción específico del proveedor seleccionado.
-
 *   **Idioma Origen:** Selecciona el idioma original del texto a traducir.
-
 *   **Idioma Destino:** Define el idioma al que se traducirá el texto.
-
-*   **Segmentar texto (caracteres):** Divide el texto en segmentos más pequeños para optimizar la traducción, especialmente para archivos grandes.
-
-    *   **Caracteres por segmento:** Especifica la cantidad de caracteres por cada segmento.
-
-*   **Términos Personalizados:** Introduce términos específicos con su traducción correspondiente para garantizar la coherencia y precisión en la traducción.
-
-*   **Rango de Capítulos:** Define el rango de capítulos a traducir.
-
-    *   **Capítulo Inicio:** El primer capítulo a traducir en el rango.
-    *   **Capítulo Fin:** El último capítulo a traducir en el rango.
-
+*   **Segmentar texto (caracteres):** Divide el texto en segmentos más pequeños para optimizar la traducción. Puedes especificar la cantidad de caracteres por segmento.
+*   **Términos Personalizados:** Ingresa términos específicos con su traducción para garantizar coherencia.
+*   **Rango de Capítulos:** Define el rango de capítulos a traducir (desde - hasta).
 *   **Traducir:** Inicia el proceso de traducción.
-
-*   **Detener:** Interrumpe el proceso de traducción en curso.
+*   **Detener:** Interrumpe el proceso en curso.
 
 ### Limpieza de Archivos
 ![Limpieza](assets/clean.webp)
 
 #### Modos de Limpieza
-
 1. **Eliminar contenido después de texto específico**
    - Elimina todo el contenido del archivo a partir de un texto indicado
-   - Útil para:
-     - Remover anuncios o contenido promocional al final de capítulos
-     - Eliminar notas de autor no deseadas
-     - Quitar enlaces o referencias
-   - Requiere:
-     - Texto exacto desde donde comenzar la eliminación
+   - Útil para eliminar anuncios, notas, enlaces
 
 2. **Eliminar duplicados**
-   - Identifica y elimina secciones duplicadas de texto
-   - Especialmente útil para:
-     - Limpiar capítulos con contenido repetido
-     - Eliminar resúmenes duplicados
-     - Remover disclaimers repetidos
-   - Requiere:
-     - Texto que marca el inicio de la sección duplicada
+   - Elimina secciones duplicadas que comienzan en un texto marcado
 
 3. **Eliminar línea específica**
-   - Elimina líneas que comienzan con un texto determinado
-   - Ideal para:
-     - Remover líneas de formato específico
-     - Eliminar marcadores o etiquetas
-     - Limpiar líneas de metadata
-   - Requiere:
-     - Texto inicial de las líneas a eliminar
+   - Elimina líneas que empiezan con un texto determinado
 
 4. **Eliminar líneas en blanco múltiples**
-   - Reduce múltiples líneas en blanco consecutivas a una sola
-   - Utilizado para:
-     - Mejorar el formato del texto
-     - Normalizar el espaciado entre párrafos
-     - Reducir el tamaño del archivo
-   - No requiere parámetros adicionales
+   - Normaliza el espaciado eliminando líneas en blanco consecutivas
 
 5. **Buscar y reemplazar texto**
    - Reemplaza todas las ocurrencias de un texto por otro
-   - Aplicaciones:
-     - Corregir errores tipográficos comunes
-     - Unificar términos o nombres
-     - Adaptar formatos de texto
-   - Requiere:
-     - Texto a buscar
-     - Texto de reemplazo
 
 #### Control de Rango
-- Procesamiento selectivo por rango de capítulos
-- Opciones:
-  - Todos los capítulos
-  - Rango específico (desde - hasta)
+- Procesamiento selectivo por rango de capítulos (todos o de - a)
 
-#### Características Adicionales
-- Vista previa de cambios antes de aplicar
-- Procesamiento por lotes de múltiples archivos
+#### Características adicionales
+- Vista previa antes de aplicar cambios
+- Procesamiento por lotes
 - Respaldo automático de archivos originales
-- Sistema de recuperación en caso de errores
-- Registro de operaciones realizadas
-
-#### Requisitos del Sistema
-- Permisos de escritura en el directorio
-- Archivos en formato .txt
-- Codificación UTF-8
-
-#### Recomendaciones de Uso
-1. Realizar respaldo de archivos antes de procesar
-2. Verificar el texto de búsqueda/reemplazo
-3. Usar rangos pequeños para pruebas iniciales
-4. Revisar los archivos procesados
-5. Mantener registro de cambios realizados
-
-**Pestaña Limpiar:** Permite realizar tareas de limpieza y formateo en archivos de texto.
-
-*   **Texto:** Introduce el texto específico requerido para la tarea de limpieza seleccionada. Este campo puede ser el texto a partir del cual se eliminará el contenido, el texto a buscar para eliminar líneas, o el texto a buscar y reemplazar.
-
-*   **Reemplazar por:**  (Solo para "Buscar y reemplazar") Introduce el texto que sustituirá al texto buscado.
-
-*   **Tarea:**
-
-    *   **Eliminar a partir del texto:** Elimina todo el contenido del archivo desde el texto especificado.
-    *   **Eliminar duplicados:** Elimina secciones duplicadas de texto, buscando el texto especificado como inicio del duplicado.
-    *   **Eliminar línea:** Elimina líneas que comienzan con el texto especificado.
-    *   **Eliminar líneas en blanco múltiples:** Reduce múltiples líneas en blanco consecutivas a una sola.
-    *   **Buscar y reemplazar:** Reemplaza todas las instancias de un texto por otro.
-
-*   **Rango:**
-
-    *   **Todos:** Aplica la tarea de limpieza a todos los archivos en el directorio seleccionado.
-    *   **De - a:** Aplica la tarea solo a un rango específico de archivos.
-
-        *   **De:** El primer archivo a procesar.
-        *   **a:** El último archivo a procesar.
-
-*   **Limpiar:** Inicia el proceso de limpieza de los archivos.
+- Sistema de recuperación ante errores
+- Registro de operaciones
 
 ### Creación de EPUB
 ![epub](assets/ebook.webp)
-
-- Conversión de archivos de texto a formato EPUB
+- Conversión de archivos de texto a EPUB
 - Personalización de metadatos
 - Soporte para imágenes de portada
 - Numeración automática de capítulos
 - Estilos CSS predefinidos
 
-**Pestaña Ebook:** Facilita la creación de archivos EPUB a partir de los archivos de texto.
+**Pestaña Ebook:** Facilita la creación de EPUBs a partir de los archivos de texto.
 
-*   **Título:** Introduce el título del libro que se reflejará en el archivo EPUB.
-*   **Autor:** Introduce el nombre del autor del libro.
+*   **Título:** Introduce el título del libro.
+*   **Autor:** Ingresa el nombre del autor.
 *   **Portada:**
-    *   **Seleccionar:** Permite seleccionar una imagen para usar como portada del EPUB.
-    *   **Limpiar:** Remueve la imagen de portada seleccionada, si la hubiera.
-*   **Rango de Capítulos:** Especifica qué capítulos se incluirán en el EPUB.
-    *   **Todos los capítulos:** Incluye todos los archivos de texto en el directorio en el EPUB.
-    *   **Especificar rango:** Permite definir un rango específico de archivos a incluir.
-        *   **Desde:** El primer capítulo a incluir en el EPUB.
-        *   **Hasta:** El último capítulo a incluir en el EPUB.
-*   **Crear EPUB:** Inicia el proceso de creación del archivo EPUB con las configuraciones especificadas.
+    - Seleccionar imagen
+    - Limpiar portada
+*   **Rango de Capítulos:** Con opción de incluir todos los capítulos o definir uno específico (desde-hasta).
+*   **Crear EPUB:** Inicia la generación del EPUB con las configuraciones proporcionadas.
 
 ## Requisitos
 
 ### Dependencias
 ```bash
-PyQt6
-ebooklib
-requests
-sqlite3
+pip install PyQt6 ebooklib requests sqlite3 python-dotenv
 ```
 
 ### Sistemas Operativos
@@ -195,54 +104,66 @@ sqlite3
 
 ## Instalación
 
-1. Clonar el repositorio:
+1. Clona el repositorio:
 ```bash
 git clone https://github.com/usuario/novel-manager.git
 cd novel-manager
 ```
 
-2. Crear entorno virtual:
+2. Crea el entorno virtual:
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
 ```
 
-3. Instalar dependencias:
+3. Instala las dependencias:
 ```bash
 pip install -r requirements.txt
 ```
 
+## Configuración
+
+- Añade tus claves API en el archivo `.env` en la raíz del proyecto:
+```
+GEMINI_API_KEY=tu_clave_google_gemini
+TOGETHER_API_KEY=tu_clave_together_ai
+DEEPINFRA_API_KEY=tu_clave_deepinfra
+```
+
 ## Uso
 
-### Iniciar la Aplicación
+### Iniciar la aplicación
 ```bash
 python main.py
 ```
 
-### Flujo de Trabajo Básico
+### Flujo de trabajo básico
 
-1. **Selección de Directorio**
-   - Usar el botón "Navegar" para seleccionar la carpeta de trabajo
-   - Los archivos .txt se cargarán automáticamente
+1. **Seleccionar Directorio**
+   - Usa el botón "Navegar" para escoger la carpeta donde están tus textos.
+   - Los archivos `.txt` se cargarán automáticamente, mostrando su estado.
 
-2. **Limpieza de Archivos**
-   - Seleccionar pestaña "Limpiar"
-   - Elegir modo de limpieza
-   - Especificar rango de capítulos (opcional)
-   - Confirmar operación
+2. **Limpiar Archivos**
+   - En la pestaña "Limpiar", selecciona modo y rango.
+   - Ajusta opciones y presiona "Limpiar" para aplicar cambios.
 
-3. **Traducción**
-   - Seleccionar pestaña "Traducir"
-   - Configurar API key y proveedor
-   - Seleccionar idiomas de origen/destino
-   - Iniciar traducción
+3. **Traducir**
+   - En la pestaña "Traducir", configura la API, proveedor, modelos, idiomas.
+   - Define rango de capítulos, términos personalizados.
+   - Presiona "Traducir" para comenzar.
+   - Puedes detener en cualquier momento con "Detener".
 
-4. **Creación de EPUB**
-   - Seleccionar pestaña "Ebook"
-   - Completar metadatos
-   - Seleccionar imagen de portada (opcional)
-   - Crear EPUB
+4. **Crear EPUB**
+   - En la pestaña "Ebook", ingresa título, autor, portada opcional.
+   - Define el rango de capítulos o todos.
+   - Presiona "Crear EPUB" para generar el libro.
+   - Se guardará en el directorio seleccionado.
+
+### Funciones Adicionales
+- **Vista previa:** en la misma interfaz, para ver detalles
+- **Soporte de lotes:** gestionar múltiples archivos
+- **Registros:** de operaciones para auditoría y recuperación
 
 ## Estructura del Proyecto
 
@@ -251,21 +172,21 @@ novel-manager/
 │
 ├── src/
 │   ├── gui/
-│   │   ├── clean.py
-│   │   ├── create.py
-│   │   └── translate.py
+│   │   ├── clean.py           # Interfaz de limpieza
+│   │   ├── create.py          # interfaz creación EPUB
+│   │   └── translate.py       # interfaz traducción
 │   │
 │   └── logic/
-│       ├── cleaner.py
-│       ├── creator.py
-│       ├── database.py
-│       ├── functions.py
-│       ├── get_path.py
-│       ├── loader.py
-│       ├── translation_manager.py
-│       └── translator.py
+│       ├── cleaner.py         # lógica limpieza
+│       ├── creator.py         # lógica creación EPUB
+│       ├── database.py        # registros en SQLite y JSON
+│       ├── functions.py       # funciones auxiliares
+│       ├── get_path.py         # selección de directorio
+│       ├── loader.py          # carga de archivos
+│       ├── translation_manager.py # gestión de traducciones
+│       └── translator.py      # lógica de traducción
 │
-├── main.py
-├── requirements.txt
-└── README.md
+├── main.py                     # entrada principal
+├── requirements.txt            # dependencias
+└── README.md                   # documentación actualizada
 ```
