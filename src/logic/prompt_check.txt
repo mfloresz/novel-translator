@@ -1,0 +1,14 @@
+Here's the translation of your prompt in English:
+
+Compare text 1 (Original - {source_lang}) with text 2 (Translation - {target_lang}). Evaluate if the translation:
+- Contains all the essential content of the original, without important omissions
+- Conveys the same general meaning, even if using different synonyms or structures
+- Maintains a similar logical sequence of ideas as the original
+- Verify that all the content of the original is present in the translation, with no omitted or incomplete parts.
+
+Respond only with "Yes" if the translation is adequate in general terms (preserves the meaning and essential information).
+Respond only with "No" if there are significant problems such as important omissions, meaning errors, or disorder that alters comprehension.
+Do not explain your reasoning or add additional information. Limit your response exclusively to "Yes" or "No".
+Text 1:
+
+Text 2:

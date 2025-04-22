@@ -1,8 +1,8 @@
-import requests
 import time
 import json
 from typing import Optional, Dict, List
 from pathlib import Path
+from src.logic import translator_req
 
 class TranslatorLogic:
     def __init__(self, segment_size=None):
@@ -21,6 +21,7 @@ class TranslatorLogic:
             self.models_config = json.load(f)
 
         self.prompt_template = self._load_prompt_template()
+        self.check_prompt_template = self._load_check_prompt_template()
         self.segment_size = segment_size  # Tamaño objetivo para cada segmento
 
     def _load_prompt_template(self) -> str:
@@ -36,6 +37,21 @@ class TranslatorLogic:
                 return file.read()
         except Exception as e:
             print(f"Error cargando el prompt base: {str(e)}")
+            return ""
+
+    def _load_check_prompt_template(self) -> str:
+        """
+        Carga el prompt base de comprobación desde prompt_check.txt
+
+        Returns:
+            str: Contenido del prompt de comprobación
+        """
+        try:
+            check_path = Path(__file__).parent / 'prompt_check.txt'
+            with open(check_path, 'r', encoding='utf-8') as file:
+                return file.read()
+        except Exception as e:
+            print(f"Error cargando el prompt de comprobación: {str(e)}")
             return ""
 
     def _segment_text(self, text: str) -> List[str]:
@@ -60,26 +76,21 @@ class TranslatorLogic:
 
         # Definir marcadores de fin de oración
         sentence_endings = [
-            '. ', '? ', '! ',           # Puntuación básica
-            '] ', '] \n', ']\n',        # Diálogos con corchetes
-            '..." ', '..." \n',         # Diálogos con puntos suspensivos
-            '…" ', '…" \n',             # Puntos suspensivos (Unicode)
-            '" ', '" \n',               # Diálogos con comillas
-            '."', '?"', '!"',           # Puntuación dentro de comillas
-            '." ', '?" ', '!" '         # Puntuación dentro de comillas con espacio
+            '. ', '? ', '! ',
+            '] ', '] \n', ']\n',
+            '..." ', '..." \n',
+            '…" ', '…" \n',
+            '" ', '" \n',
+            '."', '?"', '!"',
+            '." ', '?" ', '!" '
         ]
 
         while current_position < len(text):
-            # 1. Avanzar hasta el tamaño de segmento objetivo
             target_position = min(current_position + self.segment_size, len(text))
-
-            # 2. Desde esa posición, buscar el próximo final de oración válido
             best_end_pos = -1
             search_position = target_position
 
-            # Buscar hacia adelante para encontrar un final de oración válido
             while search_position < len(text):
-                # Encontrar el próximo final de oración
                 next_end = -1
                 for ending in sentence_endings:
                     pos = text.find(ending, search_position)
@@ -87,48 +98,157 @@ class TranslatorLogic:
                         next_end = pos + len(ending)
 
                 if next_end == -1:
-                    # No se encontraron más finales, tomar el resto del texto
                     break
 
-                # Verificar si después del final hay una línea en blanco
                 end_pos = next_end
                 while end_pos < len(text) and text[end_pos].isspace():
                     if end_pos + 1 < len(text) and text[end_pos:end_pos+2] == '\n\n':
-                        best_end_pos = end_pos + 2  # Incluir la línea en blanco
+                        best_end_pos = end_pos + 2
                         break
                     end_pos += 1
 
                 if best_end_pos != -1:
-                    break  # Encontramos un buen punto de corte
+                    break
 
-                # Si no encontramos línea en blanco, seguir buscando
                 search_position = next_end
 
-                # Verificar si hemos buscado demasiado lejos (1.5 veces el tamaño objetivo)
                 if search_position > current_position + (self.segment_size * 1.5):
-                    # Forzar el corte en el último final de oración encontrado
                     best_end_pos = next_end
                     break
 
-            # Si no encontramos un buen punto de corte, usar el final del texto
             if best_end_pos == -1:
                 best_end_pos = len(text)
 
-            # Extraer y añadir el segmento
             segment_text = text[current_position:best_end_pos].strip()
             if segment_text:
                 segments.append(segment_text)
 
-            # Avanzar al siguiente segmento (después de la línea en blanco)
             current_position = best_end_pos
 
         return segments
+
+    def _build_check_prompt(self, source_lang: str, target_lang: str,
+                            original_text: str, translated_text: str) -> str:
+        """
+        Construye el prompt para comprobar la calidad de la traducción.
+
+        Args:
+            source_lang (str): Idioma original
+            target_lang (str): Idioma destino
+            original_text (str): Texto original completo
+            translated_text (str): Texto traducido completo
+
+        Returns:
+            str: Prompt completo para la comprobación
+        """
+        prompt = self.check_prompt_template
+        prompt = prompt.replace("{source_lang}", self.lang_codes.get(source_lang, source_lang))
+        prompt = prompt.replace("{target_lang}", self.lang_codes.get(target_lang, target_lang))
+
+        # Insertar texto original y traducido en el lugar correcto
+        # La suposición es que prompt_check.txt tiene líneas "Text 1:" y "Text 2:" para insertar
+        # Vamos a hacer esto para asegurar:
+        # Insertamos original tras "Text 1:", traducido tras "Text 2:"
+
+        idx_text1 = prompt.find("Text 1:")
+        idx_text2 = prompt.find("Text 2:")
+
+        if idx_text1 == -1 or idx_text2 == -1:
+            # Formato inesperado, simplemente añadir al final
+            return prompt + "\n\nText 1:\n" + original_text + "\n\nText 2:\n" + translated_text
+
+        # Construir nuevo prompt con textos insertados, manteniendo orden
+        before_text1 = prompt[:idx_text1 + len("Text 1:")]
+        between = prompt[idx_text1 + len("Text 1:"):idx_text2 + len("Text 2:")]
+        after_text2 = prompt[idx_text2 + len("Text 2:"):]
+
+        # Insertar los textos, dejando un salto de línea después de la marca
+        final_prompt = (
+            before_text1 + "\n" +
+            original_text.strip() + "\n" +
+            between + "\n" +
+            translated_text.strip() + "\n" +
+            after_text2
+        )
+        return final_prompt
+
+    def _check_translation(self, original_text: str, translated_text: str,
+                           source_lang: str, target_lang: str,
+                           api_key: str, provider: str, model: str) -> bool:
+        """
+        Comprueba la calidad de la traducción usando la API.
+
+        Retorna True si el modelo responde "Yes", False si "No" o error.
+
+        Se hace un reintento una vez en caso de "No".
+
+        Args:
+            original_text (str): Texto original completo
+            translated_text (str): Texto traducido completo
+            source_lang (str): Idioma de origen
+            target_lang (str): Idioma de destino
+            api_key (str): API key
+            provider (str): Proveedor
+            model (str): Modelo
+
+        Returns:
+            bool: Resultado de la comprobación
+        """
+        prompt = self._build_check_prompt(source_lang, target_lang, original_text, translated_text)
+
+        provider_config = self.models_config.get(provider)
+        if not provider_config:
+            print(f"Proveedor no soportado para comprobación: {provider}")
+            return False
+        model_config = provider_config['models'].get(model)
+        if not model_config:
+            print(f"Modelo no soportado para comprobación: {model}")
+            return False
+
+        def query_model():
+            return translator_req.translate_segment(
+                provider,
+                "",  # texto ya incluido en prompt, pasar vacío para evitar doble agregado
+                api_key,
+                model_config,
+                prompt
+            )
+
+        try:
+            response = query_model()
+            if response is None:
+                print("Error en la comprobación de la traducción (respuesta nula)")
+                return False
+
+            cleaned_response = response.strip().lower()
+            if cleaned_response == "yes":
+                return True
+            elif cleaned_response == "no":
+                # Reintentar una vez
+                time.sleep(2)
+                response_retry = query_model()
+                if response_retry is None:
+                    print("Error en la comprobación de la traducción (reintento respuesta nula)")
+                    return False
+                if response_retry.strip().lower() == "yes":
+                    return True
+                else:
+                    return False
+            else:
+                # Respuesta inesperada, consideramos error
+                print(f"Respuesta inesperada en comprobación: '{response}'")
+                return False
+        except Exception as e:
+            print(f"Error al hacer la comprobación: {str(e)}")
+            return False
 
     def translate_text(self, text: str, source_lang: str, target_lang: str,
                       api_key: str, provider: str, model: str,
                       custom_terms: str = "") -> Optional[str]:
         """
         Traduce el texto utilizando el proveedor y modelo especificados.
+
+        Agrega comprobación de la traducción tras completarla.
 
         Args:
             text (str): Texto a traducir
@@ -140,7 +260,7 @@ class TranslatorLogic:
             custom_terms (str): Términos personalizados para la traducción
 
         Returns:
-            Optional[str]: Texto traducido o None si hay error
+            Optional[str]: Texto traducido si la comprobación pasa, None si falla o error
         """
         try:
             provider_config = self.models_config.get(provider)
@@ -159,9 +279,41 @@ class TranslatorLogic:
             for i, segment in enumerate(segments, 1):
                 print(f"Traduciendo segmento {i} de {len(segments)}")
 
-                translated_segment = self._translate_segment(
-                    segment, source_lang, target_lang, api_key,
-                    provider, model_config, custom_terms
+                # Construir prompt base
+                prompt = self.prompt_template.replace(
+                    "{source_lang}", self.lang_codes[source_lang]
+                ).replace(
+                    "{target_lang}", self.lang_codes[target_lang]
+                )
+
+                # Agregar términos personalizados si existen
+                if custom_terms:
+                    ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
+                    final_instructions = "\n5. Final Output Constraint:"
+
+                    pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
+                    post_terms = prompt[prompt.find(final_instructions):]
+
+                    terms = custom_terms.strip().split('\n')
+                    terms = [
+                        line if line.strip().startswith('- ') else f'- {line.strip()}'
+                        for line in terms
+                        if line.strip()
+                    ]
+                    formatted_terms = '\n'.join(terms)
+
+                    prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
+
+                # Añadir el texto a traducir
+                prompt += f"\n\n{segment}"
+
+                # Delegar la petición al módulo translator_req
+                translated_segment = translator_req.translate_segment(
+                    provider,
+                    segment,
+                    api_key,
+                    model_config,
+                    prompt
                 )
 
                 if translated_segment is None:
@@ -174,291 +326,29 @@ class TranslatorLogic:
                     time.sleep(2)
 
             # Unir todos los segmentos traducidos
-            return '\n\n'.join(translated_segments)
+            full_translation = '\n\n'.join(translated_segments)
+
+            # Ahora hacemos la comprobación de la traducción contra el texto original completo
+            check_passed = self._check_translation(
+                original_text=text,
+                translated_text=full_translation,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                api_key=api_key,
+                provider=provider,
+                model=model
+            )
+
+            if not check_passed:
+                print("La comprobación de la traducción NO pasó.")
+                return None
+
+            # Si pasa la comprobación, devolver la traducción completa
+            return full_translation
 
         except Exception as e:
             print(f"Error en la traducción: {str(e)}")
             return None
-
-    def _translate_segment(self, text: str, source_lang: str, target_lang: str,
-                         api_key: str, provider: str, model_config: Dict,
-                         custom_terms: str = "") -> Optional[str]:
-        """
-        Traduce un segmento individual de texto.
-        """
-        try:
-            if provider == 'gemini':
-                return self._translate_gemini(
-                    text, source_lang, target_lang, api_key, model_config,
-                    custom_terms
-                )
-            elif provider == 'together':
-                return self._translate_together(
-                    text, source_lang, target_lang, api_key, model_config,
-                    custom_terms
-                )
-            elif provider == 'deepinfra':
-                return self._translate_deepinfra(
-                    text, source_lang, target_lang, api_key, model_config,
-                    custom_terms
-                )
-            else:
-                raise ValueError(f"Proveedor no implementado: {provider}")
-        except Exception as e:
-            print(f"Error traduciendo segmento: {str(e)}")
-            return None
-
-    def _translate_gemini(self, text: str, source_lang: str, target_lang: str,
-                         api_key: str, model_config: Dict, custom_terms: str = "") -> Optional[str]:
-        """Traduce usando la API de Google Gemini"""
-        try:
-            url = f"{self.models_config['gemini']['base_url']}/{model_config['endpoint']}?key={api_key}"
-
-            # Construir el prompt base
-            prompt = self.prompt_template.replace(
-                "{source_lang}", self.lang_codes[source_lang]
-            ).replace(
-                "{target_lang}", self.lang_codes[target_lang]
-            )
-
-            # Añadir términos personalizados si existen
-            if custom_terms:
-                ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
-                final_instructions = "\n5. Final Output Constraint:"
-
-                pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
-                post_terms = prompt[prompt.find(final_instructions):]
-
-                terms = custom_terms.strip().split('\n')
-                terms = [
-                    line if line.strip().startswith('- ') else f'- {line.strip()}'
-                    for line in terms
-                    if line.strip()
-                ]
-                formatted_terms = '\n'.join(terms)
-
-                prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
-
-            # Añadir el texto a traducir
-            prompt += f"\n\n{text}"
-
-            headers = {'Content-Type': 'application/json'}
-            data = {
-                "contents": [{
-                    "parts": [{
-                        "text": prompt
-                    }]
-                }]
-            }
-
-            response = requests.post(url, headers=headers, json=data)
-            response.raise_for_status()
-
-            return self._process_gemini_response(response.json())
-
-        except requests.exceptions.RequestException as e:
-            print(f"Error en la solicitud HTTP: {str(e)}")
-            if hasattr(e, 'response') and e.response:
-                print("Respuesta detallada:", e.response.text)
-            return None
-        except Exception as e:
-            print(f"Error en la traducción con Gemini: {str(e)}")
-            return None
-
-    def _translate_together(self, text: str, source_lang: str, target_lang: str,
-                          api_key: str, model_config: Dict, custom_terms: str = "") -> Optional[str]:
-        """Traduce usando la API de Together AI"""
-        try:
-            url = self.models_config['together']['base_url']
-            headers = {
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json'
-            }
-
-            # Construir el prompt con el template base
-            prompt = self.prompt_template.replace(
-                "{source_lang}", self.lang_codes[source_lang]
-            ).replace(
-                "{target_lang}", self.lang_codes[target_lang]
-            )
-
-            # Si hay términos personalizados, insertarlos en el lugar correcto
-            if custom_terms:
-                ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
-                final_instructions = "\n5. Final Output Constraint:"
-
-                pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
-                post_terms = prompt[prompt.find(final_instructions):]
-
-                terms = custom_terms.strip().split('\n')
-                terms = [
-                    line if line.strip().startswith('- ') else f'- {line.strip()}'
-                    for line in terms
-                    if line.strip()
-                ]
-                formatted_terms = '\n'.join(terms)
-
-                prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
-
-            # Agregar el texto a traducir al final del prompt
-            prompt += f"\n\n{text}"
-
-            data = {
-                "model": model_config['model_id'],
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.6,
-                "top_p": 0.95,
-                "top_k": 55,
-                "repetition_penalty": 1.2,
-                "stop": ["</s>", "[/INST]"],
-                "max_tokens": model_config.get('max_tokens', 4096),
-                "stream": False
-            }
-
-            response = requests.post(url, headers=headers, json=data)
-            response.raise_for_status()
-
-            return self._process_together_response(response.json())
-
-        except Exception as e:
-            print(f"Error en Together AI: {str(e)}")
-            return None
-
-    def _translate_deepinfra(self, text: str, source_lang: str, target_lang: str,
-                           api_key: str, model_config: Dict, custom_terms: str = "") -> Optional[str]:
-        """Traduce usando la API de DeepInfra (formato OpenAI compatible)"""
-        try:
-            url = self.models_config['deepinfra']['base_url']
-            headers = {
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json'
-            }
-
-            # Construir el prompt con el template base
-            prompt = self.prompt_template.replace(
-                "{source_lang}", self.lang_codes[source_lang]
-            ).replace(
-                "{target_lang}", self.lang_codes[target_lang]
-            )
-
-            # Si hay términos personalizados, insertarlos en el lugar correcto
-            if custom_terms:
-                ref_section = "Use the following predefined translations for domain-specific or recurring terms. These must be used consistently throughout the translation:"
-                final_instructions = "\n5. Final Output Constraint:"
-
-                pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
-                post_terms = prompt[prompt.find(final_instructions):]
-
-                terms = custom_terms.strip().split('\n')
-                terms = [
-                    line if line.strip().startswith('- ') else f'- {line.strip()}'
-                    for line in terms
-                    if line.strip()
-                ]
-                formatted_terms = '\n'.join(terms)
-
-                prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
-
-            # Agregar el texto a traducir al final del prompt
-            prompt += f"\n\n{text}"
-
-            data = {
-                "model": model_config['model_id'],
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.6,
-                "top_p": 0.95,
-                "max_tokens": 100000,
-                "stream": False  # Podemos dejarlo como False para traducciones
-            }
-
-            response = requests.post(url, headers=headers, json=data)
-            response.raise_for_status()
-
-            return self._process_deepinfra_response(response.json())
-
-        except Exception as e:
-            print(f"Error en DeepInfra: {str(e)}")
-            if hasattr(e, 'response') and e.response:
-                print("Respuesta detallada:", e.response.text)
-            return None
-
-    def _process_gemini_response(self, response: Dict) -> Optional[str]:
-        """
-        Procesa la respuesta de la API de Gemini y extrae el texto traducido.
-        """
-        try:
-            if 'candidates' not in response or not response['candidates']:
-                return None
-
-            candidate = response['candidates'][0]
-            if 'content' not in candidate or 'parts' not in candidate['content']:
-                return None
-
-            parts = candidate['content']['parts']
-            if not parts or 'text' not in parts[0]:
-                return None
-
-            translated_text = parts[0]['text']
-            return self._clean_translation(translated_text)
-
-        except Exception as e:
-            print(f"Error procesando respuesta de Gemini: {str(e)}")
-            return None
-
-    def _process_together_response(self, response: Dict) -> Optional[str]:
-        """
-        Procesa la respuesta de la API de Together y extrae el texto traducido.
-        """
-        try:
-            if 'choices' not in response or not response['choices']:
-                return None
-
-            message = response['choices'][0]['message']
-            if 'content' not in message:
-                return None
-
-            return self._clean_translation(message['content'])
-
-        except Exception as e:
-            print(f"Error procesando respuesta de Together: {str(e)}")
-            return None
-
-    def _process_deepinfra_response(self, response: Dict) -> Optional[str]:
-        """
-        Procesa la respuesta de la API de DeepInfra y extrae el texto traducido.
-        """
-        try:
-            if 'choices' not in response or not response['choices']:
-                return None
-
-            message = response['choices'][0]['message']
-            if 'content' not in message:
-                return None
-
-            return self._clean_translation(message['content'])
-
-        except Exception as e:
-            print(f"Error procesando respuesta de DeepInfra: {str(e)}")
-            return None
-
-    def _clean_translation(self, text: str) -> str:
-        """
-        Limpia y formatea el texto traducido.
-        """
-        lines = text.split('\n')
-        actual_translation = []
-        translation_started = False
-
-        for line in lines:
-            if translation_started or (
-                not line.startswith('-') and
-                not 'Requirements:' in line and
-                not 'Translation:' in line
-            ):
-                translation_started = True
-                actual_translation.append(line)
-
-        return '\n'.join(actual_translation).strip()
 
     def get_supported_languages(self) -> Dict[str, str]:
         """
