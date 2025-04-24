@@ -47,5 +47,16 @@
         "model_id": "Sao10K/L3.3-70B-Euryale-v2.3"
       }
     }
+  },
+  "openai": {
+    "name": "OpenAI",
+    "base_url": "https://api.openai.com/v1/chat/completions",
+    "models": {
+      "gpt-4.1-nano": {
+        "name": "GPT-4.1 Nano",
+        "model_id": "gpt-4.1-nano",
+        "max_tokens": 32000
+      }
+    }
   }
 }
