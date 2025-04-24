@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Optional, Dict
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                            QPushButton, QLineEdit, QGroupBox, QComboBox,
-                           QSpinBox, QFormLayout, QPlainTextEdit, QRadioButton)
+                           QSpinBox, QFormLayout, QPlainTextEdit, QRadioButton,
+                           QCheckBox)
 from PyQt6.QtCore import Qt
 from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
@@ -79,6 +80,12 @@ class TranslatePanel(QWidget):
         segmentation_layout.addStretch()
 
         form_layout.addRow(segmentation_layout)
+
+        # New checkbox for enabling translation check
+        self.check_translation_checkbox = QCheckBox("Habilitar comprobación de traducción")
+        self.check_translation_checkbox.setChecked(True)  # Por defecto está habilitado
+
+        form_layout.addRow(self.check_translation_checkbox)
 
         # Custom Terms section
         terms_group = QGroupBox("Términos Personalizados")
@@ -297,6 +304,9 @@ class TranslatePanel(QWidget):
                 self.main_window.statusBar().showMessage("Error: El tamaño debe ser un número positivo")
                 return
 
+        # Obtener estado de la comprobación
+        enable_check = self.check_translation_checkbox.isChecked()
+
         # Confirmar la operación
         if not show_confirmation_dialog(
             "Esta operación modificará los archivos originales.\n"
@@ -337,7 +347,8 @@ class TranslatePanel(QWidget):
             api_key,
             self.update_file_status,
             custom_terms,
-            segment_size
+            segment_size,
+            enable_check   # <-- Pasar nuevo parámetro para habilitar comprobación
         )
 
     def stop_translation(self):

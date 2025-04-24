@@ -16,7 +16,8 @@ class TranslationWorker(QObject):
                  translator: TranslatorLogic, source_lang: str,
                  target_lang: str, api_key: str, provider: str,
                  model: str, custom_terms: str = "",
-                 segment_size: Optional[int] = None):
+                 segment_size: Optional[int] = None,
+                 enable_check: bool = True):
         super().__init__()
         self.files_to_translate = files_to_translate
         self.working_directory = working_directory
@@ -29,6 +30,7 @@ class TranslationWorker(QObject):
         self.model = model
         self.custom_terms = custom_terms
         self.segment_size = segment_size
+        self.enable_check = enable_check
         self._stop_requested = False
         self.translator.segment_size = segment_size
 
@@ -42,7 +44,7 @@ class TranslationWorker(QObject):
 
             # Configurar tamaño de segmento si se especificó
             if self.segment_size is not None:
-                        self.translator.segment_size = self.segment_size
+                self.translator.segment_size = self.segment_size
 
             for i, file_info in enumerate(self.files_to_translate, 1):
                 if self._stop_requested:
@@ -89,7 +91,7 @@ class TranslationWorker(QObject):
             with open(input_path, 'r', encoding='utf-8') as file:
                 text = file.read()
 
-            # Intentar traducir
+            # Intentar traducir usando parámetro enable_check para habilitar comprobación
             translated_text = self.translator.translate_text(
                 text,
                 self.source_lang,
@@ -97,7 +99,8 @@ class TranslationWorker(QObject):
                 self.api_key,
                 self.provider,
                 self.model,
-                self.custom_terms
+                self.custom_terms,
+                enable_check=self.enable_check
             )
 
             if not translated_text:
@@ -156,7 +159,8 @@ class TranslationManager(QObject):
     def translate_files(self, files_to_translate: List[Dict[str, str]],
                        source_lang: str, target_lang: str, api_key: str,
                        status_callback: Optional[Callable[[str, str], None]] = None,
-                       custom_terms: str = "", segment_size: Optional[int] = None) -> None:
+                       custom_terms: str = "", segment_size: Optional[int] = None,
+                       enable_check: bool = True) -> None:
         """
         Inicia la traducción de archivos.
 
@@ -168,6 +172,7 @@ class TranslationManager(QObject):
             status_callback: Función para actualizar el estado en la UI
             custom_terms: Términos personalizados para la traducción
             segment_size: Tamaño de segmentación opcional (caracteres por segmento)
+            enable_check: Bool para habilitar o no la comprobación de la traducción
         """
         if not self.working_directory or not self.db:
             self.error_occurred.emit("No se ha inicializado el directorio de trabajo")
@@ -190,7 +195,8 @@ class TranslationManager(QObject):
             self.current_provider,
             self.current_model,
             custom_terms,
-            segment_size
+            segment_size,
+            enable_check  # Nueva opción para habilitar/deshabilitar la comprobación
         )
 
         # Mover el worker al thread
