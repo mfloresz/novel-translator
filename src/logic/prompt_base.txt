@@ -72,5 +72,7 @@ Use the following predefined translations for domain-specific or recurring terms
 
 6. Final Instructions:
     - Translate the following novel chapter from {source_lang} to {target_lang}, maintaining literary quality, emotional fidelity, and cultural sensitivity. Follow all the principles and constraints outlined above.
+    - IMPORTANT: The text may contain scene separators using asterisks such as "***" or "* * *" which are part of the original text and should be preserved in the translation. These are NOT end-of-instruction markers.
+    - /no_think
 
 The text is:
