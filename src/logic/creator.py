@@ -1,6 +1,13 @@
 import os
-from ebooklib import epub
 from PyQt6.QtCore import QObject, pyqtSignal
+try:
+    from bs4 import BeautifulSoup
+    import pypub
+    DEPENDENCIES_OK = True
+except ImportError as e:
+    DEPENDENCIES_OK = False
+    BeautifulSoup = None
+    pypub = None
 from src.logic.functions import (validate_epub_input, get_epub_files,
                                create_epub_filename, show_error_dialog)
 
@@ -38,6 +45,14 @@ class EpubConverterLogic(QObject):
                 display: block;
                 margin: 1em auto;
             }
+            .titlepage {
+                text-align: center;
+                page-break-after: always;
+            }
+            .cover {
+                text-align: center;
+                page-break-after: always;
+            }
         '''
 
     def set_directory(self, directory):
@@ -58,6 +73,12 @@ class EpubConverterLogic(QObject):
             table: QTableWidget con la lista de archivos
         """
         try:
+            # Verificar dependencias
+            if not DEPENDENCIES_OK:
+                error_msg = "Error: Faltan dependencias. Instale: pip install beautifulsoup4 pypub3"
+                self.conversion_finished.emit(False, error_msg)
+                return
+
             # Validar entradas
             is_valid, error_message = validate_epub_input(
                 data['title'], data['author'], self.directory
@@ -66,61 +87,51 @@ class EpubConverterLogic(QObject):
                 self.conversion_finished.emit(False, error_message)
                 return
 
-            # Crear el libro
-            book = epub.EpubBook()
-
-            # Configurar metadatos
-            book.set_identifier(f'id_{hash(data["title"])}')
-            book.set_title(data['title'])
-            book.set_language('es')
-            book.add_author(data['author'])
-
-            # Añadir CSS
-            style = epub.EpubItem(
-                uid="style_default",
-                file_name="style/default.css",
-                media_type="text/css",
-                content=self.default_css
-            )
-            book.add_item(style)
-
-            # Procesar portada si existe
+            # Crear instancia de Epub
+            self.progress_updated.emit("Inicializando libro EPUB...")
+            
+            # Verificar si hay portada
+            cover_path = None
             if data['cover_path'] and os.path.exists(data['cover_path']):
+                cover_path = data['cover_path']
                 self.progress_updated.emit("Procesando portada...")
-                self.add_cover(book, data['cover_path'])
+            
+            epub = pypub.Epub(data['title'], creator=data['author'], language='es', cover=cover_path)
 
-            # Obtener archivos según el rango especificado
+            # Obtener archivos según rango
             self.progress_updated.emit("Obteniendo lista de archivos...")
             files = get_epub_files(table, data['start_chapter'], data['end_chapter'])
 
             if not files:
-                self.conversion_finished.emit(False, "No se encontraron archivos para procesar")
+                error_msg = "No se encontraron archivos para procesar"
+                self.conversion_finished.emit(False, error_msg)
                 return
 
-            # Procesar capítulos
-            chapters = []
-            spine = ['nav']
+            # Crear página de título como primer capítulo
+            self.progress_updated.emit("Creando página de título...")
+            titlepage_html = self._create_titlepage_html(data['title'], data['author'])
+            title_chapter = pypub.create_chapter_from_html(titlepage_html.encode('utf-8'), title="Título")
+            epub.add_chapter(title_chapter)
 
             self.progress_updated.emit("Procesando capítulos...")
-            for file_info in files:
-                chapter = self.process_chapter(book, file_info)
-                if chapter:
-                    chapters.append(chapter)
-                    spine.append(chapter)
 
-            # Configurar la estructura del libro
-            self.progress_updated.emit("Finalizando estructura del libro...")
-            book.toc = tuple(chapters)
-            book.add_item(epub.EpubNcx())
-            book.add_item(epub.EpubNav())
-            book.spine = spine
+            # Procesar capítulos
+            for i, file_info in enumerate(files):
+                self.progress_updated.emit(f"Procesando capítulo {i+1} de {len(files)}: {file_info['name']}")
+                chapter_html = self.process_chapter(file_info)
+                if chapter_html:
+                    chapter_title = self._extract_chapter_title(file_info)
+                    chapter = pypub.create_chapter_from_html(chapter_html.encode('utf-8'), title=chapter_title)
+                    epub.add_chapter(chapter)
+                else:
+                    self.progress_updated.emit(f"Advertencia: No se pudo procesar el capítulo {file_info['name']}")
 
-            # Generar nombre de archivo y guardar
+            # Generar nombre y ruta de archivo EPUB
             output_filename = create_epub_filename(data['title'])
             output_path = os.path.join(self.directory, output_filename)
 
             self.progress_updated.emit("Guardando archivo EPUB...")
-            epub.write_epub(output_path, book, {})
+            epub.create(output_path)
 
             success_message = f"EPUB creado exitosamente: {output_filename}"
             self.conversion_finished.emit(True, success_message)
@@ -129,102 +140,67 @@ class EpubConverterLogic(QObject):
             error_message = f"Error al crear EPUB: {str(e)}"
             self.conversion_finished.emit(False, error_message)
 
-    def add_cover(self, book, cover_path):
-        """Añade la portada al libro"""
+
+
+    def _extract_chapter_title(self, file_info):
+        """Extrae el título del capítulo del archivo"""
         try:
-            # Leer la imagen
-            with open(cover_path, 'rb') as file:
-                cover_image = file.read()
-
-            # Determinar el tipo de imagen
-            image_type = "image/jpeg"
-
-            # Crear el item de la portada
-            cover = epub.EpubImage()
-            cover.file_name = 'images/cover.jpg'
-            cover.media_type = image_type
-            cover.content = cover_image
-            book.add_item(cover)
-
-            # Crear la página de portada
-            cover_page = epub.EpubHtml(
-                title='Cover',
-                file_name='cover.xhtml',
-                lang='es'
-            )
-            cover_page.content = f'''
-                <html>
-                <head>
-                    <title>Cover</title>
-                    <link rel="stylesheet" href="style/default.css" type="text/css"/>
-                </head>
-                <body>
-                    <div class="cover">
-                        <img src="images/cover.jpg" alt="cover"/>
-                    </div>
-                </body>
-                </html>
-            '''
-            book.add_item(cover_page)
-            book.set_cover("images/cover.jpg", cover_image)
-
+            file_path = os.path.join(self.directory, file_info['name'])
+            with open(file_path, 'r', encoding='utf-8') as f:
+                first_line = f.readline().strip()
+            
+            # Limpiar el título
+            title = self._clean_chapter_title(first_line)
+            return title if title else f"Capítulo {file_info['chapter']}"
         except Exception as e:
-            show_error_dialog(f"Error al procesar la portada: {str(e)}")
+            return f"Capítulo {file_info['chapter']}"
 
-    def process_chapter(self, book, file_info):
-        """Procesa un capítulo individual"""
+    def process_chapter(self, file_info):
+        """Procesa un capítulo individual y retorna HTML"""
         try:
             file_path = os.path.join(self.directory, file_info['name'])
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
 
-            # Obtener el título del capítulo (primera línea)
+            # Obtener título capítulo (primera línea)
             lines = content.split('\n')
             chapter_title = lines[0].strip()
             chapter_content = '\n'.join(lines[1:]).strip()
 
-            # Limpiar el título del capítulo
             chapter_title = self._clean_chapter_title(chapter_title)
 
-            # Crear el capítulo
-            chapter = epub.EpubHtml(
-                title=chapter_title,
-                file_name=f'chapter_{file_info["chapter"]}.xhtml',
-                lang='es'
-            )
+            # Construir contenido HTML con BeautifulSoup
+            soup = BeautifulSoup('', 'html.parser')
+            html_tag = soup.new_tag('html')
 
-            # Crear partes del HTML por separado para evitar problemas con backslashes en f-strings
-            html_start = '''
-                <!DOCTYPE html>
-                <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-                <head>
-                    <title>'''
+            head_tag = soup.new_tag('head')
+            title_tag = soup.new_tag('title')
+            title_tag.string = chapter_title
+            head_tag.append(title_tag)
+            
+            # Añadir CSS inline
+            style_tag = soup.new_tag('style')
+            style_tag.string = self.default_css
+            head_tag.append(style_tag)
+            
+            html_tag.append(head_tag)
 
-            html_middle1 = '''</title>
-                    <link rel="stylesheet" type="text/css" href="style/default.css"/>
-                </head>
-                <body>
-                    <h1>'''
+            body_tag = soup.new_tag('body')
+            h1_tag = soup.new_tag('h1')
+            h1_tag.string = chapter_title
+            body_tag.append(h1_tag)
 
-            html_middle2 = '''</h1>
-                    '''
+            # Separar párrafos por dobles saltos de línea y agregar <p>
+            paragraphs = [p.strip() for p in chapter_content.split('\n\n') if p.strip()]
+            for p in paragraphs:
+                p_tag = soup.new_tag('p')
+                p_tag.string = p
+                body_tag.append(p_tag)
 
-            html_end = '''
-                </body>
-                </html>
-            '''
+            html_tag.append(body_tag)
+            soup.append(html_tag)
 
-            # Procesar párrafos
-            paragraphs = ""
-            for p in chapter_content.split('\n\n'):
-                if p.strip():
-                    paragraphs += f'<p>{p.strip()}</p>'
-
-            # Unir todo el contenido
-            chapter.content = html_start + chapter_title + html_middle1 + chapter_title + html_middle2 + paragraphs + html_end
-
-            book.add_item(chapter)
-            return chapter
+            return str(soup)
 
         except Exception as e:
             self.progress_updated.emit(f"Error al procesar capítulo {file_info['name']}: {str(e)}")
@@ -232,12 +208,44 @@ class EpubConverterLogic(QObject):
 
     def _clean_chapter_title(self, title):
         """Limpia y formatea el título del capítulo"""
-        # Remover marcadores Markdown comunes
         title = title.strip()
         for marker in ['##', '#', '**']:
             if title.startswith(marker):
                 title = title[len(marker):].strip()
             if title.endswith(marker):
                 title = title[:-len(marker)].strip()
-
         return title
+
+    def _create_titlepage_html(self, title, author):
+        """Crea HTML para la página de título"""
+        soup = BeautifulSoup('', 'html.parser')
+        html_tag = soup.new_tag('html')
+
+        head_tag = soup.new_tag('head')
+        title_tag = soup.new_tag('title')
+        title_tag.string = 'Página de Título'
+        head_tag.append(title_tag)
+        
+        # Añadir CSS inline
+        style_tag = soup.new_tag('style')
+        style_tag.string = self.default_css
+        head_tag.append(style_tag)
+        
+        html_tag.append(head_tag)
+
+        body_tag = soup.new_tag('body')
+        div_titlepage = soup.new_tag('div', attrs={'class': 'titlepage'})
+
+        h1_title = soup.new_tag('h1')
+        h1_title.string = title
+        div_titlepage.append(h1_title)
+
+        p_author = soup.new_tag('p')
+        p_author.string = f"por {author}"
+        div_titlepage.append(p_author)
+
+        body_tag.append(div_titlepage)
+        html_tag.append(body_tag)
+        soup.append(html_tag)
+
+        return str(soup)

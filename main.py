@@ -134,7 +134,7 @@ class NovelManagerApp(QMainWindow):
 
         # Inicializar el convertidor EPUB
         self.epub_converter = EpubConverterLogic()
-        self.epub_converter.progress_updated.connect(lambda msg: self.statusBar().showMessage(msg))
+        self.epub_converter.progress_updated.connect(self.update_status_message)
         self.epub_converter.conversion_finished.connect(self.handle_epub_conversion_finished)
 
         # Conectar la señal del panel de creación
@@ -148,6 +148,8 @@ class NovelManagerApp(QMainWindow):
             self.statusBar().showMessage(f"Directorio seleccionado: {self.current_directory}")
             # Configurar el directorio en el convertidor EPUB
             self.epub_converter.set_directory(directory)
+            # Configurar directorio de trabajo en el panel de creación de EPUB
+            self.create_panel.set_working_directory(directory)
             self.load_chapters()
             # Cargar los términos personalizados guardados
             self.translate_panel.load_saved_terms()
@@ -261,6 +263,11 @@ class NovelManagerApp(QMainWindow):
         self.epub_converter.create_epub(data, self.chapters_table)
         self.statusBar().showMessage("Procesando EPUB...")
 
+    def update_status_message(self, message):
+        """Actualiza la barra de estado y fuerza el procesamiento de eventos"""
+        self.statusBar().showMessage(message)
+        QApplication.processEvents()  # Forzar actualización de UI
+    
     def handle_epub_conversion_finished(self, success, message):
         """
         Maneja la finalización de la conversión a EPUB.
@@ -273,6 +280,7 @@ class NovelManagerApp(QMainWindow):
         else:
             # Mostrar mensaje de error
             self.statusBar().showMessage(f"Error: {message}")
+        QApplication.processEvents()  # Forzar actualización de UI
             
     def handle_single_translation_completed(self):
         """

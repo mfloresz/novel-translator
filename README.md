@@ -94,7 +94,7 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 
 ### Dependencias
 ```bash
-pip install PyQt6 ebooklib requests sqlite3 python-dotenv
+pip install PyQt6 beautifulsoup4 pypub3 requests python-dotenv Pillow
 ```
 
 ### Sistemas Operativos
