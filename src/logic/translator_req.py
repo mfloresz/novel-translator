@@ -10,7 +10,7 @@ def translate_segment(provider: str,
     Envía el prompt al proveedor seleccionado y maneja la respuesta.
 
     Args:
-        provider (str): Identificador del proveedor ('gemini', 'together', 'deepinfra')
+        provider (str): Identificador del proveedor ('gemini', 'together', 'deepinfra', 'openai')
         text (str): Texto a traducir (ya incluido en el prompt)
         api_key (str): API key para autenticación
         model_config (Dict): Configuración del modelo seleccionado
@@ -26,6 +26,8 @@ def translate_segment(provider: str,
             return _translate_together(api_key, model_config, prompt)
         elif provider == 'deepinfra':
             return _translate_deepinfra(api_key, model_config, prompt)
+        elif provider == 'openai':
+            return _translate_openai(api_key, model_config, prompt)
         else:
             raise ValueError(f"Proveedor no implementado: {provider}")
     except Exception as e:
@@ -101,6 +103,39 @@ def _translate_deepinfra(api_key: str, model_config: Dict, prompt: str) -> Optio
             print("Respuesta detallada:", e.response.text)
         return None
 
+def _translate_openai(api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
+    import requests
+    try:
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": model_config['model_id'],  # Asegúrate que sea modelo válido
+            "messages": [
+                {"role": "system", "content": "Eres un traductor literario profesional."},  # Opcional, mejora contexto
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.6,
+            "max_tokens": model_config.get('max_tokens', 4096),
+            "top_p": 0.95,
+            "n": 1
+        }
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        json_response = response.json()
+        content = json_response['choices'][0]['message']['content']
+        return _clean_translation(content)
+    except requests.exceptions.RequestException as e:
+        print(f"Error HTTP OpenAI: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            print("Respuesta detallada:", e.response.text)
+        return None
+    except Exception as e:
+        print(f"Error procesando respuesta OpenAI: {str(e)}")
+        return None
+
 def _process_gemini_response(response: Dict) -> Optional[str]:
     try:
         if 'candidates' not in response or not response['candidates']:
@@ -142,6 +177,15 @@ def _process_deepinfra_response(response: Dict) -> Optional[str]:
         return None
 
 def _clean_translation(text: str) -> str:
+    """
+    Limpia el texto recibido del proveedor para eliminar encabezados o texto adicional no deseado.
+
+    Args:
+        text (str): Texto sin procesar
+
+    Returns:
+        str: Texto limpio y listo para usar
+    """
     lines = text.split('\n')
     actual_translation = []
     translation_started = False

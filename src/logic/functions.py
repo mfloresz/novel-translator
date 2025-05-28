@@ -68,17 +68,24 @@ def get_selected_mode(radio_buttons):
 
 # Nuevas funciones para el manejo de EPUB
 
-def get_cover_image():
+def get_cover_image(initial_dir=None):
     """
     Abre un diálogo para seleccionar una imagen de portada.
+
+    Args:
+        initial_dir (str, optional): Directorio inicial para el diálogo
 
     Returns:
         tuple: (path, pixmap) si se selecciona una imagen válida, (None, None) en caso contrario
     """
     file_dialog = QFileDialog()
+    if initial_dir is None:
+        initial_dir = os.path.expanduser('~')
+    
     file_path, _ = file_dialog.getOpenFileName(
         caption="Seleccionar imagen de portada",
-        filter="Imágenes (*.jpg *.jpeg)"
+        directory=initial_dir,
+        filter="Imágenes (*.jpg *.jpeg *.png *.bmp *.gif *.tiff *.webp);;JPEG (*.jpg *.jpeg);;PNG (*.png);;Todos los archivos (*.*)"
     )
 
     if file_path:

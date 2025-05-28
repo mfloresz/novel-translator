@@ -11,6 +11,7 @@ class CreateEpubPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.cover_path = None
+        self.working_directory = None  # Directorio de trabajo actual
         self.init_ui()
 
     def init_ui(self):
@@ -106,7 +107,7 @@ class CreateEpubPanel(QWidget):
 
     def select_cover(self):
         """Maneja la selección de la imagen de portada"""
-        file_path, pixmap = get_cover_image()
+        file_path, pixmap = get_cover_image(self.working_directory)
         if file_path and pixmap:
             self.cover_path = file_path
             preview_image(pixmap, self.cover_preview)
@@ -157,3 +158,71 @@ class CreateEpubPanel(QWidget):
         self.range_all.setChecked(True)
         self.range_from_input.clear()
         self.range_to_input.clear()
+
+    def set_working_directory(self, directory):
+        """Establece el directorio de trabajo y busca portada automáticamente"""
+        self.working_directory = directory
+        self.auto_load_cover()
+
+    def auto_load_cover(self):
+        """Busca automáticamente una imagen de portada en el directorio de trabajo"""
+        if not self.working_directory:
+            return
+            
+        import os
+        # Patrones comunes de nombres de portada
+        cover_patterns = [
+            'cover.jpg', 'cover.jpeg', 'cover.png',
+            'portada.jpg', 'portada.jpeg', 'portada.png',
+            'Cover.jpg', 'Cover.jpeg', 'Cover.png',
+            'Portada.jpg', 'Portada.jpeg', 'Portada.png',
+            'COVER.jpg', 'COVER.jpeg', 'COVER.png',
+            'PORTADA.jpg', 'PORTADA.jpeg', 'PORTADA.png'
+        ]
+        
+        for pattern in cover_patterns:
+            potential_cover = os.path.join(self.working_directory, pattern)
+            if os.path.exists(potential_cover):
+                try:
+                    from PyQt6.QtGui import QPixmap
+                    pixmap = QPixmap(potential_cover)
+                    if not pixmap.isNull():
+                        self.cover_path = potential_cover
+                        preview_image(pixmap, self.cover_preview)
+                        # Mostrar mensaje de confirmación
+                        self.show_auto_cover_message(os.path.basename(potential_cover))
+                        break
+                except Exception:
+                    continue
+
+    def show_auto_cover_message(self, filename):
+        """Muestra un mensaje temporal indicando que se encontró una portada"""
+        from PyQt6.QtWidgets import QLabel
+        from PyQt6.QtCore import QTimer
+        from PyQt6.QtGui import QFont
+        
+        # Crear etiqueta temporal
+        self.auto_cover_label = QLabel(f"✓ Portada encontrada: {filename}")
+        self.auto_cover_label.setStyleSheet("""
+            QLabel {
+                background-color: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
+            }
+        """)
+        
+        # Añadir la etiqueta al layout principal
+        layout = self.layout()
+        layout.insertWidget(0, self.auto_cover_label)
+        
+        # Configurar timer para ocultar el mensaje después de 3 segundos
+        QTimer.singleShot(3000, self.hide_auto_cover_message)
+
+    def hide_auto_cover_message(self):
+        """Oculta el mensaje de portada encontrada"""
+        if hasattr(self, 'auto_cover_label'):
+            self.auto_cover_label.deleteLater()
+            del self.auto_cover_label

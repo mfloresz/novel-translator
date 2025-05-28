@@ -79,7 +79,7 @@ class TranslatorLogic:
             '. ', '? ', '! ',
             '] ', '] \n', ']\n',
             '..." ', '..." \n',
-            '…" ', '…" \n',
+            '…” ', '…” \n',
             '" ', '" \n',
             '."', '?"', '!"',
             '." ', '?" ', '!" '
@@ -144,33 +144,9 @@ class TranslatorLogic:
         prompt = self.check_prompt_template
         prompt = prompt.replace("{source_lang}", self.lang_codes.get(source_lang, source_lang))
         prompt = prompt.replace("{target_lang}", self.lang_codes.get(target_lang, target_lang))
-
-        # Insertar texto original y traducido en el lugar correcto
-        # La suposición es que prompt_check.txt tiene líneas "Text 1:" y "Text 2:" para insertar
-        # Vamos a hacer esto para asegurar:
-        # Insertamos original tras "Text 1:", traducido tras "Text 2:"
-
-        idx_text1 = prompt.find("Text 1:")
-        idx_text2 = prompt.find("Text 2:")
-
-        if idx_text1 == -1 or idx_text2 == -1:
-            # Formato inesperado, simplemente añadir al final
-            return prompt + "\n\nText 1:\n" + original_text + "\n\nText 2:\n" + translated_text
-
-        # Construir nuevo prompt con textos insertados, manteniendo orden
-        before_text1 = prompt[:idx_text1 + len("Text 1:")]
-        between = prompt[idx_text1 + len("Text 1:"):idx_text2 + len("Text 2:")]
-        after_text2 = prompt[idx_text2 + len("Text 2:"):]
-
-        # Insertar los textos, dejando un salto de línea después de la marca
-        final_prompt = (
-            before_text1 + "\n" +
-            original_text.strip() + "\n" +
-            between + "\n" +
-            translated_text.strip() + "\n" +
-            after_text2
-        )
-        return final_prompt
+        prompt = prompt.replace("{TEXT_1}", original_text.strip())
+        prompt = prompt.replace("{TEXT_2}", translated_text.strip())
+        return prompt
 
     def _check_translation(self, original_text: str, translated_text: str,
                            source_lang: str, target_lang: str,
@@ -215,6 +191,8 @@ class TranslatorLogic:
             )
 
         try:
+            print("Prompt de comprobación construido:")
+            print(prompt)
             response = query_model()
             if response is None:
                 print("Error en la comprobación de la traducción (respuesta nula)")
@@ -235,7 +213,6 @@ class TranslatorLogic:
                 else:
                     return False
             else:
-                # Respuesta inesperada, consideramos error
                 print(f"Respuesta inesperada en comprobación: '{response}'")
                 return False
         except Exception as e:
@@ -244,11 +221,11 @@ class TranslatorLogic:
 
     def translate_text(self, text: str, source_lang: str, target_lang: str,
                       api_key: str, provider: str, model: str,
-                      custom_terms: str = "") -> Optional[str]:
+                      custom_terms: str = "", enable_check: bool = True) -> Optional[str]:
         """
         Traduce el texto utilizando el proveedor y modelo especificados.
 
-        Agrega comprobación de la traducción tras completarla.
+        Agrega comprobación de la traducción tras completarla si enable_check=True.
 
         Args:
             text (str): Texto a traducir
@@ -258,9 +235,10 @@ class TranslatorLogic:
             provider (str): Identificador del proveedor
             model (str): Identificador del modelo
             custom_terms (str): Términos personalizados para la traducción
+            enable_check (bool): Si True, realiza comprobación de traducción; si False, omite comprobación.
 
         Returns:
-            Optional[str]: Texto traducido si la comprobación pasa, None si falla o error
+            Optional[str]: Texto traducido si la comprobación pasa o no se realiza, None si falla o error
         """
         try:
             provider_config = self.models_config.get(provider)
@@ -328,22 +306,23 @@ class TranslatorLogic:
             # Unir todos los segmentos traducidos
             full_translation = '\n\n'.join(translated_segments)
 
-            # Ahora hacemos la comprobación de la traducción contra el texto original completo
-            check_passed = self._check_translation(
-                original_text=text,
-                translated_text=full_translation,
-                source_lang=source_lang,
-                target_lang=target_lang,
-                api_key=api_key,
-                provider=provider,
-                model=model
-            )
+            # Si enable_check está habilitado, hacer comprobación
+            if enable_check:
+                check_passed = self._check_translation(
+                    original_text=text,
+                    translated_text=full_translation,
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                    api_key=api_key,
+                    provider=provider,
+                    model=model
+                )
 
-            if not check_passed:
-                print("La comprobación de la traducción NO pasó.")
-                return None
+                if not check_passed:
+                    print("La comprobación de la traducción NO pasó.")
+                    return None
 
-            # Si pasa la comprobación, devolver la traducción completa
+            # Si pasa la comprobación o no se realiza, devolver la traducción completa
             return full_translation
 
         except Exception as e:

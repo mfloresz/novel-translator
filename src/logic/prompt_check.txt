@@ -5,10 +5,14 @@ Compare text 1 (Original - {source_lang}) with text 2 (Translation - {target_lan
 - Conveys the same general meaning, even if using different synonyms or structures
 - Maintains a similar logical sequence of ideas as the original
 - Verify that all the content of the original is present in the translation, with no omitted or incomplete parts.
+- Your analysis should not be based on whether the text could be improved in terms of its translation, but rather on validating whether the above requirements are met.
 
-Respond only with "Yes" if the translation is adequate in general terms (preserves the meaning and essential information).
-Respond only with "No" if there are significant problems such as important omissions, meaning errors, or disorder that alters comprehension.
-Do not explain your reasoning or add additional information. Limit your response exclusively to "Yes" or "No".
+
+Respond ONLY with "Yes" if the translation is adequate in general terms (preserves the meaning and essential information).
+Respond ONLY with "No" if there are significant problems such as important omissions, meaning errors, or disorder that alters comprehension.
+Do not explain your reasoning or add additional information. Limit your response EXCLUSIVELY to "Yes" or "No".
 Text 1:
+{TEXT_1}
 
 Text 2:
+{TEXT_2}

@@ -21,15 +21,10 @@
     "name": "Together AI",
     "base_url": "https://api.together.xyz/v1/chat/completions",
     "models": {
-      "llama4-maverick-moe": {
-        "name": "Llama 4 Maverick (17Bx128E)",
-        "model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-        "max_tokens": 100000
-      },
-      "llama4-scout-moe": {
-        "name": "Llama 4 Scout (17Bx16E)",
-        "model_id": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
-        "max_tokens": 100000
+      "qwen3-235-a22b": {
+        "name": "Qwen3-235B-A22B",
+        "model_id": "Qwen/Qwen3-235B-A22B-fp8-tput",
+        "max_tokens": 20000
       },
       "llama3.3-70b": {
         "name": "Llama 3.3 70B",
@@ -45,6 +40,22 @@
       "llama-sao10k": {
         "name": "Sao10K L3.3-70B-Euryale",
         "model_id": "Sao10K/L3.3-70B-Euryale-v2.3"
+      },
+      "gemma": {
+        "name": "Gemma 3 27B",
+        "model_id": "google/gemma-3-27b-it",
+        "max_tokens": 100000
+      }
+    }
+  },
+  "openai": {
+    "name": "OpenAI",
+    "base_url": "https://api.openai.com/v1/chat/completions",
+    "models": {
+      "gpt-4.1-nano": {
+        "name": "GPT-4.1 Nano",
+        "model_id": "gpt-4.1-nano",
+        "max_tokens": 32000
       }
     }
   }

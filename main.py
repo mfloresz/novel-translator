@@ -73,8 +73,8 @@ class NovelManagerApp(QMainWindow):
 
         # Chapters table
         self.chapters_table = QTableWidget()
-        self.chapters_table.setColumnCount(3)
-        self.chapters_table.setHorizontalHeaderLabels(["Nombre", "Estado", "Acciones"])
+        self.chapters_table.setColumnCount(4)
+        self.chapters_table.setHorizontalHeaderLabels(["Nombre", "Estado", "Abrir", "Traducir"])
 
         # Configure the automatic row numbering column
         self.chapters_table.verticalHeader().setVisible(True)
@@ -92,6 +92,7 @@ class NovelManagerApp(QMainWindow):
         self.chapters_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.chapters_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.chapters_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.chapters_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
 
         left_layout.addLayout(dir_layout)
         left_layout.addWidget(self.chapters_table)
@@ -133,7 +134,7 @@ class NovelManagerApp(QMainWindow):
 
         # Inicializar el convertidor EPUB
         self.epub_converter = EpubConverterLogic()
-        self.epub_converter.progress_updated.connect(lambda msg: self.statusBar().showMessage(msg))
+        self.epub_converter.progress_updated.connect(self.update_status_message)
         self.epub_converter.conversion_finished.connect(self.handle_epub_conversion_finished)
 
         # Conectar la señal del panel de creación
@@ -147,6 +148,8 @@ class NovelManagerApp(QMainWindow):
             self.statusBar().showMessage(f"Directorio seleccionado: {self.current_directory}")
             # Configurar el directorio en el convertidor EPUB
             self.epub_converter.set_directory(directory)
+            # Configurar directorio de trabajo en el panel de creación de EPUB
+            self.create_panel.set_working_directory(directory)
             self.load_chapters()
             # Cargar los términos personalizados guardados
             self.translate_panel.load_saved_terms()
@@ -190,10 +193,15 @@ class NovelManagerApp(QMainWindow):
             self.chapters_table.setItem(row, 0, name_item)
             self.chapters_table.setItem(row, 1, status_item)
 
-            action_button = QPushButton("Abrir")
+            # Botón para abrir el archivo
+            open_button = QPushButton("Abrir")
+            # Botón para traducir solo este capítulo específico con la configuración actual
+            translate_button = QPushButton("Traducir")
             file_path = os.path.join(self.current_directory, file_data['name'])
-            action_button.clicked.connect(lambda checked, path=file_path: self.open_file(path))
-            self.chapters_table.setCellWidget(row, 2, action_button)
+            open_button.clicked.connect(lambda checked, path=file_path: self.open_file(path))
+            translate_button.clicked.connect(lambda checked, filename=file_data['name']: self.translate_single_file(filename))
+            self.chapters_table.setCellWidget(row, 2, open_button)
+            self.chapters_table.setCellWidget(row, 3, translate_button)
 
             # Set chapter number
             self.chapters_table.setVerticalHeaderItem(
@@ -255,6 +263,11 @@ class NovelManagerApp(QMainWindow):
         self.epub_converter.create_epub(data, self.chapters_table)
         self.statusBar().showMessage("Procesando EPUB...")
 
+    def update_status_message(self, message):
+        """Actualiza la barra de estado y fuerza el procesamiento de eventos"""
+        self.statusBar().showMessage(message)
+        QApplication.processEvents()  # Forzar actualización de UI
+    
     def handle_epub_conversion_finished(self, success, message):
         """
         Maneja la finalización de la conversión a EPUB.
@@ -267,6 +280,116 @@ class NovelManagerApp(QMainWindow):
         else:
             # Mostrar mensaje de error
             self.statusBar().showMessage(f"Error: {message}")
+        QApplication.processEvents()  # Forzar actualización de UI
+            
+    def handle_single_translation_completed(self):
+        """
+        Maneja la finalización de la traducción de un solo archivo.
+        """
+        # Restaurar el estado de los botones
+        self.translate_panel.translate_button.setEnabled(True)
+        self.translate_panel.stop_button.setEnabled(False)
+        
+        # Desconectar la señal para evitar múltiples conexiones
+        self.translate_panel.translation_manager.all_translations_completed.disconnect(self.handle_single_translation_completed)
+        
+        # Actualizar mensaje de estado
+        self.statusBar().showMessage("Traducción completada", 5000)
+            
+    def translate_single_file(self, filename):
+        """
+        Traduce un único archivo usando la configuración actual de la pestaña de traducción.
+        Esta función es llamada cuando se hace clic en el botón "Traducir" de la tabla de capítulos.
+        """
+        if not self.current_directory:
+            self.statusBar().showMessage("Error: Seleccione un directorio primero")
+            return
+            
+        # Obtener configuración de la pestaña de traducción
+        translate_panel = self.translate_panel
+        
+        # Obtener API key
+        api_key = translate_panel.api_input.text().strip()
+        if not api_key:
+            self.statusBar().showMessage("Error: API key no proporcionada")
+            return
+            
+        # Obtener proveedor y modelo
+        provider = next(
+            (k for k, v in translate_panel.models_config.items()
+             if v['name'] == translate_panel.provider_combo.currentText()),
+            None
+        )
+        model = next(
+            (k for k, v in translate_panel.models_config[provider]['models'].items()
+             if v['name'] == translate_panel.model_combo.currentText()),
+            None
+        )
+        
+        # Obtener idiomas
+        source_lang = translate_panel.source_lang_combo.currentText()
+        target_lang = translate_panel.target_lang_combo.currentText()
+        
+        if source_lang == target_lang:
+            self.statusBar().showMessage("Error: Los idiomas de origen y destino no pueden ser iguales")
+            return
+            
+        # Obtener términos personalizados
+        custom_terms = translate_panel.terms_input.toPlainText().strip()
+        
+        # Obtener configuración de segmentación
+        segment_size = None
+        if translate_panel.segment_checkbox.isChecked():
+            try:
+                segment_size = int(translate_panel.segment_size_input.text() or 5000)
+                if segment_size <= 0:
+                    segment_size = 5000
+            except ValueError:
+                self.statusBar().showMessage("Error: El tamaño de segmentación debe ser un número")
+                return
+                
+        # Obtener estado de la comprobación
+        enable_check = translate_panel.check_translation_checkbox.isChecked()
+        
+        # Confirmar la operación
+        from src.logic.functions import show_confirmation_dialog
+        if not show_confirmation_dialog(
+            f"Se traducirá el archivo '{filename}'.\n¿Desea continuar?"
+        ):
+            return
+            
+        # Preparar el administrador de traducción
+        translate_panel.translation_manager.initialize(
+            self.current_directory,
+            provider,
+            model
+        )
+        
+        # Configurar UI
+        self.statusBar().showMessage(f"Traduciendo {filename}...")
+        translate_panel.translate_button.setEnabled(False)
+        translate_panel.stop_button.setEnabled(True)
+        
+        # Crear la lista con un solo archivo
+        files_to_translate = [{
+            'name': filename,
+            'row': None  # No necesitamos la fila aquí
+        }]
+        
+        # Conectar señal para restaurar botones cuando termine la traducción
+        translate_panel.translation_manager.all_translations_completed.connect(self.handle_single_translation_completed)
+        
+        # Iniciar traducción
+        translate_panel.translation_manager.translate_files(
+            files_to_translate,
+            source_lang,
+            target_lang,
+            api_key,
+            self.update_file_status,
+            custom_terms,
+            segment_size,
+            enable_check
+        )
 
 def main():
     app = QApplication(sys.argv)
