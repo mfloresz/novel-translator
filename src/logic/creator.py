@@ -89,13 +89,13 @@ class EpubConverterLogic(QObject):
 
             # Crear instancia de Epub
             self.progress_updated.emit("Inicializando libro EPUB...")
-            
+
             # Verificar si hay portada
             cover_path = None
             if data['cover_path'] and os.path.exists(data['cover_path']):
                 cover_path = data['cover_path']
                 self.progress_updated.emit("Procesando portada...")
-            
+
             epub = pypub.Epub(data['title'], creator=data['author'], language='es', cover=cover_path)
 
             # Obtener archivos según rango
@@ -148,7 +148,7 @@ class EpubConverterLogic(QObject):
             file_path = os.path.join(self.directory, file_info['name'])
             with open(file_path, 'r', encoding='utf-8') as f:
                 first_line = f.readline().strip()
-            
+
             # Limpiar el título
             title = self._clean_chapter_title(first_line)
             return title if title else f"Capítulo {file_info['chapter']}"
@@ -177,18 +177,18 @@ class EpubConverterLogic(QObject):
             title_tag = soup.new_tag('title')
             title_tag.string = chapter_title
             head_tag.append(title_tag)
-            
+
             # Añadir CSS inline
             style_tag = soup.new_tag('style')
             style_tag.string = self.default_css
             head_tag.append(style_tag)
-            
+
             html_tag.append(head_tag)
 
             body_tag = soup.new_tag('body')
-            h1_tag = soup.new_tag('h1')
-            h1_tag.string = chapter_title
-            body_tag.append(h1_tag)
+            # h1_tag = soup.new_tag('h1')
+            #3h1_tag.string = chapter_title
+            # body_tag.append(h1_tag)
 
             # Separar párrafos por dobles saltos de línea y agregar <p>
             paragraphs = [p.strip() for p in chapter_content.split('\n\n') if p.strip()]
@@ -209,7 +209,7 @@ class EpubConverterLogic(QObject):
     def _clean_chapter_title(self, title):
         """Limpia y formatea el título del capítulo"""
         title = title.strip()
-        for marker in ['##', '#', '**']:
+        for marker in ['###', '##', '#', '**']:
             if title.startswith(marker):
                 title = title[len(marker):].strip()
             if title.endswith(marker):
@@ -225,12 +225,12 @@ class EpubConverterLogic(QObject):
         title_tag = soup.new_tag('title')
         title_tag.string = 'Página de Título'
         head_tag.append(title_tag)
-        
+
         # Añadir CSS inline
         style_tag = soup.new_tag('style')
         style_tag.string = self.default_css
         head_tag.append(style_tag)
-        
+
         html_tag.append(head_tag)
 
         body_tag = soup.new_tag('body')
