@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
                            QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
                            QPushButton, QLabel, QHeaderView, QSplitter)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFontMetrics, QPixmap
+from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon
 from src.gui.clean import CleanPanel
 from src.gui.create import CreateEpubPanel
 from src.gui.translate import TranslatePanel
@@ -41,6 +41,11 @@ class NovelManagerApp(QMainWindow):
         self.current_directory = None
         self.setWindowTitle("Novel Manager")
         self.setGeometry(100, 100, 1000, 600)
+
+        # Establecer ícono de la aplicación
+        app_icon_path = "src/gui/icons/app.png"
+        if os.path.exists(app_icon_path):
+            self.setWindowIcon(QIcon(app_icon_path))
 
         # Main central widget
         central_widget = QWidget()
@@ -114,6 +119,9 @@ class NovelManagerApp(QMainWindow):
         self.tab_widget.addTab(self.create_panel, "Ebook")
         self.tab_widget.addTab(self.translate_panel, "Traducir")
 
+        # Configurar iconos para las pestañas
+        self.set_tab_icons()
+
         right_layout.addWidget(self.tab_widget)
 
         # Add both panels to splitter
@@ -139,6 +147,29 @@ class NovelManagerApp(QMainWindow):
 
         # Conectar la señal del panel de creación
         self.create_panel.epub_creation_requested.connect(self.handle_epub_creation)
+
+    def set_tab_icons(self):
+        """Configurar iconos SVG para las pestañas"""
+        try:
+            # Rutas de los iconos SVG
+            clean_icon_path = "src/gui/icons/clean.svg"
+            ebook_icon_path = "src/gui/icons/ebook.svg"
+            translate_icon_path = "src/gui/icons/translate.svg"
+
+            # Configurar icono para la pestaña "Limpiar" (índice 0)
+            if os.path.exists(clean_icon_path):
+                self.tab_widget.setTabIcon(0, QIcon(clean_icon_path))
+
+            # Configurar icono para la pestaña "Ebook" (índice 1)
+            if os.path.exists(ebook_icon_path):
+                self.tab_widget.setTabIcon(1, QIcon(ebook_icon_path))
+
+            # Configurar icono para la pestaña "Traducir" (índice 2)
+            if os.path.exists(translate_icon_path):
+                self.tab_widget.setTabIcon(2, QIcon(translate_icon_path))
+
+        except Exception as e:
+            print(f"Error cargando iconos: {e}")
 
     def select_directory(self):
         directory = get_directory()
@@ -261,13 +292,12 @@ class NovelManagerApp(QMainWindow):
         # Iniciar la creación del EPUB
         self.epub_converter.set_directory(self.current_directory)
         self.epub_converter.create_epub(data, self.chapters_table)
-        self.statusBar().showMessage("Procesando EPUB...")
 
     def update_status_message(self, message):
         """Actualiza la barra de estado y fuerza el procesamiento de eventos"""
         self.statusBar().showMessage(message)
         QApplication.processEvents()  # Forzar actualización de UI
-    
+
     def handle_epub_conversion_finished(self, success, message):
         """
         Maneja la finalización de la conversión a EPUB.
@@ -281,7 +311,7 @@ class NovelManagerApp(QMainWindow):
             # Mostrar mensaje de error
             self.statusBar().showMessage(f"Error: {message}")
         QApplication.processEvents()  # Forzar actualización de UI
-            
+
     def handle_single_translation_completed(self):
         """
         Maneja la finalización de la traducción de un solo archivo.
@@ -289,13 +319,13 @@ class NovelManagerApp(QMainWindow):
         # Restaurar el estado de los botones
         self.translate_panel.translate_button.setEnabled(True)
         self.translate_panel.stop_button.setEnabled(False)
-        
+
         # Desconectar la señal para evitar múltiples conexiones
         self.translate_panel.translation_manager.all_translations_completed.disconnect(self.handle_single_translation_completed)
-        
+
         # Actualizar mensaje de estado
         self.statusBar().showMessage("Traducción completada", 5000)
-            
+
     def translate_single_file(self, filename):
         """
         Traduce un único archivo usando la configuración actual de la pestaña de traducción.
@@ -304,16 +334,16 @@ class NovelManagerApp(QMainWindow):
         if not self.current_directory:
             self.statusBar().showMessage("Error: Seleccione un directorio primero")
             return
-            
+
         # Obtener configuración de la pestaña de traducción
         translate_panel = self.translate_panel
-        
+
         # Obtener API key
         api_key = translate_panel.api_input.text().strip()
         if not api_key:
             self.statusBar().showMessage("Error: API key no proporcionada")
             return
-            
+
         # Obtener proveedor y modelo
         provider = next(
             (k for k, v in translate_panel.models_config.items()
@@ -325,18 +355,18 @@ class NovelManagerApp(QMainWindow):
              if v['name'] == translate_panel.model_combo.currentText()),
             None
         )
-        
+
         # Obtener idiomas
         source_lang = translate_panel.source_lang_combo.currentText()
         target_lang = translate_panel.target_lang_combo.currentText()
-        
+
         if source_lang == target_lang:
             self.statusBar().showMessage("Error: Los idiomas de origen y destino no pueden ser iguales")
             return
-            
+
         # Obtener términos personalizados
         custom_terms = translate_panel.terms_input.toPlainText().strip()
-        
+
         # Obtener configuración de segmentación
         segment_size = None
         if translate_panel.segment_checkbox.isChecked():
@@ -347,38 +377,38 @@ class NovelManagerApp(QMainWindow):
             except ValueError:
                 self.statusBar().showMessage("Error: El tamaño de segmentación debe ser un número")
                 return
-                
+
         # Obtener estado de la comprobación
         enable_check = translate_panel.check_translation_checkbox.isChecked()
-        
+
         # Confirmar la operación
         from src.logic.functions import show_confirmation_dialog
         if not show_confirmation_dialog(
             f"Se traducirá el archivo '{filename}'.\n¿Desea continuar?"
         ):
             return
-            
+
         # Preparar el administrador de traducción
         translate_panel.translation_manager.initialize(
             self.current_directory,
             provider,
             model
         )
-        
+
         # Configurar UI
         self.statusBar().showMessage(f"Traduciendo {filename}...")
         translate_panel.translate_button.setEnabled(False)
         translate_panel.stop_button.setEnabled(True)
-        
+
         # Crear la lista con un solo archivo
         files_to_translate = [{
             'name': filename,
             'row': None  # No necesitamos la fila aquí
         }]
-        
+
         # Conectar señal para restaurar botones cuando termine la traducción
         translate_panel.translation_manager.all_translations_completed.connect(self.handle_single_translation_completed)
-        
+
         # Iniciar traducción
         translate_panel.translation_manager.translate_files(
             files_to_translate,

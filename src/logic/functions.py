@@ -167,12 +167,13 @@ def get_epub_files(table, start_index=None, end_index=None):
 
     return files
 
-def create_epub_filename(title):
+def create_epub_filename(title, author):
     """
-    Crea un nombre de archivo válido para el EPUB.
+    Crea un nombre de archivo válido para el EPUB usando título y autor.
 
     Args:
         title (str): Título del libro
+        author (str): Autor del libro
 
     Returns:
         str: Nombre de archivo válido
