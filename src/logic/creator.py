@@ -127,7 +127,7 @@ class EpubConverterLogic(QObject):
                     self.progress_updated.emit(f"Advertencia: No se pudo procesar el capítulo {file_info['name']}")
 
             # Generar nombre y ruta de archivo EPUB
-            output_filename = create_epub_filename(data['title'])
+            output_filename = create_epub_filename(data['title'], data['author'])
             output_path = os.path.join(self.directory, output_filename)
 
             self.progress_updated.emit("Guardando archivo EPUB...")

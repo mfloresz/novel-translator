@@ -1,3 +1,7 @@
+<h1 align="center">
+  <img src="src/gui/icons/app.png" width="150" height="150" alt="App Icon" />
+</h1>
+
 # Novel Manager
 
 Una aplicación de escritorio para gestionar, procesar y traducir novelas y documentos de texto, con funcionalidades específicas para el manejo de capítulos y creación de ebooks.
