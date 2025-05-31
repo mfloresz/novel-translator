@@ -38,12 +38,12 @@ class ElidedLabel(QLabel):
                 display_text = os.path.basename(os.path.dirname(self.full_path))
         else:
             display_text = "Ninguno seleccionado"
-        
+
         # Aplicar elipsis si es necesario
         metrics = QFontMetrics(self.font())
         elided_text = metrics.elidedText(display_text, Qt.TextElideMode.ElideRight, self.width())
         super().setText(elided_text)
-        
+
         # Establecer tooltip con la ruta completa
         self.setToolTip(self.full_path if self.full_path else "Seleccione un directorio de trabajo")
 
@@ -84,19 +84,25 @@ class NovelManagerApp(QMainWindow):
 
         # Directory section
         dir_layout = QHBoxLayout()
-        dir_label = QLabel("Directorio de trabajo:")
+        dir_label = QLabel("Novela:")
         self.dir_display = ElidedLabel()
         self.nav_button = QPushButton("Navegar")
         self.nav_button.clicked.connect(self.select_directory)
-        
+
         # Añadir botón de importar EPUB
         self.import_epub_button = QPushButton("Importar EPUB")
         self.import_epub_button.clicked.connect(self.import_epub)
+
+        # Añadir botón de actualizar
+        self.refresh_button = QPushButton("Actualizar")
+        self.refresh_button.clicked.connect(self.refresh_files)
+        self.refresh_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
 
         dir_layout.addWidget(dir_label)
         dir_layout.addWidget(self.dir_display, stretch=1)
         dir_layout.addWidget(self.nav_button)
         dir_layout.addWidget(self.import_epub_button)
+        dir_layout.addWidget(self.refresh_button)
 
         # Chapters table
         self.chapters_table = QTableWidget()
@@ -170,6 +176,9 @@ class NovelManagerApp(QMainWindow):
 
         # Conectar la señal del panel de creación
         self.create_panel.epub_creation_requested.connect(self.handle_epub_creation)
+
+        # Conectar la señal para mostrar mensajes de estado desde create_panel
+        self.create_panel.status_message_requested.connect(self.show_status_message)
         self.create_panel.status_message_requested.connect(self.show_status_message)
 
         # Inicializar el importador EPUB
@@ -210,9 +219,20 @@ class NovelManagerApp(QMainWindow):
             self.epub_converter.set_directory(directory)
             # Configurar directorio de trabajo en el panel de creación de EPUB
             self.create_panel.set_working_directory(directory)
+            # Habilitar el botón de actualizar
+            self.refresh_button.setEnabled(True)
             self.load_chapters()
             # Cargar los términos personalizados guardados
             self.translate_panel.load_saved_terms()
+
+    def refresh_files(self):
+        """Actualiza la lista de archivos del directorio actual"""
+        if not self.current_directory:
+            self.statusBar().showMessage("Error: No hay directorio seleccionado")
+            return
+
+        self.statusBar().showMessage("Actualizando lista de archivos...")
+        self.load_chapters()
 
     def load_chapters(self):
         if not self.current_directory:
@@ -284,7 +304,7 @@ class NovelManagerApp(QMainWindow):
 
     def _show_loading_error(self, error_message):
         self.statusBar().showMessage(f"Error: {error_message}")
-    
+
     def _load_book_metadata(self, metadata):
         """Carga los metadatos del libro en el panel de creación de EPUB"""
         if metadata.get('title') or metadata.get('author'):
@@ -485,7 +505,7 @@ class NovelManagerApp(QMainWindow):
     def import_epub(self):
         """Maneja la importación de archivos EPUB"""
         from PyQt6.QtWidgets import QFileDialog
-        
+
         # Abrir diálogo para seleccionar archivo EPUB
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -493,13 +513,13 @@ class NovelManagerApp(QMainWindow):
             "",
             "Archivos EPUB (*.epub);;Todos los archivos (*.*)"
         )
-        
+
         if not file_path:
             return
-        
+
         # La carpeta se creará en la misma ubicación que el EPUB
         epub_dir = os.path.dirname(file_path)
-        
+
         # Confirmar la importación
         if not show_confirmation_dialog(
             f"Se importará el EPUB:\n{os.path.basename(file_path)}\n\n"
@@ -507,12 +527,12 @@ class NovelManagerApp(QMainWindow):
             "¿Desea continuar?"
         ):
             return
-        
+
         # Iniciar la importación
         self.statusBar().showMessage("Importando EPUB...")
         self.import_epub_button.setEnabled(False)
         self.nav_button.setEnabled(False)
-        
+
         self.epub_importer.import_epub(file_path)
 
     def handle_epub_import_finished(self, success, message, directory_path):
@@ -520,21 +540,21 @@ class NovelManagerApp(QMainWindow):
         # Restaurar botones
         self.import_epub_button.setEnabled(True)
         self.nav_button.setEnabled(True)
-        
+
         if success:
             # Establecer automáticamente el directorio importado como directorio de trabajo
             self.current_directory = directory_path
             self.dir_display.setText(self.current_directory)
-            
+
             # Configurar el directorio en el convertidor EPUB
             self.epub_converter.set_directory(directory_path)
-            
+
             # Configurar directorio de trabajo en el panel de creación de EPUB
             self.create_panel.set_working_directory(directory_path)
-            
+
             # Cargar los archivos
             self.load_chapters()
-            
+
             # Cargar los términos personalizados guardados
             self.translate_panel.load_saved_terms()
 
