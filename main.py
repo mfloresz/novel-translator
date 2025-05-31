@@ -4,35 +4,52 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
                            QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
                            QPushButton, QLabel, QHeaderView, QSplitter)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon
+from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon, QColor
 from src.gui.clean import CleanPanel
 from src.gui.create import CreateEpubPanel
 from src.gui.translate import TranslatePanel
 from src.logic.get_path import get_directory
 from src.logic.loader import FileLoader
 from src.logic.creator import EpubConverterLogic
+from src.logic.epub_importer import EpubImporter
 from src.logic.functions import show_confirmation_dialog
 import subprocess
 
 class ElidedLabel(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.full_text = ""
+        self.full_path = ""
         self.setMinimumWidth(420)
         self.setMaximumWidth(420)
+        # Establecer fuente en negrita
+        font = self.font()
+        font.setBold(True)
+        self.setFont(font)
 
     def setText(self, text):
-        self.full_text = text
-        self.update_elided_text()
+        self.full_path = text
+        self.update_display_text()
 
-    def update_elided_text(self):
+    def update_display_text(self):
+        if self.full_path:
+            # Extraer solo el nombre de la carpeta
+            display_text = os.path.basename(self.full_path)
+            if not display_text:  # En caso de que termine con /
+                display_text = os.path.basename(os.path.dirname(self.full_path))
+        else:
+            display_text = "Ninguno seleccionado"
+        
+        # Aplicar elipsis si es necesario
         metrics = QFontMetrics(self.font())
-        elided_text = metrics.elidedText(self.full_text, Qt.TextElideMode.ElideLeft, self.width())
+        elided_text = metrics.elidedText(display_text, Qt.TextElideMode.ElideRight, self.width())
         super().setText(elided_text)
+        
+        # Establecer tooltip con la ruta completa
+        self.setToolTip(self.full_path if self.full_path else "Seleccione un directorio de trabajo")
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.update_elided_text()
+        self.update_display_text()
 
 class NovelManagerApp(QMainWindow):
     def __init__(self):
@@ -67,14 +84,19 @@ class NovelManagerApp(QMainWindow):
 
         # Directory section
         dir_layout = QHBoxLayout()
-        dir_label = QLabel("Directorio:")
+        dir_label = QLabel("Directorio de trabajo:")
         self.dir_display = ElidedLabel()
         self.nav_button = QPushButton("Navegar")
         self.nav_button.clicked.connect(self.select_directory)
+        
+        # Añadir botón de importar EPUB
+        self.import_epub_button = QPushButton("Importar EPUB")
+        self.import_epub_button.clicked.connect(self.import_epub)
 
         dir_layout.addWidget(dir_label)
         dir_layout.addWidget(self.dir_display, stretch=1)
         dir_layout.addWidget(self.nav_button)
+        dir_layout.addWidget(self.import_epub_button)
 
         # Chapters table
         self.chapters_table = QTableWidget()
@@ -132,13 +154,14 @@ class NovelManagerApp(QMainWindow):
         splitter.setSizes([650, 350])
 
         # Status bar
-        self.statusBar().showMessage("Estado: Esperando selección de directorio")
+        self.statusBar().showMessage("Estado: Seleccione un directorio de trabajo o importe un EPUB")
 
         # Initialize file loader
         self.file_loader = FileLoader()
         self.file_loader.files_loaded.connect(self._add_files_to_table)
         self.file_loader.loading_finished.connect(self._loading_finished)
         self.file_loader.loading_error.connect(self._show_loading_error)
+        self.file_loader.metadata_loaded.connect(self._load_book_metadata)
 
         # Inicializar el convertidor EPUB
         self.epub_converter = EpubConverterLogic()
@@ -147,6 +170,12 @@ class NovelManagerApp(QMainWindow):
 
         # Conectar la señal del panel de creación
         self.create_panel.epub_creation_requested.connect(self.handle_epub_creation)
+        self.create_panel.status_message_requested.connect(self.show_status_message)
+
+        # Inicializar el importador EPUB
+        self.epub_importer = EpubImporter()
+        self.epub_importer.progress_updated.connect(self.update_status_message)
+        self.epub_importer.import_finished.connect(self.handle_epub_import_finished)
 
     def set_tab_icons(self):
         """Configurar iconos SVG para las pestañas"""
@@ -176,7 +205,7 @@ class NovelManagerApp(QMainWindow):
         if directory:
             self.current_directory = directory
             self.dir_display.setText(self.current_directory)
-            self.statusBar().showMessage(f"Directorio seleccionado: {self.current_directory}")
+            self.statusBar().showMessage(f"Directorio de trabajo: {os.path.basename(self.current_directory)}")
             # Configurar el directorio en el convertidor EPUB
             self.epub_converter.set_directory(directory)
             # Configurar directorio de trabajo en el panel de creación de EPUB
@@ -221,6 +250,9 @@ class NovelManagerApp(QMainWindow):
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
+            # Aplicar color según el estado
+            self._apply_status_color(status_item, file_data['status'])
+
             self.chapters_table.setItem(row, 0, name_item)
             self.chapters_table.setItem(row, 1, status_item)
 
@@ -243,13 +275,22 @@ class NovelManagerApp(QMainWindow):
     def _loading_finished(self):
         total_files = self.chapters_table.rowCount()
         self.statusBar().showMessage(
-            f"Cargados {total_files} archivos de {self.current_directory}"
+            f"Cargados {total_files} archivos de {os.path.basename(self.current_directory)}"
         )
         # Actualizar el rango máximo en el panel de traducción
         self.translate_panel.set_chapter_range(total_files)
+        # Aplicar colores de estado a todas las filas
+        self._update_all_status_colors()
 
     def _show_loading_error(self, error_message):
         self.statusBar().showMessage(f"Error: {error_message}")
+    
+    def _load_book_metadata(self, metadata):
+        """Carga los metadatos del libro en el panel de creación de EPUB"""
+        if metadata.get('title') or metadata.get('author'):
+            # Los metadatos se cargan automáticamente cuando se establece el directorio
+            # en el panel de creación, no necesitamos hacer nada adicional aquí
+            pass
 
     def update_file_status(self, filename, new_status):
         """Actualiza el estado de un archivo en la tabla"""
@@ -257,7 +298,10 @@ class NovelManagerApp(QMainWindow):
             name_item = self.chapters_table.item(row, 0)
             if name_item and name_item.text() == filename:
                 status_item = self.chapters_table.item(row, 1)
-                status_item.setText(new_status)
+                if status_item:
+                    status_item.setText(new_status)
+                    # Aplicar color según el nuevo estado
+                    self._apply_status_color(status_item, new_status)
                 break
 
     def handle_epub_creation(self, data):
@@ -305,8 +349,7 @@ class NovelManagerApp(QMainWindow):
         if success:
             # Mostrar mensaje de éxito
             self.statusBar().showMessage(message, 5000)
-            # Reiniciar el formulario
-            self.create_panel.reset_form()
+            # No reiniciar el formulario - mantener datos
         else:
             # Mostrar mensaje de error
             self.statusBar().showMessage(f"Error: {message}")
@@ -325,6 +368,24 @@ class NovelManagerApp(QMainWindow):
 
         # Actualizar mensaje de estado
         self.statusBar().showMessage("Traducción completada", 5000)
+
+    def _apply_status_color(self, status_item, status):
+        """Aplica color al item de estado según su valor"""
+        if status == "Error":
+            status_item.setForeground(QColor(165, 42, 42))  # Rojo oscuro más legible
+        elif status == "Traducido":
+            status_item.setForeground(QColor(34, 139, 34))  # Verde oscuro más legible
+        else:
+            # Para "Sin procesar" u otros estados, restaurar color por defecto
+            status_item.setForeground(QColor())  # Color por defecto del sistema
+
+    def _update_all_status_colors(self):
+        """Actualiza los colores de estado de todas las filas en la tabla"""
+        for row in range(self.chapters_table.rowCount()):
+            status_item = self.chapters_table.item(row, 1)
+            if status_item:
+                status = status_item.text()
+                self._apply_status_color(status_item, status)
 
     def translate_single_file(self, filename):
         """
@@ -410,7 +471,7 @@ class NovelManagerApp(QMainWindow):
         translate_panel.translation_manager.all_translations_completed.connect(self.handle_single_translation_completed)
 
         # Iniciar traducción
-        translate_panel.translation_manager.translate_files(
+        self.translate_panel.translation_manager.translate_files(
             files_to_translate,
             source_lang,
             target_lang,
@@ -420,6 +481,74 @@ class NovelManagerApp(QMainWindow):
             segment_size,
             enable_check
         )
+
+    def import_epub(self):
+        """Maneja la importación de archivos EPUB"""
+        from PyQt6.QtWidgets import QFileDialog
+        
+        # Abrir diálogo para seleccionar archivo EPUB
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Seleccionar archivo EPUB",
+            "",
+            "Archivos EPUB (*.epub);;Todos los archivos (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        # La carpeta se creará en la misma ubicación que el EPUB
+        epub_dir = os.path.dirname(file_path)
+        
+        # Confirmar la importación
+        if not show_confirmation_dialog(
+            f"Se importará el EPUB:\n{os.path.basename(file_path)}\n\n"
+            f"Se creará una nueva carpeta en:\n{epub_dir}\n\n"
+            "¿Desea continuar?"
+        ):
+            return
+        
+        # Iniciar la importación
+        self.statusBar().showMessage("Importando EPUB...")
+        self.import_epub_button.setEnabled(False)
+        self.nav_button.setEnabled(False)
+        
+        self.epub_importer.import_epub(file_path)
+
+    def handle_epub_import_finished(self, success, message, directory_path):
+        """Maneja la finalización de la importación de EPUB"""
+        # Restaurar botones
+        self.import_epub_button.setEnabled(True)
+        self.nav_button.setEnabled(True)
+        
+        if success:
+            # Establecer automáticamente el directorio importado como directorio de trabajo
+            self.current_directory = directory_path
+            self.dir_display.setText(self.current_directory)
+            
+            # Configurar el directorio en el convertidor EPUB
+            self.epub_converter.set_directory(directory_path)
+            
+            # Configurar directorio de trabajo en el panel de creación de EPUB
+            self.create_panel.set_working_directory(directory_path)
+            
+            # Cargar los archivos
+            self.load_chapters()
+            
+            # Cargar los términos personalizados guardados
+            self.translate_panel.load_saved_terms()
+
+            # Mostrar mensaje de éxito
+            self.statusBar().showMessage(message, 5000)
+        else:
+            # Mostrar mensaje de error
+            self.statusBar().showMessage(f"Error: {message}")
+            from src.logic.functions import show_error_dialog
+            show_error_dialog(message, "Error al importar EPUB")
+
+    def show_status_message(self, message, timeout=0):
+        """Muestra un mensaje en la barra de estado"""
+        self.statusBar().showMessage(message, timeout)
 
 def main():
     app = QApplication(sys.argv)
