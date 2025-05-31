@@ -183,3 +183,92 @@ def create_epub_filename(title, author):
     filename = ''.join(c for c in title if c in valid_chars)
     # Limitar longitud y añadir extensión
     return f"{filename[:50]}.epub".strip()
+
+def validate_epub_file(file_path):
+    """
+    Valida que un archivo sea un EPUB válido antes de importarlo.
+
+    Args:
+        file_path (str): Ruta al archivo EPUB
+
+    Returns:
+        tuple: (bool, str) - (es_válido, mensaje_de_error)
+    """
+    import zipfile
+    
+    if not file_path:
+        return False, "No se seleccionó ningún archivo"
+    
+    if not os.path.exists(file_path):
+        return False, "El archivo no existe"
+    
+    if not file_path.lower().endswith('.epub'):
+        return False, "El archivo debe tener extensión .epub"
+    
+    try:
+        with zipfile.ZipFile(file_path, 'r') as epub_zip:
+            # Verificar estructura básica de EPUB
+            files = epub_zip.namelist()
+            
+            if 'META-INF/container.xml' not in files:
+                return False, "Archivo EPUB inválido: falta container.xml"
+            
+            # Verificar que tenga al menos un archivo OPF
+            has_opf = any(f.endswith('.opf') for f in files)
+            if not has_opf:
+                return False, "Archivo EPUB inválido: falta archivo OPF"
+            
+            return True, ""
+            
+    except zipfile.BadZipFile:
+        return False, "El archivo está corrupto o no es un ZIP válido"
+    except Exception as e:
+        return False, f"Error al validar EPUB: {str(e)}"
+
+def show_import_confirmation_dialog(epub_name, output_dir):
+    """
+    Muestra un diálogo específico para confirmar la importación de EPUB.
+
+    Args:
+        epub_name (str): Nombre del archivo EPUB
+        output_dir (str): Directorio donde se creará la carpeta
+
+    Returns:
+        bool: True si el usuario acepta la importación
+    """
+    message = (
+        f"Se importará el EPUB: {epub_name}\n\n"
+        f"Se creará una nueva carpeta en:\n{output_dir}\n\n"
+        "Los capítulos se convertirán a archivos TXT numerados.\n"
+        "¿Desea continuar?"
+    )
+    return show_confirmation_dialog(message, "Importar EPUB")
+
+def sanitize_directory_name(name):
+    """
+    Sanitiza un nombre para usar como nombre de directorio.
+
+    Args:
+        name (str): Nombre original
+
+    Returns:
+        str: Nombre sanitizado válido para directorio
+    """
+    # Caracteres no válidos en nombres de archivo/directorio
+    invalid_chars = '<>:"/\\|?*'
+    
+    # Reemplazar caracteres inválidos
+    for char in invalid_chars:
+        name = name.replace(char, '_')
+    
+    # Remover espacios extra y caracteres especiales adicionales
+    name = ''.join(c for c in name if c.isalnum() or c in ' -_.')
+    
+    # Limitar longitud
+    name = name[:100].strip()
+    
+    # Asegurar que no esté vacío
+    if not name:
+        name = "Libro_Importado"
+    
+    return name

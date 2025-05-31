@@ -7,6 +7,7 @@ class FileLoader(QObject):
     files_loaded = pyqtSignal(list)
     loading_finished = pyqtSignal()
     loading_error = pyqtSignal(str)
+    metadata_loaded = pyqtSignal(dict)  # Nueva señal para metadatos
 
     def __init__(self):
         super().__init__()
@@ -35,8 +36,12 @@ class FileLoader(QObject):
                 self.loading_error.emit("No se encontraron archivos .txt en el directorio")
                 return
 
-            # Emitir la lista completa
+            # Cargar metadatos del libro si existen
+            metadata = self.db.get_book_metadata()
+            
+            # Emitir la lista completa y los metadatos
             self.files_loaded.emit(txt_files)
+            self.metadata_loaded.emit(metadata)
             self.loading_finished.emit()
 
         except Exception as e:

@@ -386,4 +386,6 @@ class TranslatePanel(QWidget):
                 status_item = self.main_window.chapters_table.item(row, 1)
                 if status_item:
                     status_item.setText(status)
+                    # Aplicar color usando el método de la ventana principal
+                    self.main_window._apply_status_color(status_item, status)
                 break

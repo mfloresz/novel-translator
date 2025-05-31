@@ -38,6 +38,16 @@ class TranslationDatabase:
                         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
+                # Nueva tabla para metadatos del libro (título y autor)
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS book_metadata (
+                        directory TEXT PRIMARY KEY,
+                        title TEXT,
+                        author TEXT,
+                        created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
                 conn.commit()
         except sqlite3.Error as e:
             print(f"Error inicializando la base de datos: {e}")
@@ -48,7 +58,7 @@ class TranslationDatabase:
         json_path = os.path.join(self.directory, '.translation_records.json')
         if not os.path.exists(json_path):
             with open(json_path, 'w', encoding='utf-8') as f:
-                json.dump({"translations": [], "custom_terms": ""}, f)
+                json.dump({"translations": [], "custom_terms": "", "book_metadata": {}}, f)
 
     def is_file_translated(self, filename: str) -> bool:
         """
@@ -258,3 +268,84 @@ class TranslationDatabase:
                 return records.get('custom_terms', "")
         except (FileNotFoundError, json.JSONDecodeError):
             return ""
+
+    def save_book_metadata(self, title: str, author: str) -> bool:
+        """
+        Guarda los metadatos del libro (título y autor) para el directorio actual.
+
+        Args:
+            title (str): Título del libro
+            author (str): Autor del libro
+
+        Returns:
+            bool: True si se guardaron correctamente, False en caso contrario
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO book_metadata (directory, title, author, last_updated)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (self.directory, title, author))
+                conn.commit()
+                return True
+        except sqlite3.Error:
+            return self._save_metadata_to_json(title, author)
+
+    def get_book_metadata(self) -> Dict[str, str]:
+        """
+        Recupera los metadatos del libro para el directorio actual.
+
+        Returns:
+            Dict[str, str]: Diccionario con 'title' y 'author' o vacío si no hay datos
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT title, author FROM book_metadata WHERE directory = ?",
+                    (self.directory,)
+                )
+                result = cursor.fetchone()
+                if result:
+                    return {"title": result[0] or "", "author": result[1] or ""}
+                return {"title": "", "author": ""}
+        except sqlite3.Error:
+            return self._get_metadata_from_json()
+
+    def _save_metadata_to_json(self, title: str, author: str) -> bool:
+        """Guarda los metadatos en el archivo JSON de respaldo"""
+        json_path = os.path.join(self.directory, '.translation_records.json')
+        try:
+            if os.path.exists(json_path):
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    records = json.load(f)
+            else:
+                records = {"translations": [], "custom_terms": "", "book_metadata": {}}
+
+            records['book_metadata'] = {
+                "title": title,
+                "author": author,
+                "last_updated": str(datetime.now())
+            }
+
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(records, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error guardando metadatos en JSON: {e}")
+            return False
+
+    def _get_metadata_from_json(self) -> Dict[str, str]:
+        """Recupera los metadatos del archivo JSON de respaldo"""
+        json_path = os.path.join(self.directory, '.translation_records.json')
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                records = json.load(f)
+                metadata = records.get('book_metadata', {})
+                return {
+                    "title": metadata.get('title', ''),
+                    "author": metadata.get('author', '')
+                }
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {"title": "", "author": ""}

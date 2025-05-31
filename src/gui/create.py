@@ -3,15 +3,18 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                            QFormLayout)
 from PyQt6.QtCore import Qt, pyqtSignal
 from src.logic.functions import get_cover_image, preview_image
+from src.logic.database import TranslationDatabase
 
 class CreateEpubPanel(QWidget):
     # Señales para comunicar con la ventana principal
     epub_creation_requested = pyqtSignal(dict)  # Emite los datos para crear el EPUB
+    status_message_requested = pyqtSignal(str, int)  # Emite mensaje para barra de estado (mensaje, timeout)
 
     def __init__(self):
         super().__init__()
         self.cover_path = None
         self.working_directory = None  # Directorio de trabajo actual
+        self.db = None  # Base de datos para metadatos
         self.init_ui()
 
     def init_ui(self):
@@ -89,15 +92,30 @@ class CreateEpubPanel(QWidget):
         range_layout.addLayout(range_specific_layout)
         range_group.setLayout(range_layout)
 
+        # Buttons layout
+        buttons_layout = QHBoxLayout()
+        
+        # Save metadata button
+        self.save_metadata_button = QPushButton("Guardar Metadatos")
+        self.save_metadata_button.clicked.connect(self.save_metadata)
+        self.save_metadata_button.setEnabled(False)  # Deshabilitado hasta tener directorio
+        self.save_metadata_button.setToolTip(
+            "Guarda el título y autor para este directorio de trabajo.\n"
+            "Se cargarán automáticamente cuando abras este directorio."
+        )
+        
         # Create button
         self.create_button = QPushButton("Crear EPUB")
         self.create_button.clicked.connect(self.request_epub_creation)
+
+        buttons_layout.addWidget(self.save_metadata_button)
+        buttons_layout.addWidget(self.create_button)
 
         # Add all elements to main layout
         main_layout.addLayout(form_layout)
         main_layout.addWidget(cover_group)
         main_layout.addWidget(range_group)
-        main_layout.addWidget(self.create_button)
+        main_layout.addLayout(buttons_layout)
         main_layout.addStretch()
 
         self.setLayout(main_layout)
@@ -151,9 +169,10 @@ class CreateEpubPanel(QWidget):
         self.epub_creation_requested.emit(data)
 
     def reset_form(self):
-        """Reinicia el formulario a su estado inicial"""
-        self.title_input.clear()
-        self.author_input.clear()
+        """Reinicia solo la portada y el rango, mantiene título y autor"""
+        # No limpiar título y autor - mantener los datos
+        # self.title_input.clear()
+        # self.author_input.clear()
         self.clear_cover()
         self.range_all.setChecked(True)
         self.range_from_input.clear()
@@ -162,7 +181,47 @@ class CreateEpubPanel(QWidget):
     def set_working_directory(self, directory):
         """Establece el directorio de trabajo y busca portada automáticamente"""
         self.working_directory = directory
+        self.db = TranslationDatabase(directory)
+        self.save_metadata_button.setEnabled(True)
         self.auto_load_cover()
+        self.load_metadata()
+    
+    def load_metadata(self):
+        """Carga los metadatos guardados del directorio actual"""
+        if not self.db:
+            return
+        
+        try:
+            metadata = self.db.get_book_metadata()
+            if metadata.get('title'):
+                self.title_input.setText(metadata['title'])
+            if metadata.get('author'):
+                self.author_input.setText(metadata['author'])
+        except Exception as e:
+            print(f"Error cargando metadatos: {e}")
+    
+    def save_metadata(self):
+        """Guarda manualmente los metadatos del libro"""
+        if not self.db:
+            return
+        
+        title = self.title_input.text().strip()
+        author = self.author_input.text().strip()
+        
+        if not title and not author:
+            from src.logic.functions import show_error_dialog
+            show_error_dialog("Ingrese al menos el título o el autor para guardar.")
+            return
+        
+        try:
+            success = self.db.save_book_metadata(title, author)
+            if success:
+                # Emitir señal para mostrar mensaje en barra de estado
+                self.status_message_requested.emit("Metadatos guardados exitosamente", 3000)
+            else:
+                self.status_message_requested.emit("Error al guardar los metadatos", 5000)
+        except Exception as e:
+            self.status_message_requested.emit(f"Error al guardar metadatos: {str(e)}", 5000)
 
     def auto_load_cover(self):
         """Busca automáticamente una imagen de portada en el directorio de trabajo"""
