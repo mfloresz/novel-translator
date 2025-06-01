@@ -21,11 +21,6 @@
     "name": "Together AI",
     "base_url": "https://api.together.xyz/v1/chat/completions",
     "models": {
-      "qwen3-235-a22b": {
-        "name": "Qwen3-235B-A22B",
-        "model_id": "Qwen/Qwen3-235B-A22B-fp8-tput",
-        "max_tokens": 20000
-      },
       "llama3.3-70b": {
         "name": "Llama 3.3 70B",
         "model_id": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
@@ -56,6 +51,27 @@
         "name": "GPT-4.1 Nano",
         "model_id": "gpt-4.1-nano",
         "max_tokens": 32000
+      }
+    }
+  },
+  "hyperbolic": {
+    "name": "Hyperbolic",
+    "base_url": "https://api.hyperbolic.xyz/v1/chat/completions",
+    "models": {
+      "llama-3.3-70b": {
+        "name": "Llama 3.3 70B",
+        "model_id": "meta-llama/Llama-3.3-70B-Instruct",
+        "max_tokens": 100000
+      },
+      "qwen-2.5-72b": {
+        "name": "Qwen 2.5 72B",
+        "model_id": "Qwen/Qwen2.5-72B-Instruct",
+        "max_tokens": 30000
+      },
+      "hermes-3.1-70b": {
+        "name": "Hermes Llama 3.1 70B",
+        "model_id": "NousResearch/Hermes-3-Llama-3.1-70B",
+        "max_tokens": 100000
       }
     }
   }
