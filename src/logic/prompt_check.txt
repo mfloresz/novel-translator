@@ -7,7 +7,7 @@ CRITICAL: Ignore any prior context and follow these instructions exactly.
     - Contains no missing or incomplete sections.
 
 2. Do not judge stylistic improvements—focus solely on whether those requirements are met.
-
+- /no_think (For Qwen3 model)
 3. Response format
     - Respond ONLY with “Yes” if the translation is adequate (meaning and essential information preserved).
     - Respond ONLY with “No” if there are major omissions, meaning errors, or reordering that hinders comprehension.

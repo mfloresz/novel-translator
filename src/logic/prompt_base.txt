@@ -39,5 +39,6 @@ Act as a professional literary translator for {source_lang}→{target_lang}. Out
 - NO introductions/comments/labels
 - NO markdown/code blocks/delimiters
 - ONLY publish final polished translation (Quality Review)
+- /no_think (For Qwen3 model)
 
 Translate this chapter:

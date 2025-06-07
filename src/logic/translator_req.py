@@ -30,6 +30,8 @@ def translate_segment(provider: str,
             return _translate_openai(api_key, model_config, prompt)
         elif provider == 'hyperbolic':
             return _translate_hyperbolic(api_key, model_config, prompt)
+        elif provider == 'chutes':
+            return _translate_chutes(api_key, model_config, prompt)
         else:
             raise ValueError(f"Proveedor no implementado: {provider}")
     except Exception as e:
@@ -212,6 +214,41 @@ def _process_hyperbolic_response(response: Dict) -> Optional[str]:
         return _clean_translation(message['content'])
     except Exception as e:
         print(f"Error procesando respuesta de Hyperbolic: {str(e)}")
+        return None
+
+def _translate_chutes(api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
+    try:
+        url = "https://llm.chutes.ai/v1/chat/completions"
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        }
+        data = {
+            "model": model_config['endpoint'],
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.6,
+            "max_tokens": model_config.get('max_tokens', 4096),
+            "stream": False
+        }
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        return _process_chutes_response(response.json())
+    except Exception as e:
+        print(f"Error Chutes AI: {str(e)}")
+        if hasattr(e, 'response') and e.response:
+            print("Respuesta detallada:", e.response.text)
+        return None
+
+def _process_chutes_response(response: Dict) -> Optional[str]:
+    try:
+        if 'choices' not in response or not response['choices']:
+            return None
+        message = response['choices'][0]['message']
+        if 'content' not in message:
+            return None
+        return _clean_translation(message['content'])
+    except Exception as e:
+        print(f"Error procesando respuesta de Chutes AI: {str(e)}")
         return None
 
 def _clean_translation(text: str) -> str:

@@ -57,7 +57,7 @@ class NovelManagerApp(QMainWindow):
         super().__init__()
 
         self.current_directory = None
-        self.setWindowTitle("Novel Manager")
+        self.setWindowTitle("Novel Translator")
         self.setGeometry(100, 100, 1000, 600)
 
         # Establecer ícono de la aplicación
@@ -183,7 +183,7 @@ class NovelManagerApp(QMainWindow):
 
         # Conectar la señal para mostrar mensajes de estado desde create_panel
         self.create_panel.status_message_requested.connect(self.show_status_message)
-        
+
         # Conectar señal para actualizar título cuando se guardan metadatos
         self.create_panel.metadata_saved.connect(self.update_window_title)
 
@@ -587,43 +587,43 @@ class NovelManagerApp(QMainWindow):
     def update_window_title(self):
         """Actualiza el título de la ventana basado en los metadatos de la base de datos"""
         if not self.current_directory:
-            self.setWindowTitle("Novel Manager")
+            self.setWindowTitle("Novel Translator")
             return
-        
+
         try:
             # Crear instancia de base de datos para obtener metadatos
             db = TranslationDatabase(self.current_directory)
             metadata = db.get_book_metadata()
-            
+
             # Usar el título si existe, sino usar el nombre de la carpeta
             if metadata.get('title') and metadata['title'].strip():
                 title = metadata['title'].strip()
-                self.setWindowTitle(f"Novel Manager - {title}")
+                self.setWindowTitle(f"Novel Translator - {title}")
             else:
                 folder_name = os.path.basename(self.current_directory)
-                self.setWindowTitle(f"Novel Manager - {folder_name}")
+                self.setWindowTitle(f"Novel Translator - {folder_name}")
         except Exception as e:
             # En caso de error, usar el nombre de la carpeta
             folder_name = os.path.basename(self.current_directory)
-            self.setWindowTitle(f"Novel Manager - {folder_name}")
+            self.setWindowTitle(f"Novel Translator - {folder_name}")
 
     def open_working_directory(self):
         """Abre el directorio de trabajo actual en el explorador de archivos"""
         if not self.current_directory:
             self.statusBar().showMessage("Error: No hay directorio de trabajo seleccionado")
             return
-        
+
         try:
             import platform
             system = platform.system()
-            
+
             if system == "Windows":
                 os.startfile(self.current_directory)
             elif system == "Darwin":  # macOS
                 subprocess.run(["open", self.current_directory])
             else:  # Linux y otros Unix
                 subprocess.run(["xdg-open", self.current_directory])
-                
+
             self.statusBar().showMessage(f"Abriendo directorio: {os.path.basename(self.current_directory)}", 3000)
         except Exception as e:
             self.statusBar().showMessage(f"Error al abrir directorio: {str(e)}")

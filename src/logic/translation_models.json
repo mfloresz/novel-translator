@@ -3,14 +3,6 @@
     "name": "Google Gemini",
     "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
     "models": {
-      "gemini-flash-exp": {
-        "name": "Gemini Flash 2.0 Exp",
-        "endpoint": "gemini-2.0-flash-exp:generateContent"
-      },
-      "gemini-flash-lite": {
-        "name": "Gemini Flash 2.0 Lite",
-        "endpoint": "gemini-2.0-flash-lite:generateContent"
-      },
       "gemini-flash": {
         "name": "Gemini Flash 2.0",
         "endpoint": "gemini-2.0-flash:generateContent"
@@ -72,6 +64,22 @@
         "name": "Hermes Llama 3.1 70B",
         "model_id": "NousResearch/Hermes-3-Llama-3.1-70B",
         "max_tokens": 100000
+      }
+    }
+  },
+  "chutes": {
+    "name": "Chutes AI",
+    "base_url": "https://llm.chutes.ai/v1/chat/completions",
+    "models": {
+      "llama-4-maverick": {
+        "name": "Llama 4 Maverick",
+        "endpoint": "chutesai/Llama-4-Maverick-17B-128E-Instruct-FP8",
+        "max_tokens": 100000
+      },
+      "qwen-3": {
+        "name": "Qwen 3 235B",
+        "endpoint": "Qwen/Qwen3-235B-A22B",
+        "max_tokens": 32000
       }
     }
   }
