@@ -2,7 +2,7 @@
   <img src="src/gui/icons/app.png" width="150" height="150" alt="App Icon" />
 </h1>
 
-# Novel Manager
+# Novel Translator
 
 Una aplicación de escritorio para gestionar, procesar y traducir novelas y documentos de texto, con funcionalidades específicas para el manejo de capítulos, creación de ebooks e importación de EPUBs.
 
