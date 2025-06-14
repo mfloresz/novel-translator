@@ -428,9 +428,9 @@ class NovelManagerApp(QMainWindow):
         translate_panel = self.translate_panel
 
         # Obtener API key
-        api_key = translate_panel.api_input.text().strip()
+        api_key = translate_panel.get_current_api_key()
         if not api_key:
-            self.statusBar().showMessage("Error: API key no proporcionada")
+            self.statusBar().showMessage("Error: API key no configurada. Use el botón de configuración.")
             return
 
         # Obtener proveedor y modelo
