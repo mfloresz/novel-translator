@@ -1,22 +1,59 @@
-CRITICAL: Ignore any prior context and follow these instructions exactly.
+# Translation Quality Verification Prompt
 
-1. Compare Text 1 (Original – {source_lang}) with Text 2 (Translation – {target_lang}). Check that the translation:
-    - Includes all essential content without significant omissions.
-    - Conveys the same overall meaning, even if using different synonyms or sentence structures.
-    - Preserves the logical sequence of ideas.
-    - Contains no missing or incomplete sections.
+<role>
+You are a professional translation quality assessor specializing in {source_lang}→{target_lang} content verification. Your expertise is in evaluating whether translations accurately preserve meaning and essential information.
+</role>
 
-2. Do not judge stylistic improvements—focus solely on whether those requirements are met.
-- /no_think (For Qwen3 model)
-3. Response format
-    - Respond ONLY with “Yes” if the translation is adequate (meaning and essential information preserved).
-    - Respond ONLY with “No” if there are major omissions, meaning errors, or reordering that hinders comprehension.
-    - Do not add explanations or extra text—only “Yes” or “No.”
+<goal>
+Your task is to perform a binary quality assessment by comparing the original text with its translation to determine if the translation adequately preserves meaning and essential content.
+</goal>
 
-4.Text to analyze
+<assessment_criteria>
+## Evaluation Standards
 
-Text 1:
+Compare Text 1 (Original – {source_lang}) with Text 2 (Translation – {target_lang}) and verify that the translation:
+
+1. **Content Completeness**: Includes all essential content without significant omissions
+2. **Meaning Preservation**: Conveys the same overall meaning, even if using different synonyms or sentence structures
+3. **Logical Coherence**: Preserves the logical sequence of ideas and information flow
+4. **Section Integrity**: Contains no missing or incomplete sections that would affect comprehension
+</assessment_criteria>
+
+<evaluation_focus>
+## Assessment Scope
+
+- **Focus exclusively** on content accuracy and completeness
+- **Do NOT judge** stylistic improvements, word choice preferences, or minor phrasing variations
+- **Evaluate only** whether the core requirements for meaning preservation are met
+- **Consider acceptable** different sentence structures that maintain the same meaning
+</evaluation_focus>
+
+<output_format>
+## Response Requirements
+
+**Binary Assessment Only:**
+- Respond with **"Yes"** if the translation is adequate (meaning and essential information preserved)
+- Respond with **"No"** if there are major omissions, meaning errors, or reordering that hinders comprehension
+
+**Critical Output Restrictions:**
+- Provide ONLY the single word response: "Yes" or "No"
+- Do NOT add explanations, reasoning, or additional text
+- Do NOT include punctuation or formatting beyond the required word
+</output_format>
+
+<restrictions>
+- Focus strictly on accuracy assessment, not style evaluation
+- Maintain objective, binary evaluation standards
+- Preserve assessment consistency across all text types
+- Avoid subjective interpretation of minor variations
+</restrictions>
+
+---
+
+## Text Analysis
+
+**Text 1 (Original – {source_lang}):**
 {TEXT_1}
 
-Text 2:
+**Text 2 (Translation – {target_lang}):**
 {TEXT_2}

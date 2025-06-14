@@ -8,7 +8,7 @@ class TranslatorLogic:
     def __init__(self, segment_size=None):
         """Inicializa el traductor con los idiomas soportados"""
         self.lang_codes = {
-            'Español (Neutro)': 'Spanish (Neutral, non-regional)',
+            'Español': 'Spanish (Latin American)',
             'Inglés': 'English',
             'Francés': 'French',
             'Alemán': 'German',
@@ -267,7 +267,7 @@ class TranslatorLogic:
                 # Agregar términos personalizados si existen
                 if custom_terms:
                     ref_section = "**Terminology Reference** "
-                    final_instructions = "\n**Output Strictures** "
+                    final_instructions = "\n<output_requirements> "
 
                     pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
                     post_terms = prompt[prompt.find(final_instructions):]
