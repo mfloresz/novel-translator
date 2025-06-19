@@ -202,9 +202,9 @@ class TranslatePanel(QWidget):
         # Cargar proveedores y modelos
         self.load_translation_models()
 
-        # Conectar cambios en los inputs de rango
-        self.start_chapter_spin.textChanged.connect(self.adjust_chapter_range)
-        self.end_chapter_spin.textChanged.connect(self.adjust_chapter_range)
+        # Comentar estas líneas para permitir escritura libre
+        # self.start_chapter_spin.textChanged.connect(self.adjust_chapter_range)
+        # self.end_chapter_spin.textChanged.connect(self.adjust_chapter_range)
 
         # Conectar el checkbox de segmentación
         self.segment_checkbox.toggled.connect(self.segment_size_input.setEnabled)

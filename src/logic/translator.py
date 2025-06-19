@@ -9,10 +9,7 @@ class TranslatorLogic:
         """Inicializa el traductor con los idiomas soportados"""
         self.lang_codes = {
             'Español': 'Spanish (Latin American)',
-            'Inglés': 'English',
-            'Francés': 'French',
-            'Alemán': 'German',
-            'Italiano': 'Italian'
+            'Inglés': 'English'
         }
 
         # Cargar configuración de modelos
@@ -203,7 +200,7 @@ class TranslatorLogic:
                 return True
             elif cleaned_response == "no":
                 # Reintentar una vez
-                time.sleep(2)
+                time.sleep(5)
                 response_retry = query_model()
                 if response_retry is None:
                     print("Error en la comprobación de la traducción (reintento respuesta nula)")
@@ -266,8 +263,8 @@ class TranslatorLogic:
 
                 # Agregar términos personalizados si existen
                 if custom_terms:
-                    ref_section = "**Terminology Reference** "
-                    final_instructions = "\n<output_requirements> "
+                    ref_section = "**Terminology Reference**"
+                    final_instructions = "<output_requirements>"
 
                     pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
                     post_terms = prompt[prompt.find(final_instructions):]
@@ -301,7 +298,7 @@ class TranslatorLogic:
 
                 # Esperar entre segmentos para evitar límites de rate
                 if i < len(segments):
-                    time.sleep(2)
+                    time.sleep(5)
 
             # Unir todos los segmentos traducidos
             full_translation = '\n\n'.join(translated_segments)
