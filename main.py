@@ -3,8 +3,8 @@ import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
                            QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
                            QPushButton, QLabel, QHeaderView, QSplitter)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon, QColor
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon, QColor, QPalette
 from src.gui.clean import CleanPanel
 from src.gui.create import CreateEpubPanel
 from src.gui.translate import TranslatePanel
@@ -151,9 +151,6 @@ class NovelManagerApp(QMainWindow):
         self.tab_widget.addTab(self.create_panel, "Ebook")
         self.tab_widget.addTab(self.translate_panel, "Traducir")
 
-        # Configurar iconos para las pestañas
-        self.set_tab_icons()
-
         right_layout.addWidget(self.tab_widget)
 
         # Add both panels to splitter
@@ -192,13 +189,56 @@ class NovelManagerApp(QMainWindow):
         self.epub_importer.progress_updated.connect(self.update_status_message)
         self.epub_importer.import_finished.connect(self.handle_epub_import_finished)
 
+        # Configurar detección de cambios de tema
+        self._setup_theme_detection()
+
+        # Configurar iconos para las pestañas (después de configurar detección de tema)
+        self.set_tab_icons()
+
+    def closeEvent(self, event):
+        """Limpia recursos al cerrar la aplicación"""
+        if hasattr(self, '_theme_timer'):
+            self._theme_timer.stop()
+        event.accept()
+
+    def _is_dark_theme(self):
+        """Detecta si el tema del sistema es oscuro"""
+        palette = QApplication.instance().palette()
+        background_color = palette.color(QPalette.ColorRole.Window)
+        # Si la luminosidad del fondo es baja, es tema oscuro
+        luminance = (0.299 * background_color.red() +
+                    0.587 * background_color.green() +
+                    0.114 * background_color.blue()) / 255
+        return luminance < 0.5
+
+    def _setup_theme_detection(self):
+        """Configura la detección de cambios de tema"""
+        self._current_theme_dark = self._is_dark_theme()
+
+        # Timer para verificar cambios de tema periódicamente
+        self._theme_timer = QTimer()
+        self._theme_timer.timeout.connect(self._check_theme_change)
+        self._theme_timer.start(2000)  # Verificar cada 2 segundos (más eficiente)
+
+    def _check_theme_change(self):
+        """Verifica si el tema ha cambiado y actualiza los iconos si es necesario"""
+        current_dark = self._is_dark_theme()
+        if current_dark != self._current_theme_dark:
+            self._current_theme_dark = current_dark
+            self.set_tab_icons()
+            self._update_all_status_colors()
+            self.statusBar().showMessage("Tema del sistema actualizado", 2000)
+
     def set_tab_icons(self):
-        """Configurar iconos SVG para las pestañas"""
+        """Configurar iconos SVG para las pestañas según el tema del sistema"""
         try:
+            # Determinar sufijo del icono según el tema
+            icon_suffix = "-light.svg" if self._is_dark_theme() else "-dark.svg"
+
             # Rutas de los iconos SVG
-            clean_icon_path = "src/gui/icons/clean.svg"
-            ebook_icon_path = "src/gui/icons/ebook.svg"
-            translate_icon_path = "src/gui/icons/translate.svg"
+            clean_icon_path = f"src/gui/icons/clean{icon_suffix}"
+            ebook_icon_path = f"src/gui/icons/ebook{icon_suffix}"
+            translate_icon_path = f"src/gui/icons/translate{icon_suffix}"
 
             # Configurar icono para la pestaña "Limpiar" (índice 0)
             if os.path.exists(clean_icon_path):
@@ -404,8 +444,10 @@ class NovelManagerApp(QMainWindow):
         elif status == "Traducido":
             status_item.setForeground(QColor(34, 139, 34))  # Verde oscuro más legible
         else:
-            # Para "Sin procesar" u otros estados, restaurar color por defecto
-            status_item.setForeground(QColor())  # Color por defecto del sistema
+            # Para "Sin procesar" u otros estados, usar color de texto del sistema
+            palette = QApplication.instance().palette()
+            system_text_color = palette.color(QPalette.ColorRole.Text)
+            status_item.setForeground(system_text_color)
 
     def _update_all_status_colors(self):
         """Actualiza los colores de estado de todas las filas en la tabla"""
