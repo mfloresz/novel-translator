@@ -3,8 +3,8 @@ import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
                            QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
                            QPushButton, QLabel, QHeaderView, QSplitter)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon, QColor
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon, QColor, QPalette
 from src.gui.clean import CleanPanel
 from src.gui.create import CreateEpubPanel
 from src.gui.translate import TranslatePanel
@@ -13,6 +13,7 @@ from src.logic.loader import FileLoader
 from src.logic.creator import EpubConverterLogic
 from src.logic.epub_importer import EpubImporter
 from src.logic.functions import show_confirmation_dialog
+from src.logic.database import TranslationDatabase
 import subprocess
 
 class ElidedLabel(QLabel):
@@ -38,12 +39,12 @@ class ElidedLabel(QLabel):
                 display_text = os.path.basename(os.path.dirname(self.full_path))
         else:
             display_text = "Ninguno seleccionado"
-        
+
         # Aplicar elipsis si es necesario
         metrics = QFontMetrics(self.font())
         elided_text = metrics.elidedText(display_text, Qt.TextElideMode.ElideRight, self.width())
         super().setText(elided_text)
-        
+
         # Establecer tooltip con la ruta completa
         self.setToolTip(self.full_path if self.full_path else "Seleccione un directorio de trabajo")
 
@@ -56,7 +57,7 @@ class NovelManagerApp(QMainWindow):
         super().__init__()
 
         self.current_directory = None
-        self.setWindowTitle("Novel Manager")
+        self.setWindowTitle("Novel Translator")
         self.setGeometry(100, 100, 1000, 600)
 
         # Establecer ícono de la aplicación
@@ -82,21 +83,30 @@ class NovelManagerApp(QMainWindow):
         # Establecer un ancho mínimo para el panel izquierdo
         left_panel.setMinimumWidth(550)
 
-        # Directory section
+        # Directory section - Solo botones, sin mostrar la ruta
         dir_layout = QHBoxLayout()
-        dir_label = QLabel("Directorio de trabajo:")
-        self.dir_display = ElidedLabel()
         self.nav_button = QPushButton("Navegar")
         self.nav_button.clicked.connect(self.select_directory)
-        
+
         # Añadir botón de importar EPUB
         self.import_epub_button = QPushButton("Importar EPUB")
         self.import_epub_button.clicked.connect(self.import_epub)
 
-        dir_layout.addWidget(dir_label)
-        dir_layout.addWidget(self.dir_display, stretch=1)
+        # Añadir botón de actualizar
+        self.refresh_button = QPushButton("Actualizar")
+        self.refresh_button.clicked.connect(self.refresh_files)
+        self.refresh_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
+
+        # Añadir botón para abrir directorio
+        self.open_dir_button = QPushButton("Abrir Directorio")
+        self.open_dir_button.clicked.connect(self.open_working_directory)
+        self.open_dir_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
+
         dir_layout.addWidget(self.nav_button)
         dir_layout.addWidget(self.import_epub_button)
+        dir_layout.addWidget(self.refresh_button)
+        dir_layout.addWidget(self.open_dir_button)
+        dir_layout.addStretch()  # Empujar botones hacia la izquierda
 
         # Chapters table
         self.chapters_table = QTableWidget()
@@ -141,9 +151,6 @@ class NovelManagerApp(QMainWindow):
         self.tab_widget.addTab(self.create_panel, "Ebook")
         self.tab_widget.addTab(self.translate_panel, "Traducir")
 
-        # Configurar iconos para las pestañas
-        self.set_tab_icons()
-
         right_layout.addWidget(self.tab_widget)
 
         # Add both panels to splitter
@@ -170,20 +177,68 @@ class NovelManagerApp(QMainWindow):
 
         # Conectar la señal del panel de creación
         self.create_panel.epub_creation_requested.connect(self.handle_epub_creation)
+
+        # Conectar la señal para mostrar mensajes de estado desde create_panel
         self.create_panel.status_message_requested.connect(self.show_status_message)
+
+        # Conectar señal para actualizar título cuando se guardan metadatos
+        self.create_panel.metadata_saved.connect(self.update_window_title)
 
         # Inicializar el importador EPUB
         self.epub_importer = EpubImporter()
         self.epub_importer.progress_updated.connect(self.update_status_message)
         self.epub_importer.import_finished.connect(self.handle_epub_import_finished)
 
+        # Configurar detección de cambios de tema
+        self._setup_theme_detection()
+
+        # Configurar iconos para las pestañas (después de configurar detección de tema)
+        self.set_tab_icons()
+
+    def closeEvent(self, event):
+        """Limpia recursos al cerrar la aplicación"""
+        if hasattr(self, '_theme_timer'):
+            self._theme_timer.stop()
+        event.accept()
+
+    def _is_dark_theme(self):
+        """Detecta si el tema del sistema es oscuro"""
+        palette = QApplication.instance().palette()
+        background_color = palette.color(QPalette.ColorRole.Window)
+        # Si la luminosidad del fondo es baja, es tema oscuro
+        luminance = (0.299 * background_color.red() +
+                    0.587 * background_color.green() +
+                    0.114 * background_color.blue()) / 255
+        return luminance < 0.5
+
+    def _setup_theme_detection(self):
+        """Configura la detección de cambios de tema"""
+        self._current_theme_dark = self._is_dark_theme()
+
+        # Timer para verificar cambios de tema periódicamente
+        self._theme_timer = QTimer()
+        self._theme_timer.timeout.connect(self._check_theme_change)
+        self._theme_timer.start(2000)  # Verificar cada 2 segundos (más eficiente)
+
+    def _check_theme_change(self):
+        """Verifica si el tema ha cambiado y actualiza los iconos si es necesario"""
+        current_dark = self._is_dark_theme()
+        if current_dark != self._current_theme_dark:
+            self._current_theme_dark = current_dark
+            self.set_tab_icons()
+            self._update_all_status_colors()
+            self.statusBar().showMessage("Tema del sistema actualizado", 2000)
+
     def set_tab_icons(self):
-        """Configurar iconos SVG para las pestañas"""
+        """Configurar iconos SVG para las pestañas según el tema del sistema"""
         try:
+            # Determinar sufijo del icono según el tema
+            icon_suffix = "-light.svg" if self._is_dark_theme() else "-dark.svg"
+
             # Rutas de los iconos SVG
-            clean_icon_path = "src/gui/icons/clean.svg"
-            ebook_icon_path = "src/gui/icons/ebook.svg"
-            translate_icon_path = "src/gui/icons/translate.svg"
+            clean_icon_path = f"src/gui/icons/clean{icon_suffix}"
+            ebook_icon_path = f"src/gui/icons/ebook{icon_suffix}"
+            translate_icon_path = f"src/gui/icons/translate{icon_suffix}"
 
             # Configurar icono para la pestaña "Limpiar" (índice 0)
             if os.path.exists(clean_icon_path):
@@ -204,15 +259,28 @@ class NovelManagerApp(QMainWindow):
         directory = get_directory()
         if directory:
             self.current_directory = directory
-            self.dir_display.setText(self.current_directory)
             self.statusBar().showMessage(f"Directorio de trabajo: {os.path.basename(self.current_directory)}")
             # Configurar el directorio en el convertidor EPUB
             self.epub_converter.set_directory(directory)
             # Configurar directorio de trabajo en el panel de creación de EPUB
             self.create_panel.set_working_directory(directory)
+            # Habilitar botones
+            self.refresh_button.setEnabled(True)
+            self.open_dir_button.setEnabled(True)
+            # Actualizar título de la ventana
+            self.update_window_title()
             self.load_chapters()
             # Cargar los términos personalizados guardados
             self.translate_panel.load_saved_terms()
+
+    def refresh_files(self):
+        """Actualiza la lista de archivos del directorio actual"""
+        if not self.current_directory:
+            self.statusBar().showMessage("Error: No hay directorio seleccionado")
+            return
+
+        self.statusBar().showMessage("Actualizando lista de archivos...")
+        self.load_chapters()
 
     def load_chapters(self):
         if not self.current_directory:
@@ -284,7 +352,7 @@ class NovelManagerApp(QMainWindow):
 
     def _show_loading_error(self, error_message):
         self.statusBar().showMessage(f"Error: {error_message}")
-    
+
     def _load_book_metadata(self, metadata):
         """Carga los metadatos del libro en el panel de creación de EPUB"""
         if metadata.get('title') or metadata.get('author'):
@@ -376,8 +444,10 @@ class NovelManagerApp(QMainWindow):
         elif status == "Traducido":
             status_item.setForeground(QColor(34, 139, 34))  # Verde oscuro más legible
         else:
-            # Para "Sin procesar" u otros estados, restaurar color por defecto
-            status_item.setForeground(QColor())  # Color por defecto del sistema
+            # Para "Sin procesar" u otros estados, usar color de texto del sistema
+            palette = QApplication.instance().palette()
+            system_text_color = palette.color(QPalette.ColorRole.Text)
+            status_item.setForeground(system_text_color)
 
     def _update_all_status_colors(self):
         """Actualiza los colores de estado de todas las filas en la tabla"""
@@ -400,9 +470,9 @@ class NovelManagerApp(QMainWindow):
         translate_panel = self.translate_panel
 
         # Obtener API key
-        api_key = translate_panel.api_input.text().strip()
+        api_key = translate_panel.get_current_api_key()
         if not api_key:
-            self.statusBar().showMessage("Error: API key no proporcionada")
+            self.statusBar().showMessage("Error: API key no configurada. Use el botón de configuración.")
             return
 
         # Obtener proveedor y modelo
@@ -485,7 +555,7 @@ class NovelManagerApp(QMainWindow):
     def import_epub(self):
         """Maneja la importación de archivos EPUB"""
         from PyQt6.QtWidgets import QFileDialog
-        
+
         # Abrir diálogo para seleccionar archivo EPUB
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -493,13 +563,13 @@ class NovelManagerApp(QMainWindow):
             "",
             "Archivos EPUB (*.epub);;Todos los archivos (*.*)"
         )
-        
+
         if not file_path:
             return
-        
+
         # La carpeta se creará en la misma ubicación que el EPUB
         epub_dir = os.path.dirname(file_path)
-        
+
         # Confirmar la importación
         if not show_confirmation_dialog(
             f"Se importará el EPUB:\n{os.path.basename(file_path)}\n\n"
@@ -507,12 +577,12 @@ class NovelManagerApp(QMainWindow):
             "¿Desea continuar?"
         ):
             return
-        
+
         # Iniciar la importación
         self.statusBar().showMessage("Importando EPUB...")
         self.import_epub_button.setEnabled(False)
         self.nav_button.setEnabled(False)
-        
+
         self.epub_importer.import_epub(file_path)
 
     def handle_epub_import_finished(self, success, message, directory_path):
@@ -520,21 +590,27 @@ class NovelManagerApp(QMainWindow):
         # Restaurar botones
         self.import_epub_button.setEnabled(True)
         self.nav_button.setEnabled(True)
-        
+
         if success:
             # Establecer automáticamente el directorio importado como directorio de trabajo
             self.current_directory = directory_path
-            self.dir_display.setText(self.current_directory)
-            
+
             # Configurar el directorio en el convertidor EPUB
             self.epub_converter.set_directory(directory_path)
-            
+
             # Configurar directorio de trabajo en el panel de creación de EPUB
             self.create_panel.set_working_directory(directory_path)
-            
+
+            # Habilitar botones
+            self.refresh_button.setEnabled(True)
+            self.open_dir_button.setEnabled(True)
+
+            # Actualizar título de la ventana
+            self.update_window_title()
+
             # Cargar los archivos
             self.load_chapters()
-            
+
             # Cargar los términos personalizados guardados
             self.translate_panel.load_saved_terms()
 
@@ -549,6 +625,50 @@ class NovelManagerApp(QMainWindow):
     def show_status_message(self, message, timeout=0):
         """Muestra un mensaje en la barra de estado"""
         self.statusBar().showMessage(message, timeout)
+
+    def update_window_title(self):
+        """Actualiza el título de la ventana basado en los metadatos de la base de datos"""
+        if not self.current_directory:
+            self.setWindowTitle("Novel Translator")
+            return
+
+        try:
+            # Crear instancia de base de datos para obtener metadatos
+            db = TranslationDatabase(self.current_directory)
+            metadata = db.get_book_metadata()
+
+            # Usar el título si existe, sino usar el nombre de la carpeta
+            if metadata.get('title') and metadata['title'].strip():
+                title = metadata['title'].strip()
+                self.setWindowTitle(f"Novel Translator - {title}")
+            else:
+                folder_name = os.path.basename(self.current_directory)
+                self.setWindowTitle(f"Novel Translator - {folder_name}")
+        except Exception as e:
+            # En caso de error, usar el nombre de la carpeta
+            folder_name = os.path.basename(self.current_directory)
+            self.setWindowTitle(f"Novel Translator - {folder_name}")
+
+    def open_working_directory(self):
+        """Abre el directorio de trabajo actual en el explorador de archivos"""
+        if not self.current_directory:
+            self.statusBar().showMessage("Error: No hay directorio de trabajo seleccionado")
+            return
+
+        try:
+            import platform
+            system = platform.system()
+
+            if system == "Windows":
+                os.startfile(self.current_directory)
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", self.current_directory])
+            else:  # Linux y otros Unix
+                subprocess.run(["xdg-open", self.current_directory])
+
+            self.statusBar().showMessage(f"Abriendo directorio: {os.path.basename(self.current_directory)}", 3000)
+        except Exception as e:
+            self.statusBar().showMessage(f"Error al abrir directorio: {str(e)}")
 
 def main():
     app = QApplication(sys.argv)

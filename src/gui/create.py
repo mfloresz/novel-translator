@@ -9,6 +9,7 @@ class CreateEpubPanel(QWidget):
     # Señales para comunicar con la ventana principal
     epub_creation_requested = pyqtSignal(dict)  # Emite los datos para crear el EPUB
     status_message_requested = pyqtSignal(str, int)  # Emite mensaje para barra de estado (mensaje, timeout)
+    metadata_saved = pyqtSignal()  # Emite cuando se guardan metadatos para actualizar título de ventana
 
     def __init__(self):
         super().__init__()
@@ -218,6 +219,8 @@ class CreateEpubPanel(QWidget):
             if success:
                 # Emitir señal para mostrar mensaje en barra de estado
                 self.status_message_requested.emit("Metadatos guardados exitosamente", 3000)
+                # Emitir señal para actualizar título de ventana
+                self.metadata_saved.emit()
             else:
                 self.status_message_requested.emit("Error al guardar los metadatos", 5000)
         except Exception as e:

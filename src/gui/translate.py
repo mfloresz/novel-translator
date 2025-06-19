@@ -7,17 +7,71 @@ from typing import Optional, Dict
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                            QPushButton, QLineEdit, QGroupBox, QComboBox,
                            QSpinBox, QFormLayout, QPlainTextEdit, QRadioButton,
-                           QCheckBox)
+                           QCheckBox, QDialog, QMessageBox)
 from PyQt6.QtCore import Qt
 from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
 from src.logic.functions import show_confirmation_dialog
+
+class ApiKeyConfigDialog(QDialog):
+    def __init__(self, provider_name, current_api_key="", parent=None):
+        super().__init__(parent)
+        self.provider_name = provider_name
+        self.api_key = current_api_key
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowTitle(f"Configurar API Key - {self.provider_name}")
+        self.setModal(True)
+        self.resize(400, 200)
+
+        layout = QVBoxLayout()
+
+        # Información
+        info_label = QLabel(
+            f"Configurar API Key para {self.provider_name}\n\n"
+            "Esta configuración es TEMPORAL y se perderá al cerrar la aplicación.\n"
+            "Para cambios permanentes, modifique el archivo .env en la raíz del proyecto."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("QLabel { color: #666; margin-bottom: 10px; }")
+        layout.addWidget(info_label)
+
+        # Campo API Key
+        form_layout = QFormLayout()
+        self.api_input = QLineEdit()
+        self.api_input.setPlaceholderText("Ingrese su API key")
+        self.api_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.api_input.setText(self.api_key)
+        form_layout.addRow("API Key:", self.api_input)
+        layout.addLayout(form_layout)
+
+        # Botones
+        buttons_layout = QHBoxLayout()
+
+        self.ok_button = QPushButton("Aceptar")
+        self.cancel_button = QPushButton("Cancelar")
+
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+
+        buttons_layout.addWidget(self.cancel_button)
+        buttons_layout.addWidget(self.ok_button)
+
+        layout.addLayout(buttons_layout)
+        self.setLayout(layout)
+
+    def get_api_key(self):
+        return self.api_input.text().strip()
 
 class TranslatePanel(QWidget):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
         self.translation_manager = TranslationManager()
+
+        # Variable para almacenar API keys temporales
+        self.temp_api_keys = {}
 
         # Cargar variables de entorno desde .env en la carpeta padre
         env_path = Path(__file__).parent.parent.parent / '.env'
@@ -32,19 +86,18 @@ class TranslatePanel(QWidget):
         main_layout = QVBoxLayout()
         form_layout = QFormLayout()
 
-        # API Key section
-        self.api_input = QLineEdit()
-        self.api_input.setPlaceholderText("Ingrese su API key")
-        self.api_input.setEchoMode(QLineEdit.EchoMode.Password)
-        form_layout.addRow("API Key:", self.api_input)
-
         # Provider and Model selection
         provider_layout = QHBoxLayout()
         self.provider_combo = QComboBox()
+        self.config_button = QPushButton("⚙️")
+        self.config_button.setToolTip("Cambiar API Key")
+        self.config_button.setMaximumWidth(30)
+        self.config_button.clicked.connect(self.configure_api_key)
         self.model_combo = QComboBox()
 
         provider_layout.addWidget(QLabel("Proveedor:"))
         provider_layout.addWidget(self.provider_combo)
+        provider_layout.addWidget(self.config_button)
         provider_layout.addWidget(QLabel("Modelo:"))
         provider_layout.addWidget(self.model_combo)
 
@@ -149,9 +202,9 @@ class TranslatePanel(QWidget):
         # Cargar proveedores y modelos
         self.load_translation_models()
 
-        # Conectar cambios en los inputs de rango
-        self.start_chapter_spin.textChanged.connect(self.adjust_chapter_range)
-        self.end_chapter_spin.textChanged.connect(self.adjust_chapter_range)
+        # Comentar estas líneas para permitir escritura libre
+        # self.start_chapter_spin.textChanged.connect(self.adjust_chapter_range)
+        # self.end_chapter_spin.textChanged.connect(self.adjust_chapter_range)
 
         # Conectar el checkbox de segmentación
         self.segment_checkbox.toggled.connect(self.segment_size_input.setEnabled)
@@ -170,34 +223,57 @@ class TranslatePanel(QWidget):
             # Conectar señal de cambio de proveedor
             self.provider_combo.currentTextChanged.connect(self.update_models)
 
-            # Conectar señal de cambio de proveedor para API key
-            self.provider_combo.currentTextChanged.connect(self.update_provider_api_key)
+
 
             # Cargar modelos iniciales
             self.update_models()
 
-            # Establecer la API key inicial si existe
-            self.update_provider_api_key()
+
 
         except Exception as e:
             print(f"Error cargando modelos: {e}")
 
-    def update_provider_api_key(self):
-        """Actualiza la API key según el proveedor seleccionado"""
-        try:
-            provider_key = next(
-                (k for k, v in self.models_config.items()
-                 if v['name'] == self.provider_combo.currentText()),
-                None
-            )
+    def configure_api_key(self):
+        """Abre el diálogo de configuración de API Key"""
+        provider_name = self.provider_combo.currentText()
+        if not provider_name:
+            return
 
-            if provider_key:
-                # Construir el nombre de la variable de entorno (ej: GEMINI_API_KEY)
+        # Obtener API key actual (temporal o del .env)
+        current_api_key = self.get_current_api_key()
+
+        dialog = ApiKeyConfigDialog(provider_name, current_api_key, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_api_key = dialog.get_api_key()
+            if new_api_key:
+                # Guardar API key temporal para el proveedor actual
+                provider_key = next(
+                    (k for k, v in self.models_config.items()
+                     if v['name'] == provider_name),
+                    None
+                )
+                if provider_key:
+                    self.temp_api_keys[provider_key] = new_api_key
+                    self.main_window.statusBar().showMessage(f"API Key configurada temporalmente para {provider_name}", 3000)
+
+    def get_current_api_key(self):
+        """Obtiene la API key actual (temporal o del .env)"""
+        provider_key = next(
+            (k for k, v in self.models_config.items()
+             if v['name'] == self.provider_combo.currentText()),
+            None
+        )
+
+        if provider_key:
+            # Priorizar API key temporal si existe
+            if provider_key in self.temp_api_keys:
+                return self.temp_api_keys[provider_key]
+            else:
+                # Usar del .env si no hay temporal
                 env_var_name = f"{provider_key.upper()}_API_KEY"
-                api_key = os.getenv(env_var_name, "")
-                self.api_input.setText(api_key)
-        except Exception as e:
-            print(f"Error actualizando API key: {e}")
+                return os.getenv(env_var_name, "")
+
+        return ""
 
     def update_models(self):
         """Actualiza la lista de modelos según el proveedor seleccionado"""
@@ -257,9 +333,9 @@ class TranslatePanel(QWidget):
             return
 
         # Validar API key
-        api_key = self.api_input.text().strip()
+        api_key = self.get_current_api_key()
         if not api_key:
-            self.main_window.statusBar().showMessage("Error: API key no proporcionada")
+            self.main_window.statusBar().showMessage("Error: API key no configurada. Use el botón de configuración.")
             return
 
         # Obtener proveedor y modelo seleccionados
