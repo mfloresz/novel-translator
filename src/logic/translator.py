@@ -8,7 +8,7 @@ class TranslatorLogic:
     def __init__(self, segment_size=None):
         """Inicializa el traductor con los idiomas soportados"""
         self.lang_codes = {
-            'Español': 'Spanish (Latin American)',
+            'Español (MX)': 'Spanish (México)',
             'Inglés': 'English'
         }
 

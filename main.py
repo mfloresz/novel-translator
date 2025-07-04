@@ -58,7 +58,7 @@ class NovelManagerApp(QMainWindow):
 
         self.current_directory = None
         self.setWindowTitle("Novel Translator")
-        self.setGeometry(100, 100, 1000, 600)
+        self.setGeometry(100, 100, 1000, 580)
 
         # Establecer ícono de la aplicación
         app_icon_path = "src/gui/icons/app.png"

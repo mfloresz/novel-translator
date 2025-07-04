@@ -65,19 +65,14 @@
     "base_url": "https://llm.chutes.ai/v1/chat/completions",
     "models": {
       "llama-4-maverick": {
-        "name": "Llama 4 Maverick",
-        "endpoint": "chutesai/Llama-4-Maverick-17B-128E-Instruct-FP8",
+        "name": "Llama 4 Scout",
+        "endpoint": "chutesai/Llama-4-Scout-17B-16E-Instruct",
         "max_tokens": 100000
       },
-      "qwen-3": {
-        "name": "Qwen 3 235B",
-        "endpoint": "Qwen/Qwen3-235B-A22B",
-        "max_tokens": 32000
-      },
-      "mistral": {
-        "name": "Mistral Small 3.1",
-        "endpoint": "chutesai/Mistral-Small-3.1-24B-Instruct-2503",
-        "max_tokens": 100000
+      "mistral-3.2": {
+        "name": "Mistral Small 3.2",
+        "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
+        "max_tokens": 40000
       }
     }
   }

@@ -2,8 +2,7 @@
 
 <regional_specifications>
 ## Regional Language Guidelines
-- **Use Latin American Spanish forms**: Avoid Peninsular Spanish conjugations (vosotros, -éis endings)
-- **Pronoun Usage**: Use "ustedes" instead of "vosotros" for plural second person
+- **Use Latin American Spanish forms**: Avoid Peninsular Spanish conjugations (e.g., "vosotros" → "ustedes", "-éis" endings → "-éis" endings)
 - **Vocabulary Preferences**: Choose Latin American terms over Peninsular equivalents when options exist
 - **Maintain Universal Comprehension**: Use forms understood across Latin America while avoiding highly regional slang
 </regional_specifications>
@@ -21,77 +20,69 @@ Your task is to provide a complete, polished translation that captures the origi
 1. **Spirit & Tone First**: Prioritize emotional and nuanced accuracy over literal word-for-word translation
 2. **Cultural Resonance**: Adapt idioms, cultural references, and expressions authentically for {target_lang} readers
 3. **Author's Voice**: Preserve the original author's distinctive style, rhythm, and sentence structures
-4. **Natural Flow**:
-   - Use common, accessible vocabulary (avoid unnecessarily obscure terms)
-   - Maintain character speech registers and dialogue authenticity
-   - Reorganize sentences to follow natural {target_lang} syntax when needed
-   - Join broken or incomplete lines into full, coherent sentences
-   - If a sentence is separated across two lines, join them together for better readability
-5. **Structural Fidelity**:
-   - Preserve ALL titles, headings, and scene breaks (`***`, `* `) exactly as positioned
-   - Never add or remove headings, formatting, or structural elements
-   - Translate questions as questions, negatives as negatives
-   - Maintain original paragraph breaks and text organization
+4. **Natural Flow**: Use common, accessible vocabulary, maintain authentic dialogue, reorganize sentences for natural {target_lang} syntax, and join broken sentences into coherent text
+5. **Structural Fidelity**: Preserve ALL formatting elements (scene breaks, paragraph structure) exactly as positioned, translate questions as questions, maintain original organization
 </core_principles>
 
 <chapter_handling>
-## Chapter Title Management
-When chapters are present in the text:
-1. **Duplicate Titles**: If the same chapter title appears multiple times, translate and include it only ONCE at the beginning
-2. **Chapter Variations**: When two versions of the same chapter exist (e.g., "Chapter 12" and "Chapter 12: New Beginning"), translate and include only the more descriptive version (the one with subtitle). Omit the simpler version entirely
-3. **Chapter Identification**: Apply these rules only when actual chapter references are present in the text
-4. **Title Placement**: The selected chapter title should appear at the very beginning of the translation
+## Chapter Title Rules
+Apply these rules ONLY when chapter titles are actually present in the source text:
+
+1. **Translate What Exists**: Only translate the chapter title that is actually provided in the source text
+2. **Double Chapter Pattern**: For titles like "Chapter 134: Chapter 17 [Title]" → translate only the last part: "Chapter 17 [Title]"
+3. **Duplicate Titles**: If the same chapter title appears multiple times, translate only the most descriptive version (with subtitle) and omit simple duplicates
+4. **Simple Titles**: If the chapter title is just a name or simple phrase, translate it directly without adding chapter numbers
+5. **Formatting**: All chapter titles should be formatted in bold: **[Chapter title]**
+6. **Placement**: Chapter title appears at the beginning of the translation
+
+### Important Note:
+- DO NOT add chapter numbers or titles that are not present in the original text
+- DO NOT infer or create chapter structures that don't exist in the source
+
+### Examples:
+- Source: "Chapter 134: Chapter 17 Continuous Breakthroughs" → Translation: "**Capítulo 17 Avances Continuos**"
+- Source: "Andrew" → Translation: "**Andrew**"
+- Source: "The Journey Begins" → Translation: "**El Viaje Comienza**"
 </chapter_handling>
 
-<process>
+<translation_process>
 ## Translation Workflow
-### Phase 1: Chapter Analysis (if applicable)
-- Identify all chapter titles and variations in the source text
-- Determine which chapter title to use based on chapter handling rules
-- Plan placement of the selected chapter title
-### Phase 2: Initial Translation
-- Perform complete translation of the entire text
-- Apply chapter title selection rules
+### Phase 1: Initial Translation
+- Perform complete translation of entire text
+- Apply chapter title rules when applicable
 - Store this first draft internally for review
-### Phase 3: Quality Review
-- Fix any omissions or errors while maintaining narrative flow
-- Verify chapter title handling was applied correctly
-- Verify no unintended repetition (preserve only original duplicates)
-- Review and correct grammar, omissions, awkward phrasing, or repetitions
-- Ensure no part is left untranslated and that content length matches the original
-- Verify flow and readability in {target_lang}
-- Do not translate repeated sections unless they appear duplicated in the source
-</process>
+
+### Phase 2: Grammar & Linguistic Review
+- **Gender Agreement**: Verify all articles, adjectives, and pronouns agree with noun genders according to {target_lang} rules
+- **Grammatical Concordance**: Check number agreement (singular/plural) throughout the text
+- **Syntax Correction**: Ensure sentence structure follows natural {target_lang} patterns
+- **Linguistic Consistency**: Maintain consistent terminology and register throughout
+
+### Phase 3: Final Quality Check
+- Correct awkward phrasing and ensure natural flow
+- Maintain content length equivalent to original
+- Preserve only intentional repetitions from source text
+- Verify no omissions and complete readability in {target_lang}
+</translation_process>
 
 <special_cases>
 ## Handling Specific Elements
 - **Proper Nouns**: Retain original names unless established {target_lang} equivalent exists
-- **Dialogue**: Format according to {target_lang} literary conventions and punctuation rules
-- **Wordplay/Idioms**: Preserve intent and humor over literal form; adapt culturally when necessary
+- **Dialogue**: Format according to {target_lang} literary conventions
+- **Wordplay/Idioms**: Preserve intent and humor; adapt culturally when necessary
 - **Historical Terms**: Balance period-appropriate language with modern readability
-- **Source Errors**: Correct minimally without altering the author's intended meaning or style
 </special_cases>
 
 **Terminology Reference**
 
-
 <output_requirements>
-## Final Output Guidelines
-- NO introductions, comments, explanations, or labels
-- NO markdown formatting, code blocks, or text delimiters
-- NO meta-commentary about the translation process
-- ONLY provide the final, polished translation from your Quality Review phase
-- The output should read as a seamless, natural {target_lang} text
-- Chapter titles (when present) should appear naturally integrated at the beginning
+## Final Output
+- Provide ONLY the final, polished translation
+- NO introductions, comments, explanations, or formatting
+- NO markdown, code blocks, or meta-commentary
+- Text should read as seamless, natural {target_lang}
+- Chapter titles integrated naturally at the beginning when present, formatted in bold
 </output_requirements>
-
-<restrictions>
-- Focus exclusively on translation quality and accuracy
-- Do not include translator notes or explanations
-- Maintain professional literary translation standards
-- Preserve the integrity of the original work
-- Apply chapter handling rules consistently when chapters are present
-</restrictions>
 
 ---
 
