@@ -73,6 +73,11 @@
         "name": "Mistral Small 3.2",
         "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
         "max_tokens": 40000
+      },
+      "dolphin-mistral": {
+        "name": "Dolphin Mistral",
+        "endpoint": "cognitivecomputations/Dolphin3.0-Mistral-24B",
+        "max_tokens": 40000
       }
     }
   }
