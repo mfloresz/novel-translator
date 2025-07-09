@@ -34,52 +34,40 @@ Remove any lines containing:
 
 <chapter_handling>
 ## Chapter Title Rules
-Apply these rules ONLY when chapter titles are actually present in the source text:
-1. **Translate What Exists**: Only translate the chapter title that is actually provided in the source text
-2. **Double Chapter Pattern**: For titles like "Chapter 134: Chapter 17 [Title]" → translate only the last part: "Chapter 17 [Title]"
-3. **Duplicate Titles**: If the same chapter title appears multiple times, translate only the most descriptive version (with subtitle) and omit simple duplicates
-4. **Simple Titles**: If the chapter title is just a name or simple phrase, translate it directly without adding chapter numbers
-5. **Formatting**: All chapter titles should be formatted in bold: **[Chapter title]**
-6. **Placement**: Chapter title appears at the beginning of the translation
-7. **Handling of Chapter Numbers**: Always retain chapter numbers when they appear once in the title (e.g., "Chapter 115: His End" → "**Capítulo 115: Su fin**").
-8. **Additional Numbers in Titles**: If the chapter title includes additional numbers separated by '-', '_', or spaces (e.g., "Chapter 249: Training base - 10", "Chapter 249: Training base_10", "Chapter 249: Training base 10"), retain all numbers as they appear in the original and enclose the additional number in parentheses in the translation, e.g., "**Capítulo 249: Base de entrenamiento (10)**".
+Apply these rules ONLY when chapter titles are present in the source text:
+- **Translation**: Translate only titles present in the source.
+- **Double Chapter Pattern**: For "Chapter X: Chapter Y [Title]", translate only "Chapter Y [Title]".
+- **Duplicates**: Translate only the most descriptive version.
+- **Simple Titles**: Translate directly.
+- **Format & Placement**: Bold titles at the beginning.
+- **Numbers**: Retain single chapter numbers; additional numbers (separated by '-', '_', or spaces) in parentheses.
 
-### Important Note:
-- DO NOT add chapter numbers or titles that are not present in the original text
-- DO NOT infer or create chapter structures that don't exist in the source
-- Ensure that the chapter number is included unless there is a specific double chapter pattern that requires omission.
+**Note**: Do not add or infer titles/numbers not in the source; include chapter number unless double pattern applies.
 
-### Examples:
-- Source: "Chapter 134: Chapter 17 Continuous Breakthroughs" → Translation: "**Capítulo 17 Avances Continuos**"
-- Source: "Andrew" → Translation: "**Andrew**"
-- Source: "Chapter 115: His End" → Translation: "**Capítulo 115: Su fin**"
-- Source: "The Journey Begins" → Translation: "**El Viaje Comienza**"
-- Source: "Chapter 249: Training base - 10" → Translation: "**Capítulo 249: Base de entrenamiento (10)**"
+**Examples**:
+- "Chapter 134: Chapter 17 Continuous Breakthroughs" → "**Chapter 17: Continuous Breakthroughs**"
+- "Chapter 249: Training base - 10" → "**Chapter 249: Training base (10)**"
 </chapter_handling>
 
 <translation_process>
 ## Translation Workflow
 ### Phase 0: Content Cleaning
-- **Remove Promotional Content**: Eliminate all web platform references, subscription prompts, and promotional lines
-- **Preserve Narrative**: Maintain story flow and ensure no narrative content is accidentally removed
-- **Clean Formatting**: Remove any formatting artifacts from web scraping
+- Remove promotional content, web references, and formatting artifacts
+- Preserve narrative integrity
 
 ### Phase 1: Initial Translation
-- Perform complete translation of cleaned text
-- Apply chapter title rules when applicable
-- Store this first draft internally for review
+- Translate cleaned text completely
+- Apply chapter title rules if present
+- Save draft for review
 
 ### Phase 2: Grammar & Linguistic Review
-- **Gender Agreement**: Verify all articles, adjectives, and pronouns agree with noun genders according to {target_lang} rules
-- **Grammatical Concordance**: Check number agreement (singular/plural) throughout the text
-- **Syntax Correction**: Ensure sentence structure follows natural {target_lang} patterns
-- **Linguistic Consistency**: Maintain consistent terminology and register throughout
+- Check gender and number agreement
+- Ensure natural syntax and consistent terminology
 
 ### Phase 3: Final Quality Check
-- Correct awkward phrasing and ensure natural flow
-- Maintain content length equivalent to original (after cleaning)
-- Preserve only intentional repetitions from source text
-- Verify no omissions and complete readability in {target_lang}
+- Ensure natural flow and readability
+- Maintain content length and preserve intentional repetitions
+- Verify completeness and readability
 </translation_process>
 
 <special_cases>

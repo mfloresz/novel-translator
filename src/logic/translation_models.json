@@ -64,7 +64,7 @@
     "name": "Chutes AI",
     "base_url": "https://llm.chutes.ai/v1/chat/completions",
     "models": {
-      "llama-4-maverick": {
+      "llama-4-scout": {
         "name": "Llama 4 Scout",
         "endpoint": "chutesai/Llama-4-Scout-17B-16E-Instruct",
         "max_tokens": 100000
