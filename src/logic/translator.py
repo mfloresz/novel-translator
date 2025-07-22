@@ -3,6 +3,7 @@ import json
 from typing import Optional, Dict, List
 from pathlib import Path
 from src.logic import translator_req
+from src.logic.session_logger import session_logger
 
 class TranslatorLogic:
     def __init__(self, segment_size=None):
@@ -188,8 +189,6 @@ class TranslatorLogic:
             )
 
         try:
-            print("Prompt de comprobación construido:")
-            print(prompt)
             response = query_model()
             if response is None:
                 print("Error en la comprobación de la traducción (respuesta nula)")
@@ -197,23 +196,27 @@ class TranslatorLogic:
 
             cleaned_response = response.strip().lower()
             if cleaned_response == "yes":
+                session_logger.log_info(f"Comprobación exitosa - Respuesta: {response}")
                 return True
             elif cleaned_response == "no":
+                session_logger.log_warning(f"Comprobación falló - Respuesta: {response}. Reintentando...")
                 # Reintentar una vez
                 time.sleep(5)
                 response_retry = query_model()
                 if response_retry is None:
-                    print("Error en la comprobación de la traducción (reintento respuesta nula)")
+                    session_logger.log_error("Error en la comprobación de la traducción (reintento respuesta nula)")
                     return False
                 if response_retry.strip().lower() == "yes":
+                    session_logger.log_info(f"Comprobación exitosa en reintento - Respuesta: {response_retry}")
                     return True
                 else:
+                    session_logger.log_error(f"Comprobación falló en reintento - Respuesta: {response_retry}")
                     return False
             else:
-                print(f"Respuesta inesperada en comprobación: '{response}'")
+                session_logger.log_error(f"Respuesta inesperada en comprobación: '{response}'")
                 return False
         except Exception as e:
-            print(f"Error al hacer la comprobación: {str(e)}")
+            session_logger.log_error(f"Error al hacer la comprobación: {str(e)}")
             return False
 
     def translate_text(self, text: str, source_lang: str, target_lang: str,
@@ -252,7 +255,7 @@ class TranslatorLogic:
 
             # Traducir cada segmento
             for i, segment in enumerate(segments, 1):
-                print(f"Traduciendo segmento {i} de {len(segments)}")
+                session_logger.log_info(f"Traduciendo segmento {i} de {len(segments)}")
 
                 # Construir prompt base
                 prompt = self.prompt_template.replace(
@@ -292,6 +295,7 @@ class TranslatorLogic:
                 )
 
                 if translated_segment is None:
+                    session_logger.log_error(f"Error traduciendo segmento {i}")
                     raise ValueError(f"Error traduciendo segmento {i}")
 
                 translated_segments.append(translated_segment)
@@ -316,14 +320,14 @@ class TranslatorLogic:
                 )
 
                 if not check_passed:
-                    print("La comprobación de la traducción NO pasó.")
+                    session_logger.log_error("La comprobación de la traducción NO pasó.")
                     return None
 
             # Si pasa la comprobación o no se realiza, devolver la traducción completa
             return full_translation
 
         except Exception as e:
-            print(f"Error en la traducción: {str(e)}")
+            session_logger.log_error(f"Error en la traducción: {str(e)}")
             return None
 
     def get_supported_languages(self) -> Dict[str, str]:

@@ -4,6 +4,7 @@ import os
 import time
 from .database import TranslationDatabase
 from .translator import TranslatorLogic
+from .session_logger import session_logger
 
 class TranslationWorker(QObject):
     progress_updated = pyqtSignal(str)
@@ -55,7 +56,11 @@ class TranslationWorker(QObject):
 
                 # Verificar si ya está traducido
                 if self.db.is_file_translated(filename):
+                    session_logger.log_info(f"Archivo ya traducido, omitiendo: {filename}")
                     continue
+
+                # Registrar inicio de traducción
+                session_logger.log_translation_start(filename, self.source_lang, self.target_lang)
 
                 # Traducir el archivo
                 success = self._translate_single_file(filename)
@@ -63,8 +68,10 @@ class TranslationWorker(QObject):
                 if success:
                     successful_translations += 1
                     self.db.add_translation_record(filename, self.source_lang, self.target_lang)
+                    session_logger.log_translation_complete(filename, True)
                     self.translation_completed.emit(filename, True)
                 else:
+                    session_logger.log_translation_complete(filename, False)
                     self.translation_completed.emit(filename, False)
 
                 # Esperar antes de la siguiente traducción si no es el último archivo
@@ -104,7 +111,9 @@ class TranslationWorker(QObject):
             )
 
             if not translated_text:
-                self.error_occurred.emit(f"Error al traducir {filename}: No se obtuvo traducción")
+                error_msg = f"Error al traducir {filename}: No se obtuvo traducción"
+                session_logger.log_error(error_msg)
+                self.error_occurred.emit(error_msg)
                 return False
 
             # Guardar primero en archivo temporal
@@ -116,7 +125,9 @@ class TranslationWorker(QObject):
             return True
 
         except Exception as e:
-            self.error_occurred.emit(f"Error al traducir {filename}: {str(e)}")
+            error_msg = f"Error al traducir {filename}: {str(e)}"
+            session_logger.log_error(error_msg)
+            self.error_occurred.emit(error_msg)
             # Limpiar archivo temporal si existe
             if os.path.exists(temp_output_path):
                 try:

@@ -14,6 +14,7 @@ from src.logic.creator import EpubConverterLogic
 from src.logic.epub_importer import EpubImporter
 from src.logic.functions import show_confirmation_dialog, show_import_confirmation_dialog
 from src.logic.database import TranslationDatabase
+from src.logic.session_logger import session_logger
 import subprocess
 
 class ElidedLabel(QLabel):
@@ -102,10 +103,15 @@ class NovelManagerApp(QMainWindow):
         self.open_dir_button.clicked.connect(self.open_working_directory)
         self.open_dir_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
 
+        # Añadir botón para abrir registro
+        self.log_button = QPushButton("Registro")
+        self.log_button.clicked.connect(self.open_log_file)
+
         dir_layout.addWidget(self.nav_button)
         dir_layout.addWidget(self.import_epub_button)
         dir_layout.addWidget(self.refresh_button)
         dir_layout.addWidget(self.open_dir_button)
+        dir_layout.addWidget(self.log_button)
         dir_layout.addStretch()  # Empujar botones hacia la izquierda
 
         # Chapters table
@@ -199,6 +205,8 @@ class NovelManagerApp(QMainWindow):
         """Limpia recursos al cerrar la aplicación"""
         if hasattr(self, '_theme_timer'):
             self._theme_timer.stop()
+        # Limpiar el archivo de log de la sesión
+        session_logger.cleanup()
         event.accept()
 
     def _is_dark_theme(self):
@@ -671,6 +679,28 @@ class NovelManagerApp(QMainWindow):
             self.statusBar().showMessage(f"Abriendo directorio: {os.path.basename(self.current_directory)}", 3000)
         except Exception as e:
             self.statusBar().showMessage(f"Error al abrir directorio: {str(e)}")
+
+    def open_log_file(self):
+        """Abre el archivo de log de la sesión con el programa predeterminado"""
+        log_path = session_logger.get_log_path()
+        if not log_path or not os.path.exists(log_path):
+            self.statusBar().showMessage("No se encontró el archivo de registro de la sesión")
+            return
+
+        try:
+            import platform
+            system = platform.system()
+
+            if system == "Windows":
+                os.startfile(log_path)
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", log_path])
+            else:  # Linux y otros Unix
+                subprocess.run(["xdg-open", log_path])
+
+            self.statusBar().showMessage("Abriendo archivo de registro...", 3000)
+        except Exception as e:
+            self.statusBar().showMessage(f"Error al abrir archivo de registro: {str(e)}")
 
 def main():
     app = QApplication(sys.argv)

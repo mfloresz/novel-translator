@@ -11,7 +11,7 @@ Your task is to perform a binary quality assessment by comparing the original te
 <assessment_criteria>
 ## Evaluation Standards
 Compare Text 1 (Original – {source_lang}) with Text 2 (Translation – {target_lang}) and verify that the translation:
-1. **Content Completeness**: Includes all essential content without significant omissions
+1. **Content Completeness**: Includes all essential content without significant omissions, ensuring that all sentences from the original text are present in the translation, even if reordered or consolidated.
 2. **Meaning Preservation**: Conveys the same overall meaning, even if using different synonyms or sentence structures
 3. **Logical Coherence**: Preserves the logical sequence of ideas and information flow
 4. **Section Integrity**: Contains no missing or incomplete sections that would affect comprehension
@@ -25,6 +25,7 @@ Compare Text 1 (Original – {source_lang}) with Text 2 (Translation – {target
 - **Evaluate only** whether the core requirements for meaning preservation are met
 - **Consider acceptable** different sentence structures that maintain the same meaning
 - **Consider valid** the consolidation of fragmented sentences into complete, coherent sentences as long as the original meaning is preserved
+- **Ensure completeness**: All sentences from the original text must be present in the translation, even if reordered or consolidated.
 </evaluation_focus>
 
 <output_format>
@@ -44,6 +45,7 @@ Compare Text 1 (Original – {source_lang}) with Text 2 (Translation – {target
 - Preserve assessment consistency across all text types
 - Avoid subjective interpretation of minor variations
 - Do not penalize sentence consolidation that improves readability while preserving meaning
+- Ensure that all sentences from the original text are present in the translation, even if reordered or consolidated.
 </restrictions>
 
 ---

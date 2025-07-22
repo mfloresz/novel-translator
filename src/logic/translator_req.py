@@ -1,5 +1,6 @@
 import requests
 from typing import Optional, Dict
+from src.logic.session_logger import session_logger
 
 def translate_segment(provider: str,
                       text: str,
@@ -20,22 +21,36 @@ def translate_segment(provider: str,
         Optional[str]: Texto traducido recibido o None en caso de error
     """
     try:
+        # Para verificación de traducción, el texto está en el prompt, no en text
+        text_length = len(text) if text else len(prompt)
+        session_logger.log_api_request(provider, model_config.get('model_id', model_config.get('endpoint', 'unknown')), text_length)
+
+        result = None
         if provider == 'gemini':
-            return _translate_gemini(api_key, model_config, prompt)
+            result = _translate_gemini(api_key, model_config, prompt)
         elif provider == 'together':
-            return _translate_together(api_key, model_config, prompt)
+            result = _translate_together(api_key, model_config, prompt)
         elif provider == 'deepinfra':
-            return _translate_deepinfra(api_key, model_config, prompt)
+            result = _translate_deepinfra(api_key, model_config, prompt)
         elif provider == 'openai':
-            return _translate_openai(api_key, model_config, prompt)
+            result = _translate_openai(api_key, model_config, prompt)
         elif provider == 'hyperbolic':
-            return _translate_hyperbolic(api_key, model_config, prompt)
+            result = _translate_hyperbolic(api_key, model_config, prompt)
         elif provider == 'chutes':
-            return _translate_chutes(api_key, model_config, prompt)
+            result = _translate_chutes(api_key, model_config, prompt)
         else:
             raise ValueError(f"Proveedor no implementado: {provider}")
+
+        if result:
+            session_logger.log_api_response(provider, True)
+        else:
+            session_logger.log_api_response(provider, False, error_message="No se obtuvo respuesta válida")
+
+        return result
     except Exception as e:
-        print(f"Error traduciendo segmento con proveedor {provider}: {str(e)}")
+        error_msg = f"Error traduciendo segmento con proveedor {provider}: {str(e)}"
+        session_logger.log_api_response(provider, False, error_message=error_msg)
+        print(error_msg)
         return None
 
 def _translate_gemini(api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
@@ -47,15 +62,22 @@ def _translate_gemini(api_key: str, model_config: Dict, prompt: str) -> Optional
                 "parts": [{
                     "text": prompt
                 }]
-            }]
+            }],
+            "generationConfig": {
+                "temperature": model_config.get('temperature', 0.6)
+            }
         }
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()
         return _process_gemini_response(response.json())
     except requests.exceptions.RequestException as e:
-        print(f"Error HTTP Gemini: {str(e)}")
+        error_msg = f"Error HTTP Gemini: {str(e)}"
+        response_text = None
         if hasattr(e, 'response') and e.response:
-            print("Respuesta detallada:", e.response.text)
+            response_text = e.response.text
+            error_msg += f"\nRespuesta detallada: {response_text}"
+        session_logger.log_api_response('gemini', False, response_text=response_text, error_message=error_msg)
+        print(error_msg)
         return None
 
 def _translate_together(api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
@@ -68,7 +90,7 @@ def _translate_together(api_key: str, model_config: Dict, prompt: str) -> Option
         data = {
             "model": model_config['model_id'],
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.6,
+            "temperature": model_config.get('temperature', 0.6),
             "top_p": 0.95,
             "top_k": 55,
             "repetition_penalty": 1.2,
@@ -80,7 +102,12 @@ def _translate_together(api_key: str, model_config: Dict, prompt: str) -> Option
         response.raise_for_status()
         return _process_together_response(response.json())
     except Exception as e:
-        print(f"Error Together AI: {str(e)}")
+        error_msg = f"Error Together AI: {str(e)}"
+        response_text = None
+        if hasattr(e, 'response') and e.response:
+            response_text = e.response.text
+        session_logger.log_api_response('together', False, response_text=response_text, error_message=error_msg)
+        print(error_msg)
         return None
 
 def _translate_deepinfra(api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
@@ -93,7 +120,7 @@ def _translate_deepinfra(api_key: str, model_config: Dict, prompt: str) -> Optio
         data = {
             "model": model_config['model_id'],
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.6,
+            "temperature": model_config.get('temperature', 0.6),
             "top_p": 0.95,
             "max_tokens": 100000,
             "stream": False
@@ -102,9 +129,13 @@ def _translate_deepinfra(api_key: str, model_config: Dict, prompt: str) -> Optio
         response.raise_for_status()
         return _process_deepinfra_response(response.json())
     except Exception as e:
-        print(f"Error DeepInfra: {str(e)}")
+        error_msg = f"Error DeepInfra: {str(e)}"
+        response_text = None
         if hasattr(e, 'response') and e.response:
-            print("Respuesta detallada:", e.response.text)
+            response_text = e.response.text
+            error_msg += f"\nRespuesta detallada: {response_text}"
+        session_logger.log_api_response('deepinfra', False, response_text=response_text, error_message=error_msg)
+        print(error_msg)
         return None
 
 def _translate_openai(api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
@@ -121,7 +152,7 @@ def _translate_openai(api_key: str, model_config: Dict, prompt: str) -> Optional
                 {"role": "system", "content": "Eres un traductor literario profesional."},  # Opcional, mejora contexto
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.6,
+            "temperature": model_config.get('temperature', 0.6),
             "max_tokens": model_config.get('max_tokens', 4096),
             "top_p": 0.95,
             "n": 1
@@ -132,12 +163,18 @@ def _translate_openai(api_key: str, model_config: Dict, prompt: str) -> Optional
         content = json_response['choices'][0]['message']['content']
         return _clean_translation(content)
     except requests.exceptions.RequestException as e:
-        print(f"Error HTTP OpenAI: {str(e)}")
+        error_msg = f"Error HTTP OpenAI: {str(e)}"
+        response_text = None
         if hasattr(e, 'response') and e.response is not None:
-            print("Respuesta detallada:", e.response.text)
+            response_text = e.response.text
+            error_msg += f"\nRespuesta detallada: {response_text}"
+        session_logger.log_api_response('openai', False, response_text=response_text, error_message=error_msg)
+        print(error_msg)
         return None
     except Exception as e:
-        print(f"Error procesando respuesta OpenAI: {str(e)}")
+        error_msg = f"Error procesando respuesta OpenAI: {str(e)}"
+        session_logger.log_api_response('openai', False, error_message=error_msg)
+        print(error_msg)
         return None
 
 def _process_gemini_response(response: Dict) -> Optional[str]:
@@ -153,7 +190,8 @@ def _process_gemini_response(response: Dict) -> Optional[str]:
         translated_text = parts[0]['text']
         return _clean_translation(translated_text)
     except Exception as e:
-        print(f"Error procesando respuesta de Gemini: {str(e)}")
+        error_msg = f"Error procesando respuesta de Gemini: {str(e)}"
+        print(error_msg)
         return None
 
 def _process_together_response(response: Dict) -> Optional[str]:
@@ -165,7 +203,8 @@ def _process_together_response(response: Dict) -> Optional[str]:
             return None
         return _clean_translation(message['content'])
     except Exception as e:
-        print(f"Error procesando respuesta de Together: {str(e)}")
+        error_msg = f"Error procesando respuesta de Together: {str(e)}"
+        print(error_msg)
         return None
 
 def _process_deepinfra_response(response: Dict) -> Optional[str]:
@@ -177,7 +216,8 @@ def _process_deepinfra_response(response: Dict) -> Optional[str]:
             return None
         return _clean_translation(message['content'])
     except Exception as e:
-        print(f"Error procesando respuesta de DeepInfra: {str(e)}")
+        error_msg = f"Error procesando respuesta de DeepInfra: {str(e)}"
+        print(error_msg)
         return None
 
 def _translate_hyperbolic(api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
@@ -190,7 +230,7 @@ def _translate_hyperbolic(api_key: str, model_config: Dict, prompt: str) -> Opti
         data = {
             "model": model_config['model_id'],
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.6,
+            "temperature": model_config.get('temperature', 0.6),
             "top_p": 0.95,
             "max_tokens": model_config.get('max_tokens', 4096),
             "stream": False
@@ -199,9 +239,13 @@ def _translate_hyperbolic(api_key: str, model_config: Dict, prompt: str) -> Opti
         response.raise_for_status()
         return _process_hyperbolic_response(response.json())
     except Exception as e:
-        print(f"Error Hyperbolic: {str(e)}")
+        error_msg = f"Error Hyperbolic: {str(e)}"
+        response_text = None
         if hasattr(e, 'response') and e.response:
-            print("Respuesta detallada:", e.response.text)
+            response_text = e.response.text
+            error_msg += f"\nRespuesta detallada: {response_text}"
+        session_logger.log_api_response('hyperbolic', False, response_text=response_text, error_message=error_msg)
+        print(error_msg)
         return None
 
 def _process_hyperbolic_response(response: Dict) -> Optional[str]:
@@ -213,7 +257,8 @@ def _process_hyperbolic_response(response: Dict) -> Optional[str]:
             return None
         return _clean_translation(message['content'])
     except Exception as e:
-        print(f"Error procesando respuesta de Hyperbolic: {str(e)}")
+        error_msg = f"Error procesando respuesta de Hyperbolic: {str(e)}"
+        print(error_msg)
         return None
 
 def _translate_chutes(api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
@@ -226,7 +271,7 @@ def _translate_chutes(api_key: str, model_config: Dict, prompt: str) -> Optional
         data = {
             "model": model_config['endpoint'],
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.6,
+            "temperature": model_config.get('temperature', 0.6),
             "max_tokens": model_config.get('max_tokens', 4096),
             "stream": False
         }
@@ -234,9 +279,13 @@ def _translate_chutes(api_key: str, model_config: Dict, prompt: str) -> Optional
         response.raise_for_status()
         return _process_chutes_response(response.json())
     except Exception as e:
-        print(f"Error Chutes AI: {str(e)}")
+        error_msg = f"Error Chutes AI: {str(e)}"
+        response_text = None
         if hasattr(e, 'response') and e.response:
-            print("Respuesta detallada:", e.response.text)
+            response_text = e.response.text
+            error_msg += f"\nRespuesta detallada: {response_text}"
+        session_logger.log_api_response('chutes', False, response_text=response_text, error_message=error_msg)
+        print(error_msg)
         return None
 
 def _process_chutes_response(response: Dict) -> Optional[str]:
@@ -248,7 +297,8 @@ def _process_chutes_response(response: Dict) -> Optional[str]:
             return None
         return _clean_translation(message['content'])
     except Exception as e:
-        print(f"Error procesando respuesta de Chutes AI: {str(e)}")
+        error_msg = f"Error procesando respuesta de Chutes AI: {str(e)}"
+        print(error_msg)
         return None
 
 def _clean_translation(text: str) -> str:

@@ -5,11 +5,13 @@
     "models": {
       "gemini-2.0-flash": {
         "name": "Gemini Flash 2.0",
-        "endpoint": "gemini-2.0-flash:generateContent"
+        "endpoint": "gemini-2.0-flash:generateContent",
+        "temperature": 0.6
       },
       "gemini-2.5-flash-lite": {
         "name": "Gemini Flash 2.5 Lite",
-        "endpoint": "gemini-2.5-flash-lite-preview-06-17:generateContent"
+        "endpoint": "gemini-2.5-flash-lite-preview-06-17:generateContent",
+        "temperature": 0.6
       }
     }
   },
@@ -20,7 +22,8 @@
       "llama3.3-70b": {
         "name": "Llama 3.3 70B",
         "model_id": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-        "max_tokens": 100000
+        "max_tokens": 100000,
+        "temperature": 0.6
       }
     }
   },
@@ -30,11 +33,9 @@
     "models": {
       "llama-sao10k": {
         "name": "Sao10K L3.3-70B-Euryale",
-        "model_id": "Sao10K/L3.3-70B-Euryale-v2.3"
-      },
-      "gemma3-27b": {
-        "name": "Gemma 3 27B",
-        "model_id": "google/gemma-3-27b-it"
+        "model_id": "Sao10K/L3.3-70B-Euryale-v2.3",
+        "max_tokens": 100000,
+        "temperature": 0.6
       }
     }
   },
@@ -45,7 +46,8 @@
       "gpt-4.1-nano": {
         "name": "GPT-4.1 Nano",
         "model_id": "gpt-4.1-nano",
-        "max_tokens": 32000
+        "max_tokens": 32000,
+        "temperature": 0.6
       }
     }
   },
@@ -56,7 +58,8 @@
       "llama-3.3-70b": {
         "name": "Llama 3.3 70B",
         "model_id": "meta-llama/Llama-3.3-70B-Instruct",
-        "max_tokens": 100000
+        "max_tokens": 100000,
+        "temperature": 0.6
       }
     }
   },
@@ -64,20 +67,23 @@
     "name": "Chutes AI",
     "base_url": "https://llm.chutes.ai/v1/chat/completions",
     "models": {
-      "llama-4-scout": {
-        "name": "Llama 4 Scout",
-        "endpoint": "chutesai/Llama-4-Scout-17B-16E-Instruct",
-        "max_tokens": 100000
-      },
       "mistral-3.2": {
         "name": "Mistral Small 3.2",
         "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
-        "max_tokens": 40000
+        "max_tokens": 40000,
+        "temperature": 0.15
       },
       "dolphin-mistral": {
         "name": "Dolphin Mistral",
         "endpoint": "cognitivecomputations/Dolphin3.0-Mistral-24B",
-        "max_tokens": 40000
+        "max_tokens": 40000,
+        "temperature": 0.6
+      },
+      "skyfall": {
+        "name": "Skyfall V2",
+        "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
+        "max_tokens": 40000,
+        "temperature": 0.3
       }
     }
   }
