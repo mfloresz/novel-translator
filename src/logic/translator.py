@@ -267,7 +267,7 @@ class TranslatorLogic:
                 # Agregar términos personalizados si existen
                 if custom_terms:
                     ref_section = "**Terminology Reference**"
-                    final_instructions = "<output_requirements>"
+                    final_instructions = "**Output Requirements**"
 
                     pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
                     post_terms = prompt[prompt.find(final_instructions):]
