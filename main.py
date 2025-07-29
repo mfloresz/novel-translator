@@ -12,8 +12,9 @@ from src.logic.get_path import get_directory
 from src.logic.loader import FileLoader
 from src.logic.creator import EpubConverterLogic
 from src.logic.epub_importer import EpubImporter
-from src.logic.functions import show_confirmation_dialog
+from src.logic.functions import show_confirmation_dialog, show_import_confirmation_dialog
 from src.logic.database import TranslationDatabase
+from src.logic.session_logger import session_logger
 import subprocess
 
 class ElidedLabel(QLabel):
@@ -58,7 +59,7 @@ class NovelManagerApp(QMainWindow):
 
         self.current_directory = None
         self.setWindowTitle("Novel Translator")
-        self.setGeometry(100, 100, 1000, 600)
+        self.setGeometry(100, 100, 1000, 580)
 
         # Establecer ícono de la aplicación
         app_icon_path = "src/gui/icons/app.png"
@@ -102,10 +103,15 @@ class NovelManagerApp(QMainWindow):
         self.open_dir_button.clicked.connect(self.open_working_directory)
         self.open_dir_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
 
+        # Añadir botón para abrir registro
+        self.log_button = QPushButton("Registro")
+        self.log_button.clicked.connect(self.open_log_file)
+
         dir_layout.addWidget(self.nav_button)
         dir_layout.addWidget(self.import_epub_button)
         dir_layout.addWidget(self.refresh_button)
         dir_layout.addWidget(self.open_dir_button)
+        dir_layout.addWidget(self.log_button)
         dir_layout.addStretch()  # Empujar botones hacia la izquierda
 
         # Chapters table
@@ -199,6 +205,8 @@ class NovelManagerApp(QMainWindow):
         """Limpia recursos al cerrar la aplicación"""
         if hasattr(self, '_theme_timer'):
             self._theme_timer.stop()
+        # Limpiar el archivo de log de la sesión
+        session_logger.cleanup()
         event.accept()
 
     def _is_dark_theme(self):
@@ -570,12 +578,14 @@ class NovelManagerApp(QMainWindow):
         # La carpeta se creará en la misma ubicación que el EPUB
         epub_dir = os.path.dirname(file_path)
 
-        # Confirmar la importación
-        if not show_confirmation_dialog(
-            f"Se importará el EPUB:\n{os.path.basename(file_path)}\n\n"
-            f"Se creará una nueva carpeta en:\n{epub_dir}\n\n"
-            "¿Desea continuar?"
-        ):
+        # Confirmar la importación con opciones
+        accepted, options = show_import_confirmation_dialog(
+            os.path.basename(file_path),
+            epub_dir,
+            self
+        )
+
+        if not accepted:
             return
 
         # Iniciar la importación
@@ -583,7 +593,7 @@ class NovelManagerApp(QMainWindow):
         self.import_epub_button.setEnabled(False)
         self.nav_button.setEnabled(False)
 
-        self.epub_importer.import_epub(file_path)
+        self.epub_importer.import_epub(file_path, options)
 
     def handle_epub_import_finished(self, success, message, directory_path):
         """Maneja la finalización de la importación de EPUB"""
@@ -669,6 +679,28 @@ class NovelManagerApp(QMainWindow):
             self.statusBar().showMessage(f"Abriendo directorio: {os.path.basename(self.current_directory)}", 3000)
         except Exception as e:
             self.statusBar().showMessage(f"Error al abrir directorio: {str(e)}")
+
+    def open_log_file(self):
+        """Abre el archivo de log de la sesión con el programa predeterminado"""
+        log_path = session_logger.get_log_path()
+        if not log_path or not os.path.exists(log_path):
+            self.statusBar().showMessage("No se encontró el archivo de registro de la sesión")
+            return
+
+        try:
+            import platform
+            system = platform.system()
+
+            if system == "Windows":
+                os.startfile(log_path)
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", log_path])
+            else:  # Linux y otros Unix
+                subprocess.run(["xdg-open", log_path])
+
+            self.statusBar().showMessage("Abriendo archivo de registro...", 3000)
+        except Exception as e:
+            self.statusBar().showMessage(f"Error al abrir archivo de registro: {str(e)}")
 
 def main():
     app = QApplication(sys.argv)

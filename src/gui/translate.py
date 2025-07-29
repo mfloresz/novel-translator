@@ -397,6 +397,9 @@ class TranslatePanel(QWidget):
             model
         )
 
+        # Guardar la posición actual de scroll
+        scroll_position = self.main_window.chapters_table.verticalScrollBar().value()
+
         # Obtener archivos del rango seleccionado
         files_to_translate = []
         for row in range(start_chapter - 1, end_chapter):
@@ -406,6 +409,9 @@ class TranslatePanel(QWidget):
                     'name': name_item.text(),
                     'row': row
                 })
+
+        # Restaurar la posición de scroll
+        self.main_window.chapters_table.verticalScrollBar().setValue(scroll_position)
 
         if not files_to_translate:
             self.main_window.statusBar().showMessage("Error: No hay archivos para traducir en el rango seleccionado")

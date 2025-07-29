@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMessageBox, QFileDialog
+from PyQt6.QtWidgets import QMessageBox, QFileDialog, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QCheckBox
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtCore import Qt
 import os
@@ -81,7 +81,7 @@ def get_cover_image(initial_dir=None):
     file_dialog = QFileDialog()
     if initial_dir is None:
         initial_dir = os.path.expanduser('~')
-    
+
     file_path, _ = file_dialog.getOpenFileName(
         caption="Seleccionar imagen de portada",
         directory=initial_dir,
@@ -195,54 +195,137 @@ def validate_epub_file(file_path):
         tuple: (bool, str) - (es_válido, mensaje_de_error)
     """
     import zipfile
-    
+
     if not file_path:
         return False, "No se seleccionó ningún archivo"
-    
+
     if not os.path.exists(file_path):
         return False, "El archivo no existe"
-    
+
     if not file_path.lower().endswith('.epub'):
         return False, "El archivo debe tener extensión .epub"
-    
+
     try:
         with zipfile.ZipFile(file_path, 'r') as epub_zip:
             # Verificar estructura básica de EPUB
             files = epub_zip.namelist()
-            
+
             if 'META-INF/container.xml' not in files:
                 return False, "Archivo EPUB inválido: falta container.xml"
-            
+
             # Verificar que tenga al menos un archivo OPF
             has_opf = any(f.endswith('.opf') for f in files)
             if not has_opf:
                 return False, "Archivo EPUB inválido: falta archivo OPF"
-            
+
             return True, ""
-            
+
     except zipfile.BadZipFile:
         return False, "El archivo está corrupto o no es un ZIP válido"
     except Exception as e:
         return False, f"Error al validar EPUB: {str(e)}"
 
-def show_import_confirmation_dialog(epub_name, output_dir):
+class EpubImportDialog(QDialog):
     """
-    Muestra un diálogo específico para confirmar la importación de EPUB.
+    Diálogo personalizado para confirmar la importación de EPUB con opciones adicionales.
+    """
+    def __init__(self, epub_name, output_dir, parent=None):
+        super().__init__(parent)
+        self.epub_name = epub_name
+        self.output_dir = output_dir
+        self.add_numbering = True
+        self.add_chapter_titles = True
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowTitle("Importar EPUB")
+        self.setModal(True)
+        self.resize(500, 200)
+
+        layout = QVBoxLayout()
+
+        # Información principal
+        info_label = QLabel(
+            f"Se importará el EPUB: {self.epub_name}\n\n"
+            f"Se creará una nueva carpeta en: {self.output_dir}\n"
+            "Los capítulos se convertirán a archivos TXT."
+        )
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+
+        # Opciones
+        options_label = QLabel("Opciones de importación:")
+        options_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(options_label)
+
+        # Opción 1: Numeración automática en contenido
+        self.numbering_checkbox = QCheckBox(
+            "Añadir numeración automática al principio del contenido (Capítulo 001, Capítulo 002, etc.)"
+        )
+        self.numbering_checkbox.setChecked(False)
+        self.numbering_checkbox.setToolTip(
+            "Si está marcado, se añadirá 'Capítulo 001', 'Capítulo 002', etc. al principio del contenido del archivo TXT.\n"
+            "Si no está marcado, no se añadirá numeración automática al contenido."
+        )
+        layout.addWidget(self.numbering_checkbox)
+
+        # Opción 2: Insertar títulos de capítulos en contenido
+        self.titles_checkbox = QCheckBox(
+            "Insertar título del capítulo al principio del contenido"
+        )
+        self.titles_checkbox.setChecked(True)
+        self.titles_checkbox.setToolTip(
+            "Si está marcado, el título del capítulo (del marcador) se añadirá al principio del contenido del archivo TXT.\n"
+            "Si no está marcado, solo se incluirá el contenido original sin añadir títulos."
+        )
+        layout.addWidget(self.titles_checkbox)
+
+        # Botones
+        buttons_layout = QHBoxLayout()
+
+        self.cancel_button = QPushButton("Cancelar")
+        self.ok_button = QPushButton("Importar")
+
+        self.cancel_button.clicked.connect(self.reject)
+        self.ok_button.clicked.connect(self.accept)
+
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.cancel_button)
+        buttons_layout.addWidget(self.ok_button)
+
+        layout.addLayout(buttons_layout)
+        self.setLayout(layout)
+
+    def get_options(self):
+        """
+        Retorna las opciones seleccionadas por el usuario.
+
+        Returns:
+            dict: Diccionario con las opciones seleccionadas
+        """
+        return {
+            'add_numbering_to_content': self.numbering_checkbox.isChecked(),
+            'add_chapter_titles_to_content': self.titles_checkbox.isChecked()
+        }
+
+def show_import_confirmation_dialog(epub_name, output_dir, parent=None):
+    """
+    Muestra un diálogo específico para confirmar la importación de EPUB con opciones.
 
     Args:
         epub_name (str): Nombre del archivo EPUB
         output_dir (str): Directorio donde se creará la carpeta
+        parent: Widget padre para el diálogo
 
     Returns:
-        bool: True si el usuario acepta la importación
+        tuple: (bool, dict) - (aceptado, opciones_seleccionadas)
     """
-    message = (
-        f"Se importará el EPUB: {epub_name}\n\n"
-        f"Se creará una nueva carpeta en:\n{output_dir}\n\n"
-        "Los capítulos se convertirán a archivos TXT numerados.\n"
-        "¿Desea continuar?"
-    )
-    return show_confirmation_dialog(message, "Importar EPUB")
+    dialog = EpubImportDialog(epub_name, output_dir, parent)
+
+    if dialog.exec() == QDialog.DialogCode.Accepted:
+        return True, dialog.get_options()
+    else:
+        return False, {}
 
 def sanitize_directory_name(name):
     """
@@ -256,19 +339,19 @@ def sanitize_directory_name(name):
     """
     # Caracteres no válidos en nombres de archivo/directorio
     invalid_chars = '<>:"/\\|?*'
-    
+
     # Reemplazar caracteres inválidos
     for char in invalid_chars:
         name = name.replace(char, '_')
-    
+
     # Remover espacios extra y caracteres especiales adicionales
     name = ''.join(c for c in name if c.isalnum() or c in ' -_.')
-    
+
     # Limitar longitud
     name = name[:100].strip()
-    
+
     # Asegurar que no esté vacío
     if not name:
         name = "Libro_Importado"
-    
+
     return name

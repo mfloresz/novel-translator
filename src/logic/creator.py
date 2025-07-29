@@ -1,4 +1,5 @@
 import os
+import re
 from PyQt6.QtCore import QObject, pyqtSignal
 try:
     from bs4 import BeautifulSoup
@@ -193,8 +194,24 @@ class EpubConverterLogic(QObject):
             # Separar párrafos por dobles saltos de línea y agregar <p>
             paragraphs = [p.strip() for p in chapter_content.split('\n\n') if p.strip()]
             for p in paragraphs:
+                formatted_content = self._format_text(p)
                 p_tag = soup.new_tag('p')
-                p_tag.string = p
+                # Manejar contenido con HTML de manera simple
+                if '<em>' in formatted_content:
+                    # Dividir por etiquetas <em> y procesarlas
+                    parts = re.split(r'(<em>.*?</em>)', formatted_content)
+                    for part in parts:
+                        if part.startswith('<em>') and part.endswith('</em>'):
+                            # Crear etiqueta em
+                            em_tag = soup.new_tag('em')
+                            em_tag.string = part[4:-5]  # Extraer contenido entre <em> y </em>
+                            p_tag.append(em_tag)
+                        elif part:
+                            # Agregar texto plano
+                            p_tag.append(part)
+                else:
+                    # Solo texto plano
+                    p_tag.string = formatted_content
                 body_tag.append(p_tag)
 
             html_tag.append(body_tag)
@@ -215,6 +232,16 @@ class EpubConverterLogic(QObject):
             if title.endswith(marker):
                 title = title[:-len(marker)].strip()
         return title
+
+    def _format_text(self, text):
+        """Convierte formato de texto simple a HTML"""
+        # Convertir *texto* a cursiva <em>texto</em>
+        # Usar un patrón que capture texto entre asteriscos que no contenga asteriscos
+        formatted_text = re.sub(r'\*([^*]+)\*', r'<em>\1</em>', text)
+
+
+
+        return formatted_text
 
     def _create_titlepage_html(self, title, author):
         """Crea HTML para la página de título"""

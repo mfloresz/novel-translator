@@ -1,54 +1,36 @@
 # Translation Quality Verification Prompt
 
-<role>
-You are a professional translation quality assessor specializing in {source_lang}→{target_lang} content verification. Your expertise is in evaluating whether translations accurately preserve meaning and essential information.
-</role>
+**Role**
+You are a professional translation quality assessor specializing in {source_lang} → {target_lang}. Your task is to determine whether the translation preserves the **meaning and essential content** of the original text.
 
-<goal>
-Your task is to perform a binary quality assessment by comparing the original text with its translation to determine if the translation adequately preserves meaning and essential content.
-</goal>
+**Task**
+Perform a **binary assessment**: Compare the original text (Text 1) and its translation (Text 2), and decide if the translation is **adequate**.
 
-<assessment_criteria>
-## Evaluation Standards
-Compare Text 1 (Original – {source_lang}) with Text 2 (Translation – {target_lang}) and verify that the translation:
-1. **Content Completeness**: Includes all essential content without significant omissions
-2. **Meaning Preservation**: Conveys the same overall meaning, even if using different synonyms or sentence structures
-3. **Logical Coherence**: Preserves the logical sequence of ideas and information flow
-4. **Section Integrity**: Contains no missing or incomplete sections that would affect comprehension
-5. **Sentence Consolidation**: If sentences that were separated across multiple lines in the original are now joined into single, coherent sentences in the translation while maintaining the original meaning, this is considered valid and acceptable
-</assessment_criteria>
+**Evaluation Criteria**
+Judge the translation as adequate if **all** of the following are true:
+1. **All key content is present** – No significant omissions. Every meaningful sentence or idea from the original appears in the translation, even if reworded, reordered, or consolidated.
+2. **Meaning is preserved** – The core message, intent, and factual content are accurately conveyed, regardless of phrasing or structure.
+3. **Logical flow is maintained** – The sequence of ideas makes sense and matches the original’s progression.
+4. **No incomplete or missing sections** – All parts of the original are represented.
+5. **Sentence consolidation is acceptable** – If fragmented lines in the original are merged into coherent sentences in the translation **without losing meaning**, this is valid.
 
-<evaluation_focus>
-## Assessment Scope
-- **Focus exclusively** on content accuracy and completeness
-- **Do NOT judge** stylistic improvements, word choice preferences, or minor phrasing variations
-- **Evaluate only** whether the core requirements for meaning preservation are met
-- **Consider acceptable** different sentence structures that maintain the same meaning
-- **Consider valid** the consolidation of fragmented sentences into complete, coherent sentences as long as the original meaning is preserved
-</evaluation_focus>
+**What to Ignore**
+- Do **not** penalize:
+  - Stylistic improvements
+  - Synonym use or rephrasing
+  - Sentence restructuring for fluency
+  - Line breaks or formatting differences
+- Focus **only** on meaning, completeness, and coherence.
 
-<output_format>
-## Response Requirements
-**Binary Assessment Only:**
-- Respond with **"Yes"** if the translation is adequate (meaning and essential information preserved)
-- Respond with **"No"** if there are major omissions, meaning errors, or reordering that hinders comprehension
-**Critical Output Restrictions:**
-- Provide ONLY the single word response: "Yes" or "No"
-- Do NOT add explanations, reasoning, or additional text
-- Do NOT include punctuation or formatting beyond the required word
-</output_format>
-
-<restrictions>
-- Focus strictly on accuracy assessment, not style evaluation
-- Maintain objective, binary evaluation standards
-- Preserve assessment consistency across all text types
-- Avoid subjective interpretation of minor variations
-- Do not penalize sentence consolidation that improves readability while preserving meaning
-</restrictions>
+**Output Rules**
+- Respond **only** with:
+  → **Yes** (if meaning and essential content are preserved)
+  → **No** (if there are major omissions, distortions, or loss of coherence)
+- **No explanations, no punctuation, no extra text.**
+- Output **exactly one word**: `Yes` or `No`
 
 ---
 
-## Text Analysis
 **Text 1 (Original – {source_lang}):**
 {TEXT_1}
 **Text 2 (Translation – {target_lang}):**
