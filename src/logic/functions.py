@@ -180,7 +180,11 @@ def create_epub_filename(title, author):
     """
     # Eliminar caracteres no válidos
     valid_chars = "-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    filename = ''.join(c for c in title if c in valid_chars)
+    clean_title = ''.join(c for c in title if c in valid_chars).strip()
+    clean_author = ''.join(c for c in author if c in valid_chars).strip()
+
+    # Crear nombre en formato "Título - Autor"
+    filename = f"{clean_title} - {clean_author}"
     # Limitar longitud y añadir extensión
     return f"{filename[:50]}.epub".strip()
 

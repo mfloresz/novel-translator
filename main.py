@@ -272,14 +272,14 @@ class NovelManagerApp(QMainWindow):
             self.epub_converter.set_directory(directory)
             # Configurar directorio de trabajo en el panel de creación de EPUB
             self.create_panel.set_working_directory(directory)
+            # Configurar directorio de trabajo en el panel de traducción
+            self.translate_panel.set_working_directory(directory)
             # Habilitar botones
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
             # Actualizar título de la ventana
             self.update_window_title()
             self.load_chapters()
-            # Cargar los términos personalizados guardados
-            self.translate_panel.load_saved_terms()
 
     def refresh_files(self):
         """Actualiza la lista de archivos del directorio actual"""
@@ -610,6 +610,8 @@ class NovelManagerApp(QMainWindow):
 
             # Configurar directorio de trabajo en el panel de creación de EPUB
             self.create_panel.set_working_directory(directory_path)
+            # Configurar directorio de trabajo en el panel de traducción
+            self.translate_panel.set_working_directory(directory_path)
 
             # Habilitar botones
             self.refresh_button.setEnabled(True)
@@ -617,12 +619,7 @@ class NovelManagerApp(QMainWindow):
 
             # Actualizar título de la ventana
             self.update_window_title()
-
-            # Cargar los archivos
             self.load_chapters()
-
-            # Cargar los términos personalizados guardados
-            self.translate_panel.load_saved_terms()
 
             # Mostrar mensaje de éxito
             self.statusBar().showMessage(message, 5000)

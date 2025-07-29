@@ -7,11 +7,82 @@ from typing import Optional, Dict
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                            QPushButton, QLineEdit, QGroupBox, QComboBox,
                            QSpinBox, QFormLayout, QPlainTextEdit, QRadioButton,
-                           QCheckBox, QDialog, QMessageBox)
+                           QCheckBox, QDialog, QMessageBox, QListWidget, QListWidgetItem)
 from PyQt6.QtCore import Qt
 from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
 from src.logic.functions import show_confirmation_dialog
+
+class PresetTermsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.selected_term = None
+        self.init_ui()
+        self.load_preset_terms()
+
+    def init_ui(self):
+        self.setWindowTitle("Términos Predefinidos")
+        self.setModal(True)
+        self.resize(500, 400)
+
+        layout = QVBoxLayout()
+
+        # Instrucciones
+        instructions = QLabel("Seleccione un término para agregarlo al campo de términos personalizados:")
+        instructions.setWordWrap(True)
+        layout.addWidget(instructions)
+
+        # Lista de términos
+        self.terms_list = QListWidget()
+        self.terms_list.itemDoubleClicked.connect(self.on_term_double_clicked)
+        layout.addWidget(self.terms_list)
+
+        # Botones
+        buttons_layout = QHBoxLayout()
+        self.cancel_button = QPushButton("Cancelar")
+        self.add_button = QPushButton("Agregar Término")
+
+        self.cancel_button.clicked.connect(self.reject)
+        self.add_button.clicked.connect(self.add_selected_term)
+
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.cancel_button)
+        buttons_layout.addWidget(self.add_button)
+
+        layout.addLayout(buttons_layout)
+        self.setLayout(layout)
+
+    def load_preset_terms(self):
+        """Carga los términos predefinidos desde el archivo JSON"""
+        try:
+            json_path = Path(__file__).parent.parent / 'logic' / 'custom_terms.json'
+            if json_path.exists():
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    terms = json.load(f)
+
+                for term in terms:
+                    item = QListWidgetItem(term)
+                    self.terms_list.addItem(item)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Error al cargar términos predefinidos: {str(e)}")
+
+    def on_term_double_clicked(self, item):
+        """Maneja el doble clic en un término"""
+        self.selected_term = item.text()
+        self.accept()
+
+    def add_selected_term(self):
+        """Agrega el término seleccionado"""
+        current_item = self.terms_list.currentItem()
+        if current_item:
+            self.selected_term = current_item.text()
+            self.accept()
+        else:
+            QMessageBox.information(self, "Información", "Por favor seleccione un término de la lista.")
+
+    def get_selected_term(self):
+        """Retorna el término seleccionado"""
+        return self.selected_term
 
 class ApiKeyConfigDialog(QDialog):
     def __init__(self, provider_name, current_api_key="", parent=None):
@@ -69,6 +140,7 @@ class TranslatePanel(QWidget):
         super().__init__()
         self.main_window = main_window
         self.translation_manager = TranslationManager()
+        self.working_directory = None
 
         # Variable para almacenar API keys temporales
         self.temp_api_keys = {}
@@ -144,12 +216,30 @@ class TranslatePanel(QWidget):
         terms_group = QGroupBox("Términos Personalizados")
         terms_layout = QVBoxLayout()
 
-        # Instrucciones para los términos
+        # Instrucciones para los términos con botones
+        terms_header_layout = QHBoxLayout()
+
         terms_instructions = QLabel(
             "Ingrese los términos y sus traducciones (uno por línea)"
         )
         terms_instructions.setWordWrap(True)
-        terms_layout.addWidget(terms_instructions)
+        terms_header_layout.addWidget(terms_instructions)
+
+        # Botón para copiar símbolo →
+        self.copy_arrow_btn = QPushButton("→")
+        self.copy_arrow_btn.setMaximumWidth(30)
+        self.copy_arrow_btn.setToolTip("Copiar símbolo → al portapapeles")
+        self.copy_arrow_btn.clicked.connect(self.copy_arrow_symbol)
+        terms_header_layout.addWidget(self.copy_arrow_btn)
+
+        # Botón para mostrar términos predefinidos
+        self.preset_terms_btn = QPushButton("⚙")
+        self.preset_terms_btn.setMaximumWidth(30)
+        self.preset_terms_btn.setToolTip("Cargar términos predefinidos")
+        self.preset_terms_btn.clicked.connect(self.show_preset_terms)
+        terms_header_layout.addWidget(self.preset_terms_btn)
+
+        terms_layout.addLayout(terms_header_layout)
 
         # Campo para los términos personalizados
         self.terms_input = QPlainTextEdit()
@@ -319,12 +409,11 @@ class TranslatePanel(QWidget):
 
     def load_saved_terms(self):
         """Carga los términos guardados cuando se selecciona un directorio"""
-        if self.main_window.current_directory:
-                # Siempre reinicializar con el nuevo directorio
-                self.translation_manager.initialize(self.main_window.current_directory)
-                saved_terms = self.translation_manager.get_custom_terms()
-                if saved_terms:
-                    self.terms_input.setPlainText(saved_terms)
+        if self.working_directory:
+            self.translation_manager.initialize(self.working_directory)
+            saved_terms = self.translation_manager.get_custom_terms()
+            if saved_terms:
+                self.terms_input.setPlainText(saved_terms)
 
     def start_translation(self):
         """Inicia el proceso de traducción"""
@@ -344,11 +433,20 @@ class TranslatePanel(QWidget):
              if v['name'] == self.provider_combo.currentText()),
             None
         )
+
+        if not provider:
+            self.main_window.statusBar().showMessage("Error: Debe seleccionar un proveedor válido")
+            return
+
         model = next(
             (k for k, v in self.models_config[provider]['models'].items()
              if v['name'] == self.model_combo.currentText()),
             None
         )
+
+        if not model:
+            self.main_window.statusBar().showMessage("Error: Debe seleccionar un modelo válido")
+            return
 
         # Obtener idiomas seleccionados
         source_lang = self.source_lang_combo.currentText()
@@ -471,3 +569,32 @@ class TranslatePanel(QWidget):
                     # Aplicar color usando el método de la ventana principal
                     self.main_window._apply_status_color(status_item, status)
                 break
+
+    def set_working_directory(self, directory):
+        """Establece el directorio de trabajo y recarga los términos guardados"""
+        self.working_directory = directory
+        # Recargar términos guardados cuando se cambia el directorio
+        self.load_saved_terms()
+
+    def copy_arrow_symbol(self):
+        """Copia el símbolo → al portapapeles"""
+        from PyQt6.QtWidgets import QApplication
+        clipboard = QApplication.clipboard()
+        if clipboard:
+            clipboard.setText("→")
+            self.main_window.statusBar().showMessage("Símbolo → copiado al portapapeles", 2000)
+        else:
+            self.main_window.statusBar().showMessage("Error: No se pudo acceder al portapapeles", 3000)
+
+    def show_preset_terms(self):
+        """Muestra el diálogo con términos predefinidos"""
+        dialog = PresetTermsDialog(self)
+        if dialog.exec() == dialog.DialogCode.Accepted:
+            selected_term = dialog.get_selected_term()
+            if selected_term:
+                current_text = self.terms_input.toPlainText()
+                if current_text:
+                    new_text = current_text + "\n" + selected_term
+                else:
+                    new_text = selected_term
+                self.terms_input.setPlainText(new_text)
