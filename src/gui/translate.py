@@ -161,7 +161,7 @@ class TranslatePanel(QWidget):
         # Provider and Model selection
         provider_layout = QHBoxLayout()
         self.provider_combo = QComboBox()
-        self.config_button = QPushButton("⚙️")
+        self.config_button = QPushButton("⚙")
         self.config_button.setToolTip("Cambiar API Key")
         self.config_button.setMaximumWidth(30)
         self.config_button.clicked.connect(self.configure_api_key)

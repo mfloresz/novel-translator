@@ -3,11 +3,6 @@
     "name": "Google Gemini",
     "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
     "models": {
-      "gemini-2.0-flash": {
-        "name": "Gemini Flash 2.0",
-        "endpoint": "gemini-2.0-flash:generateContent",
-        "temperature": 0.6
-      },
       "gemini-2.5-flash-lite": {
         "name": "Gemini Flash 2.5 Lite",
         "endpoint": "gemini-2.5-flash-lite:generateContent",
@@ -36,6 +31,12 @@
         "model_id": "Sao10K/L3.3-70B-Euryale-v2.3",
         "max_tokens": 100000,
         "temperature": 0.6
+      },
+      "qwen3": {
+        "name": "Qwen 3 A3B",
+        "model_id": "Qwen/Qwen3-30B-A3B",
+        "max_tokens": 40000,
+        "temperature": 0.6
       }
     }
   },
@@ -51,18 +52,6 @@
       }
     }
   },
-  "hyperbolic": {
-    "name": "Hyperbolic",
-    "base_url": "https://api.hyperbolic.xyz/v1/chat/completions",
-    "models": {
-      "llama-3.3-70b": {
-        "name": "Llama 3.3 70B",
-        "model_id": "meta-llama/Llama-3.3-70B-Instruct",
-        "max_tokens": 100000,
-        "temperature": 0.6
-      }
-    }
-  },
   "chutes": {
     "name": "Chutes AI",
     "base_url": "https://llm.chutes.ai/v1/chat/completions",
@@ -71,19 +60,13 @@
         "name": "Mistral Small 3.2",
         "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
         "max_tokens": 40000,
-        "temperature": 0.15
-      },
-      "dolphin-mistral": {
-        "name": "Dolphin Mistral",
-        "endpoint": "cognitivecomputations/Dolphin3.0-Mistral-24B",
-        "max_tokens": 40000,
         "temperature": 0.6
       },
       "skyfall": {
         "name": "Skyfall V2",
         "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
         "max_tokens": 40000,
-        "temperature": 0.3
+        "temperature": 0.6
       }
     }
   }
