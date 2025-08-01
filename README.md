@@ -15,7 +15,7 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 - Vista previa y acceso rápido a documentos
 - Soporte para archivos de texto (.txt)
 - Sistema de seguimiento del estado de los archivos con colores identificativos
-- **Gestión de metadatos:** Guarda y carga automáticamente título y autor del proyecto
+- **Gestión de metadatos:** Guarda y carga automáticamente título, autor y descripción del proyecto
 
 ### Importación de EPUB
 - Conversión automática de archivos EPUB a archivos de texto (.txt)
@@ -94,7 +94,7 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 ### Creación de EPUB
 ![epub](assets/ebook.webp)
 - Conversión de archivos de texto a EPUB
-- **Gestión inteligente de metadatos:** Guardado y carga automática de título y autor
+- **Gestión inteligente de metadatos:** Guardado y carga automática de título, autor y descripción
 - Soporte para imágenes de portada con detección automática
 - Numeración automática de capítulos
 - Estilos CSS predefinidos y optimizados
@@ -104,7 +104,8 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 
 *   **Título:** Introduce el título del libro (se guarda automáticamente por proyecto).
 *   **Autor:** Ingresa el nombre del autor (se guarda automáticamente por proyecto).
-*   **Guardar Metadatos:** Botón para guardar manualmente título y autor del proyecto actual.
+*   **Descripción:** Ingresa la descripción o sinopsis del libro (se guarda automáticamente por proyecto).
+*   **Guardar Metadatos:** Botón para guardar manualmente título, autor y descripción del proyecto actual.
 *   **Portada:**
     - Seleccionar imagen manualmente
     - Detección automática de portadas (cover.jpg, portada.png, etc.)
@@ -188,7 +189,7 @@ python main.py
 
 5. **Crear EPUB**
    - En la pestaña "Ebook", los metadatos se cargan automáticamente si existen.
-   - Ingresa o modifica título y autor.
+   - Ingresa o modifica título, autor y descripción.
    - Usa "Guardar Metadatos" para preservar la información del proyecto.
    - La portada se detecta automáticamente o se puede seleccionar manualmente.
    - Define el rango de capítulos o selecciona todos.
@@ -199,7 +200,7 @@ python main.py
 #### Base de Datos Integrada
 - **Registro de traducciones:** Evita retraducir archivos ya procesados.
 - **Términos personalizados:** Se guardan automáticamente por proyecto.
-- **Metadatos del libro:** Título y autor se preservan entre sesiones.
+- **Metadatos del libro:** Título, autor y descripción se preservan entre sesiones.
 - **Respaldo JSON:** Sistema de recuperación si SQLite falla.
 
 #### Estados de Archivos

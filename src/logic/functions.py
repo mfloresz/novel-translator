@@ -98,19 +98,18 @@ def get_cover_image(initial_dir=None):
 
     return None, None
 
-def preview_image(pixmap, label, max_size=150):
+def preview_image(pixmap, label):
     """
     Muestra una vista previa de la imagen en un QLabel.
 
     Args:
         pixmap (QPixmap): La imagen a mostrar
         label (QLabel): El widget donde se mostrará la imagen
-        max_size (int): Tamaño máximo para la vista previa
     """
     if pixmap and not pixmap.isNull():
-        # Mantener la proporción de aspecto
+        # Mantener la proporción de aspecto y escalar para llenar el espacio disponible
         scaled_pixmap = pixmap.scaled(
-            max_size, max_size,
+            label.size(),
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation
         )

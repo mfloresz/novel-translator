@@ -68,6 +68,7 @@ class EpubConverterLogic(QObject):
             data (dict): Diccionario con los datos del libro
                 - title: Título del libro
                 - author: Autor del libro
+                - description: Descripción del libro
                 - cover_path: Ruta a la imagen de portada
                 - start_chapter: Número de capítulo inicial (o None para todos)
                 - end_chapter: Número de capítulo final (o None para todos)
@@ -110,7 +111,7 @@ class EpubConverterLogic(QObject):
 
             # Crear página de título como primer capítulo
             self.progress_updated.emit("Creando página de título...")
-            titlepage_html = self._create_titlepage_html(data['title'], data['author'])
+            titlepage_html = self._create_titlepage_html(data['title'], data['author'], data.get('description', ''))
             title_chapter = pypub.create_chapter_from_html(titlepage_html.encode('utf-8'), title="Título")
             epub.add_chapter(title_chapter)
 
@@ -240,7 +241,7 @@ class EpubConverterLogic(QObject):
         pattern = re.compile(r'(\*\*)([^*]+)\*\*|(\*)([^*]+)\*')
         return pattern.sub(repl, text)
 
-    def _create_titlepage_html(self, title, author):
+    def _create_titlepage_html(self, title, author, description=""):
         """Crea HTML para la página de título"""
         soup = BeautifulSoup('', 'html.parser')
         html_tag = soup.new_tag('html')
@@ -267,6 +268,14 @@ class EpubConverterLogic(QObject):
         p_author = soup.new_tag('p')
         p_author.string = f"por {author}"
         div_titlepage.append(p_author)
+
+        # Agregar descripción si está disponible
+        if description.strip():
+            br_tag = soup.new_tag('br')
+            div_titlepage.append(br_tag)
+            p_description = soup.new_tag('p')
+            p_description.string = description
+            div_titlepage.append(p_description)
 
         body_tag.append(div_titlepage)
         html_tag.append(body_tag)
