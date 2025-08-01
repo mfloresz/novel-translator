@@ -277,34 +277,3 @@ class CreateEpubPanel(QWidget):
                 except Exception:
                     continue
 
-    def show_auto_cover_message(self, filename):
-        """Muestra un mensaje temporal indicando que se encontró una portada"""
-        from PyQt6.QtWidgets import QLabel
-        from PyQt6.QtCore import QTimer
-
-        # Crear etiqueta temporal
-        self.auto_cover_label = QLabel(f"✓ Portada encontrada: {filename}")
-        self.auto_cover_label.setStyleSheet("""
-            QLabel {
-                background-color: #d4edda;
-                color: #155724;
-                border: 1px solid #c3e6cb;
-                border-radius: 4px;
-                padding: 8px;
-                font-weight: bold;
-            }
-        """)
-
-        # Añadir la etiqueta al layout principal
-        layout = self.layout()
-        if isinstance(layout, QVBoxLayout):
-            layout.insertWidget(0, self.auto_cover_label)
-
-        # Configurar timer para ocultar el mensaje después de 3 segundos
-        QTimer.singleShot(3000, self.hide_auto_cover_message)
-
-    def hide_auto_cover_message(self):
-        """Oculta el mensaje de portada encontrada"""
-        if hasattr(self, 'auto_cover_label'):
-            self.auto_cover_label.deleteLater()
-            del self.auto_cover_label

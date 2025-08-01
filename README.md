@@ -23,21 +23,22 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 - Preservación de la estructura narrativa original
 - Creación automática de directorio organizado
 - Validación de archivos EPUB antes de la importación
+- **Opciones de importación configurables:**
+  - Añadir numeración automática al contenido
+  - Insertar títulos de capítulos en el contenido
 
 ### Traducción Automática
 ![Traducción](assets/translate.webp)
 
 - Integración con APIs de traducción:
-  - Google Gemini (Flash 2.0, Flash 2.0 Lite, Flash 2.0 Exp)
-  - Together AI (Qwen3-235B, Llama 3.3 70B)
-  - DeepInfra (Sao10K L3.3-70B-Euryale, Gemma 3 27B)
+  - Google Gemini (Flash 2.5 Lite)
+  - Together AI (Llama 3.3 70B)
+  - DeepInfra (Sao10K L3.3-70B-Euryale, Qwen 3 A3B)
   - OpenAI (GPT-4.1 Nano)
+  - Chutes AI (Mistral Small 3.2, Skyfall V2)
 - Soporte para múltiples idiomas:
-  - Español (Neutro)
+  - Español (MX)
   - Inglés
-  - Francés
-  - Alemán
-  - Italiano
 - Funciones avanzadas:
   - Control de rango de capítulos
   - **Comprobación automática de calidad de traducción**
@@ -153,6 +154,7 @@ GEMINI_API_KEY=tu_clave_google_gemini
 TOGETHER_API_KEY=tu_clave_together_ai
 DEEPINFRA_API_KEY=tu_clave_deepinfra
 OPENAI_API_KEY=tu_clave_openai
+CHUTES_API_KEY=tu_clave_chutes_ai
 ```
 
 ## Uso

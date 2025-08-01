@@ -94,18 +94,15 @@ class ApiKeyConfigDialog(QDialog):
     def init_ui(self):
         self.setWindowTitle(f"Configurar API Key - {self.provider_name}")
         self.setModal(True)
-        self.resize(400, 200)
+        self.resize(400, 150)
 
         layout = QVBoxLayout()
 
         # Información
         info_label = QLabel(
-            f"Configurar API Key para {self.provider_name}\n\n"
-            "Esta configuración es TEMPORAL y se perderá al cerrar la aplicación.\n"
-            "Para cambios permanentes, modifique el archivo .env en la raíz del proyecto."
+            f"Esta configuración es TEMPORAL y se perderá al salir. Para cambios permanentes edite el archivo .env"
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("QLabel { color: #666; margin-bottom: 10px; }")
         layout.addWidget(info_label)
 
         # Campo API Key
