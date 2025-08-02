@@ -39,33 +39,33 @@ class CreateEpubPanel(QWidget):
         # Right side - Cover section
         cover_layout = QVBoxLayout()
 
-        # Preview label with 3:4 proportion (165x200)
+        # Preview label with 3:4 proportion (165x220)
         self.cover_preview = QLabel()
-        self.cover_preview.setFixedSize(165, 200)
+        self.cover_preview.setFixedSize(165, 220)
         self.cover_preview.setStyleSheet("""
             QLabel {
-                background-color: #f5f5f5;
+                background-color: transparent;
                 border-radius: 5px;
             }
         """)
         self.cover_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.cover_preview.setText("Sin imagen")
 
-        # Cover buttons layout
-        cover_buttons_layout = QHBoxLayout()
+        # Cover buttons layout (vertical)
+        cover_buttons_layout = QVBoxLayout()
         self.cover_select_button = QPushButton("Seleccionar")
         self.cover_clear_button = QPushButton("Limpiar")
 
         self.cover_select_button.clicked.connect(self.select_cover)
         self.cover_clear_button.clicked.connect(self.clear_cover)
 
+        # Add buttons in vertical order: Select on top, Clear below
         cover_buttons_layout.addWidget(self.cover_select_button)
         cover_buttons_layout.addWidget(self.cover_clear_button)
 
-        # Add cover buttons to metadata layout after Autor field
-        metadata_layout.addRow(cover_buttons_layout)
-
+        # Add cover buttons to cover layout after cover preview
         cover_layout.addWidget(self.cover_preview)
+        cover_layout.addLayout(cover_buttons_layout)
 
         # Add metadata and cover to top layout
         top_layout.addLayout(metadata_layout)
@@ -76,10 +76,13 @@ class CreateEpubPanel(QWidget):
         description_label = QLabel("Descripción:")
         self.description_input = QTextEdit()
         self.description_input.setPlaceholderText("Ingrese la descripción del libro")
-        self.description_input.setMaximumHeight(80)  # Altura fija para mantener el layout compacto
-
+        # Eliminar el límite de altura para que ocupe todo el espacio disponible
         description_layout.addWidget(description_label)
         description_layout.addWidget(self.description_input)
+
+        # Add description to metadata layout after author
+        metadata_layout.addRow(description_label)
+        metadata_layout.addRow(self.description_input)
 
         # Range section
         range_group = QGroupBox("Rango de capítulos")
@@ -131,7 +134,6 @@ class CreateEpubPanel(QWidget):
 
         # Add all elements to main layout
         main_layout.addLayout(top_layout)
-        main_layout.addLayout(description_layout)
         main_layout.addWidget(range_group)
         main_layout.addLayout(buttons_layout)
         main_layout.addStretch()

@@ -187,11 +187,6 @@ class EpubConverterLogic(QObject):
 
             body_tag = soup.new_tag('body')
 
-            # Añadir título del capítulo
-            h1_tag = soup.new_tag('h1')
-            h1_tag.string = chapter_title
-            body_tag.append(h1_tag)
-
             # Separar párrafos por dobles saltos de línea y agregar <p>
             paragraphs = [p.strip() for p in chapter_content.split('\n\n') if p.strip()]
             for paragraph_text in paragraphs:
@@ -273,9 +268,25 @@ class EpubConverterLogic(QObject):
         if description.strip():
             br_tag = soup.new_tag('br')
             div_titlepage.append(br_tag)
-            p_description = soup.new_tag('p')
-            p_description.string = description
-            div_titlepage.append(p_description)
+
+            # Separar párrafos por dobles saltos de línea
+            paragraphs = [p.strip() for p in description.split('\n\n') if p.strip()]
+            for paragraph_text in paragraphs:
+                # Procesar cada línea del párrafo
+                lines_in_paragraph = [line.strip() for line in paragraph_text.split('\n') if line.strip()]
+                formatted_text = ' '.join(lines_in_paragraph)
+
+                # Aplicar formato de texto (negritas, cursivas)
+                formatted_text = self._format_text(formatted_text)
+
+                # Crear párrafo HTML
+                p_description = soup.new_tag('p')
+
+                # Usar BeautifulSoup para parsear el HTML formateado
+                formatted_soup = BeautifulSoup(formatted_text, 'html.parser')
+                p_description.extend(formatted_soup.contents)
+
+                div_titlepage.append(p_description)
 
         body_tag.append(div_titlepage)
         html_tag.append(body_tag)
