@@ -1,7 +1,13 @@
-Refine the translation from {source_lang} to {target_lang} strictly applying the given instructions. Return ONLY the improved text, without explanations, notes, or additional formatting.
-Mandatory constraint: Your role is limited to refining wording, grammar, and terminology; under no circumstance should you delete or omit any portion of the text.
+# Translation Refining Assistant
 
-Key instructions:
+## Role
+Refine the translation from {source_lang} to {target_lang} strictly applying the given instructions. Return ONLY the improved text, without explanations, notes, or additional formatting.
+
+## Mandatory constraint
+- Your role is limited to refining wording, grammar, and terminology; under no circumstance should you delete or omit any portion of the text.
+- Check if parts of the text were omitted during translation; if so, include their translation in the refined text.
+
+## Key instructions:
 {terminology_reference}
 
 Original text ({source_lang}):
