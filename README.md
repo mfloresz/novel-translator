@@ -42,13 +42,14 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 - Funciones avanzadas:
   - Control de rango de capítulos
   - **Comprobación automática de calidad de traducción**
+  - **Refinamiento automático de traducciones** para mejorar la calidad del texto
   - Sistema de pausas automáticas entre traducciones
   - Base de datos para registro de traducciones y términos personalizados
   - **Segmentación inteligente de texto** para optimizar traducciones largas
   - Gestión de errores y recuperación
   - **Traducción individual por capítulo** desde la tabla principal
 
-**Pestaña Traducir:** Permite traducir archivos de texto utilizando APIs de traducción, con soporte para segmentación y revisión de la traducción.
+**Pestaña Traducir:** Permite traducir archivos de texto utilizando APIs de traducción, con soporte para segmentación, revisión y refinamiento de la traducción.
 
 *   **API Key:** Ingresa la clave de la API del proveedor de traducción (se carga automáticamente desde .env).
 *   **Proveedor:** Selecciona el proveedor de la API de traducción.
@@ -56,7 +57,8 @@ Una aplicación de escritorio para gestionar, procesar y traducir novelas y docu
 *   **Idioma Origen:** Selecciona el idioma original del texto a traducir.
 *   **Idioma Destino:** Define el idioma al que se traducirá el texto.
 *   **Segmentar texto:** Opción para dividir el texto en segmentos más pequeños para optimizar la traducción.
-*   **Habilitar comprobación de traducción:** Activa/desactiva la verificación automática de calidad.
+*   **Comprobar traducción:** Activa/desactiva la verificación automática de calidad después de la traducción.
+*   **Refinar traducción:** Activa/desactiva el refinamiento automático para mejorar la calidad de la traducción inicial.
 *   **Términos Personalizados:** Ingresa términos específicos con su traducción para garantizar coherencia (se guardan automáticamente).
 *   **Rango de Capítulos:** Define el rango de capítulos a traducir (desde - hasta).
 *   **Traducir:** Inicia el proceso de traducción por lotes.
@@ -186,6 +188,7 @@ python main.py
    - Configura proveedor, modelo, idiomas origen y destino.
    - Define rango de capítulos y términos personalizados.
    - Habilita/deshabilita la comprobación automática de calidad.
+   - Habilita/deshabilita el refinamiento automático para mejorar la traducción.
    - Usa segmentación para textos largos.
    - Presiona "Traducir" para procesar por lotes o usa los botones individuales en la tabla.
 
@@ -215,6 +218,7 @@ python main.py
 - **Carga automática de API keys:** Las claves se cargan desde el archivo .env según el proveedor.
 - **Segmentación inteligente:** Divide textos largos respetando oraciones y párrafos.
 - **Comprobación de calidad:** Verifica automáticamente la calidad de las traducciones.
+- **Refinamiento de traducción:** Mejora automáticamente la calidad de las traducciones mediante un proceso adicional.
 - **Actualización de listas:** Sincroniza la interfaz con cambios manuales en archivos.
 
 ## Estructura del Proyecto
@@ -229,20 +233,28 @@ novel-manager/
 │   │   ├── translate.py       # Interfaz traducción (con validación y segmentación)
 │   │   └── icons/             # Iconos de la aplicación
 │   │
-│   └── logic/
-│       ├── cleaner.py         # Lógica de limpieza de archivos
-│       ├── creator.py         # Lógica de creación EPUB
-│       ├── database.py        # Sistema de base de datos (SQLite + JSON backup)
-│       ├── epub_importer.py   # Importador de archivos EPUB
-│       ├── functions.py       # Funciones auxiliares y validaciones
-│       ├── get_path.py        # Selección de directorio multiplataforma
-│       ├── loader.py          # Carga de archivos y metadatos
-│       ├── prompt_base.txt    # Plantilla de prompts para traducción
-│       ├── prompt_check.txt   # Plantilla para verificación de traducciones
-│       ├── translation_manager.py # Gestión de traducciones por lotes
-│       ├── translation_models.json # Configuración de APIs y modelos
-│       ├── translator.py      # Lógica principal de traducción
-│       └── translator_req.py  # Manejador de requests a APIs
+│   ├── logic/
+│   │   ├── cleaner.py         # Lógica de limpieza de archivos
+│   │   ├── creator.py         # Lógica de creación EPUB
+│   │   ├── database.py        # Sistema de base de datos (SQLite + JSON backup)
+│   │   ├── epub_importer.py   # Importador de archivos EPUB
+│   │   ├── functions.py       # Funciones auxiliares y validaciones
+│   │   ├── get_path.py        # Selección de directorio multiplataforma
+│   │   ├── loader.py          # Carga de archivos y metadatos
+│   │   ├── translation_manager.py # Gestión de traducciones por lotes
+│   │   ├── translator.py      # Lógica principal de traducción
+│   │   └── translator_req.py  # Manejador de requests a APIs
+│   │
+│   ├── config/
+│   │   ├── models/
+│   │   │   └── translation_models.json # Configuración de APIs y modelos
+│   │   └── prompts/
+│   │       ├── translation.txt    # Plantilla de prompts para traducción
+│   │       ├── check.txt          # Plantilla para verificación de traducciones
+│   │       └── refine.txt         # Plantilla para refinamiento de texto
+│   │
+│   └── resources/
+│       └── preset_terms.json   # Términos predefinidos para traducción
 │
 ├── .env                       # Variables de entorno (API keys)
 ├── main.py                    # Entrada principal de la aplicación
@@ -269,3 +281,35 @@ novel-manager/
 - **Guardado persistente:** Título y autor se preservan en la base de datos local.
 - **Sincronización entre pestañas:** Los metadatos son consistentes en toda la aplicación.
 - **Respaldo múltiple:** Información guardada tanto en SQLite como en JSON.
+
+### Sistema de Traducción Avanzado
+La aplicación ofrece un sistema de traducción flexible con múltiples opciones que pueden combinarse según las necesidades:
+
+#### Opciones Disponibles
+1. **Segmentar texto:** Divide el texto en segmentos más pequeños para procesarlos por separado. Útil para textos largos que exceden los límites del modelo.
+2. **Comprobar traducción:** Verifica la calidad de la traducción comparando con el texto original. Esta opción incrementa significativamente el consumo de tokens.
+3. **Refinar traducción:** Mejora la traducción inicial mediante un proceso adicional de refinamiento. Esta opción también incrementa el consumo de tokens.
+
+#### Combinaciones Posibles
+Las tres opciones pueden activarse o desactivarse independientemente, permitiendo 8 combinaciones diferentes:
+- **Ninguna opción activa:** Traducción básica sin procesamiento adicional.
+- **Solo segmentar:** Traducción con división en segmentos para textos largos.
+- **Solo comprobar:** Traducción con verificación de calidad al final.
+- **Solo refinar:** Traducción con proceso de refinamiento para mejorar la calidad.
+- **Segmentar + Comprobar:** Traducción por segmentos con verificación de calidad final.
+- **Segmentar + Refinar:** Traducción por segmentos con refinamiento de cada segmento.
+- **Comprobar + Refinar:** Traducción con refinamiento y posterior verificación de calidad.
+- **Todas las opciones:** Traducción por segmentos con refinamiento y verificación de calidad.
+
+#### Flujo de Procesamiento
+Cuando se activan múltiples opciones, el sistema sigue este orden:
+1. **Segmentación (si está activa):** El texto se divide en segmentos manejables.
+2. **Traducción inicial:** Cada segmento se traduce utilizando el modelo seleccionado.
+3. **Refinamiento (si está activo):** Cada traducción se mejora mediante un proceso adicional.
+4. **Comprobación (si está activa):** Se verifica la calidad de la traducción final.
+
+#### Consideraciones
+- **Consumo de tokens:** Tanto la comprobación como el refinamiento aumentan el consumo de tokens de la API.
+- **Tiempo de procesamiento:** Cada opción adicional incrementa el tiempo total de traducción.
+- **Manejo de errores:** Si el refinamiento falla, el sistema continúa con la traducción original. Si la comprobación falla, se reintenta una vez antes de marcar como error.
+- **Términos personalizados:** Se aplican tanto en la traducción inicial como en el refinamiento.

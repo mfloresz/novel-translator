@@ -86,7 +86,7 @@ class NovelManagerApp(QMainWindow):
 
         # Directory section - Solo botones, sin mostrar la ruta
         dir_layout = QHBoxLayout()
-        self.nav_button = QPushButton("Navegar")
+        self.nav_button = QPushButton("Abrir")
         self.nav_button.clicked.connect(self.select_directory)
 
         # Añadir botón de importar EPUB
@@ -565,10 +565,12 @@ class NovelManagerApp(QMainWindow):
         from PyQt6.QtWidgets import QFileDialog
 
         # Abrir diálogo para seleccionar archivo EPUB
+        # Usar el directorio home como directorio inicial, igual que en get_directory()
+        initial_dir = os.path.expanduser('~')
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Seleccionar archivo EPUB",
-            "",
+            initial_dir,
             "Archivos EPUB (*.epub);;Todos los archivos (*.*)"
         )
 
@@ -602,6 +604,10 @@ class NovelManagerApp(QMainWindow):
         self.nav_button.setEnabled(True)
 
         if success:
+            # Limpiar campos de descripción y términos personalizados antes de establecer el nuevo directorio
+            self.create_panel.description_input.clear()
+            self.translate_panel.terms_input.clear()
+            
             # Establecer automáticamente el directorio importado como directorio de trabajo
             self.current_directory = directory_path
 
@@ -695,7 +701,7 @@ class NovelManagerApp(QMainWindow):
             else:  # Linux y otros Unix
                 subprocess.run(["xdg-open", log_path])
 
-            self.statusBar().showMessage("Abriendo archivo de registro...", 3000)
+            #self.statusBar().showMessage("Abriendo archivo de registro...", 3000)
         except Exception as e:
             self.statusBar().showMessage(f"Error al abrir archivo de registro: {str(e)}")
 

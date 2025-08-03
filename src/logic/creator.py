@@ -266,9 +266,6 @@ class EpubConverterLogic(QObject):
 
         # Agregar descripción si está disponible
         if description.strip():
-            br_tag = soup.new_tag('br')
-            div_titlepage.append(br_tag)
-
             # Separar párrafos por dobles saltos de línea
             paragraphs = [p.strip() for p in description.split('\n\n') if p.strip()]
             for paragraph_text in paragraphs:

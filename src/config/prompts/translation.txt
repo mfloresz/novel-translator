@@ -51,7 +51,7 @@ Remove:
 4. **Finalize**: Ensure seamless readability and structural accuracy.
 
 **Terminology Reference**
-
+{terminology_reference}
 
 **Output Requirements**
 - Deliver ONLY the final, polished translation.
@@ -61,3 +61,4 @@ Remove:
 - Text must read as if originally written in fluent {target_lang}, with natural rhythm and grammatical correctness.
 
 **Translate the following chapter:**
+{text_to_translate}

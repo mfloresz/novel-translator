@@ -18,7 +18,8 @@ class TranslationWorker(QObject):
                  target_lang: str, api_key: str, provider: str,
                  model: str, custom_terms: str = "",
                  segment_size: Optional[int] = None,
-                 enable_check: bool = True):
+                 enable_check: bool = True,
+                 enable_refine: bool = False):
         super().__init__()
         self.files_to_translate = files_to_translate
         self.working_directory = working_directory
@@ -32,6 +33,7 @@ class TranslationWorker(QObject):
         self.custom_terms = custom_terms
         self.segment_size = segment_size
         self.enable_check = enable_check
+        self.enable_refine = enable_refine
         self._stop_requested = False
         self.translator.segment_size = segment_size
 
@@ -98,7 +100,7 @@ class TranslationWorker(QObject):
             with open(input_path, 'r', encoding='utf-8') as file:
                 text = file.read()
 
-            # Intentar traducir usando parámetro enable_check para habilitar comprobación
+            # Intentar traducir usando parámetros enable_check y enable_refine
             translated_text = self.translator.translate_text(
                 text,
                 self.source_lang,
@@ -107,7 +109,8 @@ class TranslationWorker(QObject):
                 self.provider,
                 self.model,
                 self.custom_terms,
-                enable_check=self.enable_check
+                enable_check=self.enable_check,
+                enable_refine=self.enable_refine
             )
 
             if not translated_text:
@@ -171,7 +174,7 @@ class TranslationManager(QObject):
                        source_lang: str, target_lang: str, api_key: str,
                        status_callback: Optional[Callable[[str, str], None]] = None,
                        custom_terms: str = "", segment_size: Optional[int] = None,
-                       enable_check: bool = True) -> None:
+                       enable_check: bool = True, enable_refine: bool = False) -> None:
         """
         Inicia la traducción de archivos.
 
@@ -184,6 +187,7 @@ class TranslationManager(QObject):
             custom_terms: Términos personalizados para la traducción
             segment_size: Tamaño de segmentación opcional (caracteres por segmento)
             enable_check: Bool para habilitar o no la comprobación de la traducción
+            enable_refine: Bool para habilitar o no el refinamiento de la traducción
         """
         if not self.working_directory or not self.db:
             self.error_occurred.emit("No se ha inicializado el directorio de trabajo")
@@ -207,7 +211,8 @@ class TranslationManager(QObject):
             self.current_model,
             custom_terms,
             segment_size,
-            enable_check  # Nueva opción para habilitar/deshabilitar la comprobación
+            enable_check,  # Opción para habilitar/deshabilitar la comprobación
+            enable_refine  # Opción para habilitar/deshabilitar el refinamiento
         )
 
         # Mover el worker al thread

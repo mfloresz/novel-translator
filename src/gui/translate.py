@@ -55,7 +55,7 @@ class PresetTermsDialog(QDialog):
     def load_preset_terms(self):
         """Carga los términos predefinidos desde el archivo JSON"""
         try:
-            json_path = Path(__file__).parent.parent / 'logic' / 'custom_terms.json'
+            json_path = Path(__file__).parent.parent / 'resources' / 'preset_terms.json'
             if json_path.exists():
                 with open(json_path, 'r', encoding='utf-8') as f:
                     terms = json.load(f)
@@ -189,25 +189,38 @@ class TranslatePanel(QWidget):
 
         form_layout.addRow(lang_layout)
 
+        # Combined layout for segmentation and translation options
+        options_layout = QHBoxLayout()
+        
         # Text segmentation options
-        segmentation_layout = QHBoxLayout()
-        self.segment_checkbox = QRadioButton("Segmentar texto (caracteres)")
+        self.segment_checkbox = QRadioButton("Segmentar texto")
+        self.segment_checkbox.setToolTip("Divide el texto en segmentos más pequeños\npara procesarlos por separado.\nÚtil para textos largos que exceden\nlos límites del modelo.")
         self.segment_size_input = QLineEdit()
         self.segment_size_input.setPlaceholderText("Caracteres por segmento")
         self.segment_size_input.setEnabled(False)
         self.segment_size_input.setText("5000")  # Valor por defecto
 
-        segmentation_layout.addWidget(self.segment_checkbox)
-        segmentation_layout.addWidget(self.segment_size_input)
-        segmentation_layout.addStretch()
+        options_layout.addWidget(self.segment_checkbox)
+        options_layout.addWidget(self.segment_size_input)
+        
+        # Add separator
+        options_layout.addWidget(QLabel("Traducción:"))
+        
+        # Checkbox for enabling translation check
+        self.check_translation_checkbox = QCheckBox("Comprobar")
+        self.check_translation_checkbox.setToolTip("Verifica la calidad de la traducción\ncomparando con el texto original.\nEsta opción incrementa significativamente\nel consumo de tokens.")
+        
 
-        form_layout.addRow(segmentation_layout)
+        # Checkbox for translation refinement
+        self.refine_translation_checkbox = QCheckBox("Refinar")
+        self.refine_translation_checkbox.setToolTip("Mejora la traducción inicial mediante\nun proceso adicional de refinamiento.\nEsta opción también incrementa\nel consumo de tokens.")
+        self.refine_translation_checkbox.setChecked(True)  # Por defecto está habilitado
 
-        # New checkbox for enabling translation check
-        self.check_translation_checkbox = QCheckBox("Habilitar comprobación de traducción")
-        self.check_translation_checkbox.setChecked(True)  # Por defecto está habilitado
+        options_layout.addWidget(self.check_translation_checkbox)
+        options_layout.addWidget(self.refine_translation_checkbox)
+        options_layout.addStretch()
 
-        form_layout.addRow(self.check_translation_checkbox)
+        form_layout.addRow(options_layout)
 
         # Custom Terms section
         terms_group = QGroupBox("Términos Personalizados")
@@ -299,7 +312,7 @@ class TranslatePanel(QWidget):
     def load_translation_models(self):
         """Carga los proveedores y modelos desde el JSON"""
         try:
-            models_path = Path(__file__).parent.parent / 'logic' / 'translation_models.json'
+            models_path = Path(__file__).parent.parent / 'config' / 'models' / 'translation_models.json'
             with open(models_path, 'r') as f:
                 self.models_config = json.load(f)
 
@@ -477,6 +490,9 @@ class TranslatePanel(QWidget):
 
         # Obtener estado de la comprobación
         enable_check = self.check_translation_checkbox.isChecked()
+        
+        # Obtener estado del refinamiento
+        enable_refine = self.refine_translation_checkbox.isChecked()
 
         # Confirmar la operación
         if not show_confirmation_dialog(
@@ -525,7 +541,8 @@ class TranslatePanel(QWidget):
             self.update_file_status,
             custom_terms,
             segment_size,
-            enable_check   # <-- Pasar nuevo parámetro para habilitar comprobación
+            enable_check,   # <-- Pasar parámetro para habilitar comprobación
+            enable_refine   # <-- Pasar parámetro para habilitar refinamiento
         )
 
     def stop_translation(self):
