@@ -321,7 +321,6 @@ class TranslatorLogic:
                 session_logger.log_error("Error en el refinamiento de la traducción (respuesta nula)")
                 return None
                 
-            session_logger.log_info(f"Refinamiento completado exitosamente")
             return response
             
         except Exception as e:

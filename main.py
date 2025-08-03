@@ -519,6 +519,9 @@ class NovelManagerApp(QMainWindow):
 
         # Obtener estado de la comprobación
         enable_check = translate_panel.check_translation_checkbox.isChecked()
+        
+        # Obtener estado del refinamiento
+        enable_refine = translate_panel.refine_translation_checkbox.isChecked()
 
         # Confirmar la operación
         from src.logic.functions import show_confirmation_dialog
@@ -557,7 +560,8 @@ class NovelManagerApp(QMainWindow):
             self.update_file_status,
             custom_terms,
             segment_size,
-            enable_check
+            enable_check,
+            enable_refine
         )
 
     def import_epub(self):
