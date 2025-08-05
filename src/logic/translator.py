@@ -8,10 +8,19 @@ from src.logic.session_logger import session_logger
 class TranslatorLogic:
     def __init__(self, segment_size=None):
         """Inicializa el traductor con los idiomas soportados"""
-        self.lang_codes = {
-            'Español (MX)': 'Spanish (México)',
-            'Inglés': 'English'
-        }
+        # Cargar mapeo de idiomas desde languages.json
+        languages_path = Path(__file__).parent.parent / 'config' / 'languages.json'
+        try:
+            with open(languages_path, 'r', encoding='utf-8') as f:
+                self.lang_codes = json.load(f)
+        except Exception as e:
+            print(f"Error cargando languages.json: {e}")
+            # Fallback a valores hardcodeados si no se puede cargar el archivo
+            self.lang_codes = {
+                'auto': 'Detectar automáticamente',
+                'Español (MX)': 'Spanish (México)',
+                'Inglés': 'English'
+            }
 
         # Cargar configuración de modelos
         models_path = Path(__file__).parent.parent / 'config' / 'models' / 'translation_models.json'
@@ -156,8 +165,8 @@ class TranslatorLogic:
             str: Prompt completo para la comprobación
         """
         prompt = self.check_prompt_template
-        prompt = prompt.replace("{source_lang}", self.lang_codes.get(source_lang, source_lang))
-        prompt = prompt.replace("{target_lang}", self.lang_codes.get(target_lang, target_lang))
+        prompt = prompt.replace("{source_lang}", source_lang)
+        prompt = prompt.replace("{target_lang}", target_lang)
         prompt = prompt.replace("{TEXT_1}", original_text.strip())
         prompt = prompt.replace("{TEXT_2}", translated_text.strip())
         return prompt
@@ -179,11 +188,11 @@ class TranslatorLogic:
             str: Prompt completo para el refinamiento
         """
         prompt = self.refine_prompt_template
-        prompt = prompt.replace("{source_lang}", self.lang_codes.get(source_lang, source_lang))
-        prompt = prompt.replace("{target_lang}", self.lang_codes.get(target_lang, target_lang))
+        prompt = prompt.replace("{source_lang}", source_lang)
+        prompt = prompt.replace("{target_lang}", target_lang)
         prompt = prompt.replace("{source_text}", source_text.strip())
         prompt = prompt.replace("{translated_text}", translated_text.strip())
-        
+
         # Reemplazar etiqueta de terminología si existen términos personalizados
         if custom_terms:
             # Formatear los términos personalizados
@@ -194,13 +203,13 @@ class TranslatorLogic:
                 if line.strip()
             ]
             formatted_terms = '\n'.join(terms)
-            
+
             # Reemplazar la etiqueta {terminology_reference} con los términos formateados
             prompt = prompt.replace("{terminology_reference}", formatted_terms)
         else:
             # Si no hay términos personalizados, eliminar la etiqueta
             prompt = prompt.replace("{terminology_reference}", "")
-            
+
         return prompt
 
     def _check_translation(self, original_text: str, translated_text: str,
@@ -302,7 +311,7 @@ class TranslatorLogic:
         if not provider_config:
             print(f"Proveedor no soportado para refinamiento: {provider}")
             return None
-            
+
         model_config = provider_config['models'].get(model)
         if not model_config:
             print(f"Modelo no soportado para refinamiento: {model}")
@@ -316,13 +325,13 @@ class TranslatorLogic:
                 model_config,
                 prompt
             )
-            
+
             if response is None:
                 session_logger.log_error("Error en el refinamiento de la traducción (respuesta nula)")
                 return None
-                
+
             return response
-            
+
         except Exception as e:
             session_logger.log_error(f"Error al hacer el refinamiento: {str(e)}")
             return None
@@ -370,9 +379,9 @@ class TranslatorLogic:
 
                 # Construir prompt base con reemplazo de etiquetas
                 prompt = self.prompt_template.replace(
-                    "{source_lang}", self.lang_codes[source_lang]
+                    "{source_lang}", source_lang
                 ).replace(
-                    "{target_lang}", self.lang_codes[target_lang]
+                    "{target_lang}", target_lang
                 )
 
                 # Reemplazar etiqueta de terminología si existen términos personalizados
@@ -385,7 +394,7 @@ class TranslatorLogic:
                         if line.strip()
                     ]
                     formatted_terms = '\n'.join(terms)
-                    
+
                     # Reemplazar la etiqueta {terminology_reference} con los términos formateados
                     prompt = prompt.replace("{terminology_reference}", formatted_terms)
                 else:
@@ -421,7 +430,7 @@ class TranslatorLogic:
                         model=model,
                         custom_terms=custom_terms
                     )
-                    
+
                     if refined_segment is not None:
                         # Usar la versión refinada
                         translated_segment = refined_segment
@@ -465,5 +474,20 @@ class TranslatorLogic:
     def get_supported_languages(self) -> Dict[str, str]:
         """
         Obtiene la lista de idiomas soportados.
+        Retorna un diccionario con las claves como nombres para mostrar en la GUI
+        y las claves mismas como valores para identificar el idioma.
         """
-        return self.lang_codes.copy()
+        # Retornar las claves como display names y como valores para la GUI
+        return {k: k for k in self.lang_codes.keys()}
+
+    def get_language_code_for_translation(self, display_name: str) -> str:
+        """
+        Obtiene el código de idioma real para usar en la traducción.
+
+        Args:
+            display_name: Nombre mostrado en la GUI (ej: "Español (MX)")
+
+        Returns:
+            Código de idioma para la traducción (ej: "Spanish (México)")
+        """
+        return self.lang_codes.get(display_name, display_name)
