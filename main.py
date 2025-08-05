@@ -86,32 +86,49 @@ class NovelManagerApp(QMainWindow):
 
         # Directory section - Solo botones, sin mostrar la ruta
         dir_layout = QHBoxLayout()
+
+        # Botón Abrir
         self.nav_button = QPushButton("Abrir")
         self.nav_button.clicked.connect(self.select_directory)
 
-        # Añadir botón de importar EPUB
+        # Botón Importar EPUB
         self.import_epub_button = QPushButton("Importar EPUB")
         self.import_epub_button.clicked.connect(self.import_epub)
 
-        # Añadir botón de actualizar
-        self.refresh_button = QPushButton("Actualizar")
-        self.refresh_button.clicked.connect(self.refresh_files)
-        self.refresh_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
-
-        # Añadir botón para abrir directorio
+        # Botón Abrir Directorio
         self.open_dir_button = QPushButton("Abrir Directorio")
         self.open_dir_button.clicked.connect(self.open_working_directory)
         self.open_dir_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
 
-        # Añadir botón para abrir registro
-        self.log_button = QPushButton("Registro")
-        self.log_button.clicked.connect(self.open_log_file)
+        # Botón Actualizar (con ícono)
+        self.refresh_button = QPushButton()
+        self.refresh_button.clicked.connect(self.refresh_files)
+        self.refresh_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
+        self.refresh_button.setToolTip("Actualizar")
 
+        # Botón Recientes (con ícono)
+        self.recents_button = QPushButton()
+        self.recents_button.setToolTip("Carpetas recientes")
+        # TODO: Conectar funcionalidad más adelante
+
+        # Botón Registro (con ícono)
+        self.log_button = QPushButton()
+        self.log_button.clicked.connect(self.open_log_file)
+        self.log_button.setToolTip("Registro")
+
+        # Botón Ajustes (con ícono)
+        self.settings_button = QPushButton()
+        self.settings_button.setToolTip("Ajustes")
+        # TODO: Conectar funcionalidad más adelante
+
+        # Agregar botones en el orden especificado
         dir_layout.addWidget(self.nav_button)
         dir_layout.addWidget(self.import_epub_button)
-        dir_layout.addWidget(self.refresh_button)
         dir_layout.addWidget(self.open_dir_button)
+        dir_layout.addWidget(self.refresh_button)
+        dir_layout.addWidget(self.recents_button)
         dir_layout.addWidget(self.log_button)
+        dir_layout.addWidget(self.settings_button)
         dir_layout.addStretch()  # Empujar botones hacia la izquierda
 
         # Chapters table
@@ -198,8 +215,9 @@ class NovelManagerApp(QMainWindow):
         # Configurar detección de cambios de tema
         self._setup_theme_detection()
 
-        # Configurar iconos para las pestañas (después de configurar detección de tema)
+        # Configurar iconos para las pestañas y botones (después de configurar detección de tema)
         self.set_tab_icons()
+        self.set_button_icons()
 
     def closeEvent(self, event):
         """Limpia recursos al cerrar la aplicación"""
@@ -234,6 +252,7 @@ class NovelManagerApp(QMainWindow):
         if current_dark != self._current_theme_dark:
             self._current_theme_dark = current_dark
             self.set_tab_icons()
+            self.set_button_icons()
             self._update_all_status_colors()
             self.statusBar().showMessage("Tema del sistema actualizado", 2000)
 
@@ -241,7 +260,7 @@ class NovelManagerApp(QMainWindow):
         """Configurar iconos SVG para las pestañas según el tema del sistema"""
         try:
             # Determinar sufijo del icono según el tema
-            icon_suffix = "-light.svg" if self._is_dark_theme() else "-dark.svg"
+            icon_suffix = "-dark.svg" if self._is_dark_theme() else ".svg"
 
             # Rutas de los iconos SVG
             clean_icon_path = f"src/gui/icons/clean{icon_suffix}"
@@ -262,6 +281,37 @@ class NovelManagerApp(QMainWindow):
 
         except Exception as e:
             print(f"Error cargando iconos: {e}")
+
+    def set_button_icons(self):
+        """Configurar iconos SVG para los botones según el tema del sistema"""
+        try:
+            # Determinar sufijo del icono según el tema
+            icon_suffix = "-dark.svg" if self._is_dark_theme() else ".svg"
+
+            # Rutas de los iconos SVG
+            refresh_icon_path = f"src/gui/icons/refresh{icon_suffix}"
+            recents_icon_path = f"src/gui/icons/recents{icon_suffix}"
+            log_icon_path = f"src/gui/icons/log{icon_suffix}"
+            settings_icon_path = f"src/gui/icons/settings{icon_suffix}"
+
+            # Configurar icono para el botón actualizar
+            if os.path.exists(refresh_icon_path):
+                self.refresh_button.setIcon(QIcon(refresh_icon_path))
+
+            # Configurar icono para el botón recientes
+            if os.path.exists(recents_icon_path):
+                self.recents_button.setIcon(QIcon(recents_icon_path))
+
+            # Configurar icono para el botón registro
+            if os.path.exists(log_icon_path):
+                self.log_button.setIcon(QIcon(log_icon_path))
+
+            # Configurar icono para el botón ajustes
+            if os.path.exists(settings_icon_path):
+                self.settings_button.setIcon(QIcon(settings_icon_path))
+
+        except Exception as e:
+            print(f"Error cargando iconos de botones: {e}")
 
     def select_directory(self):
         directory = get_directory()
@@ -519,7 +569,7 @@ class NovelManagerApp(QMainWindow):
 
         # Obtener estado de la comprobación
         enable_check = translate_panel.check_translation_checkbox.isChecked()
-        
+
         # Obtener estado del refinamiento
         enable_refine = translate_panel.refine_translation_checkbox.isChecked()
 
@@ -611,7 +661,7 @@ class NovelManagerApp(QMainWindow):
             # Limpiar campos de descripción y términos personalizados antes de establecer el nuevo directorio
             self.create_panel.description_input.clear()
             self.translate_panel.terms_input.clear()
-            
+
             # Establecer automáticamente el directorio importado como directorio de trabajo
             self.current_directory = directory_path
 

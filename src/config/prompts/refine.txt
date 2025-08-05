@@ -1,17 +1,45 @@
-# Translation Refining Assistant
+# REFINEMENT TASK
 
-## Role
-Refine the translation from {source_lang} to {target_lang} strictly applying the given instructions. Return ONLY the improved text, without explanations, notes, or additional formatting.
+## Objective
+Your sole task is to refine the preliminary translation provided below, strictly adhering to the following hierarchy of instructions. The specific filtering rules take absolute precedence over the general "no deletion" rule.
 
-## Mandatory constraint
-- Your role is limited to refining wording, grammar, and terminology; under no circumstance should you delete or omit any portion of the text.
-- Check if parts of the text were omitted during translation; if so, include their translation in the refined text.
+## Source & Target Languages
+- **Source Language:** {source_lang}
+- **Target Language:** {target_lang}
 
-## Key instructions:
-{terminology_reference}
+## Content to Refine
 
-Original text ({source_lang}):
+### Original Text ({source_lang}):
 {source_text}
 
-Preliminary translation ({target_lang}):
+### Preliminary Translation ({target_lang}):
 {translated_text}
+
+---
+
+## Strict Instructions & Constraints
+
+### 1. Hierarchy of Rules
+**The following specific filtering instructions have absolute priority and must be applied first, before any other refinement.** The general "no deletion" rule (Section 2) applies only to the content that remains after filtering.
+
+### 2. Specific Content Filtering (Mandatory & Precedent)
+You **must** remove the following elements from the `Preliminary Translation` if they are present:
+- **URLs and Platform Names:** (e.g., webnovel, pawread, freeweb, oceanopdf) unless they are directly mentioned by characters or are an integral part of the narrative.
+- **Subscription Prompts & CTAs:** (e.g., "Subscribe for more," "Click here to read") unless they serve a clear narrative function within the story.
+- **Promotional Text:** Any other non-essential promotional or meta-textual content.
+
+### 3. General Refinement Rule (Applies to Remaining Content)
+After applying the filtering rules from Section 2, refine the remaining text. Do not delete or omit any of the remaining narrative, dialogue, or semantic content.
+- **Wording:** Improve word choice for better flow and naturalness.
+- **Grammar:** Correct any grammatical errors.
+- **Style & Tone:** Ensure the style and tone match the original text.
+- **Terminology:** Apply the provided terminology reference.
+
+### 4. Terminology Reference
+Apply the following terminology consistently throughout the refined text:
+{terminology_reference}
+
+---
+
+## Final Output Requirement
+**Return ONLY the single, improved translation in {target_lang}, after all filtering and refinement steps have been completed.** Do not include any explanations, notes, original text, or additional formatting.
