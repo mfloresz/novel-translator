@@ -4,3 +4,4 @@ chapters
 __init__.py
 .env
 .gitkeep
+recents.json
