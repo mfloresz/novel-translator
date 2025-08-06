@@ -1,11 +1,13 @@
 import sys
 import os
 import json
+from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
                            QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-                           QPushButton, QLabel, QHeaderView, QSplitter, QDialog)
+                           QPushButton, QLabel, QHeaderView, QSplitter, QDialog,
+                           QMenu, QStyle, QWidgetAction)
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon, QColor, QPalette
+from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon, QColor, QPalette, QAction
 from PyQt6.QtSvg import QSvgRenderer
 from src.gui.clean import CleanPanel
 from src.gui.create import CreateEpubPanel
@@ -94,7 +96,7 @@ class NovelManagerApp(QMainWindow):
         # Botón Recientes (con ícono)
         self.recents_button = QPushButton()
         self.recents_button.setToolTip("Carpetas recientes")
-        # TODO: Conectar funcionalidad más adelante
+        self.recents_button.clicked.connect(self.show_recents_menu)
         # Botón Registro (con ícono)
         self.log_button = QPushButton()
         self.log_button.clicked.connect(self.open_log_file)
@@ -624,6 +626,8 @@ class NovelManagerApp(QMainWindow):
             # Limpiar campos de descripción y términos personalizados antes de establecer el nuevo directorio
             self.create_panel.description_input.clear()
             self.translate_panel.terms_input.clear()
+            # Agregar al historial de recientes
+            self.add_recent(directory_path)
             # Establecer automáticamente el directorio importado como directorio de trabajo
             self.current_directory = directory_path
             # Configurar el directorio en el convertidor EPUB
@@ -830,6 +834,192 @@ class NovelManagerApp(QMainWindow):
                     
         except Exception as e:
             print(f"Error aplicando configuración al panel de traducción: {e}")
+
+    def get_recents_file_path(self):
+        """Obtiene la ruta del archivo JSON de carpetas recientes"""
+        return Path(__file__).parent / 'src' / 'config' / 'recents.json'
+
+    def load_recents(self):
+        """Carga las carpetas recientes desde el archivo JSON"""
+        try:
+            recents_file = self.get_recents_file_path()
+            if recents_file.exists():
+                with open(recents_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data.get('recientes', [])
+            return []
+        except Exception as e:
+            print(f"Error al cargar carpetas recientes: {e}")
+            return []
+
+    def save_recents(self, recents_list):
+        """Guarda las carpetas recientes en el archivo JSON"""
+        try:
+            recents_file = self.get_recents_file_path()
+            data = {"recientes": recents_list}
+            with open(recents_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error al guardar carpetas recientes: {e}")
+
+    def add_recent(self, directory_path):
+        """Agrega una carpeta al historial de recientes"""
+        if not directory_path:
+            return
+        
+        # Cargar lista actual
+        recents = self.load_recents()
+        
+        # Eliminar duplicados y la ruta actual si ya existe
+        recents = [path for path in recents if path != directory_path]
+        
+        # Agregar al principio
+        recents.insert(0, directory_path)
+        
+        # Limitar a 10 elementos
+        recents = recents[:10]
+        
+        # Guardar actualizado
+        self.save_recents(recents)
+
+    def remove_recent(self, directory_path):
+        """Elimina una carpeta específica del historial de recientes"""
+        recents = self.load_recents()
+        if directory_path in recents:
+            recents.remove(directory_path)
+            self.save_recents(recents)
+
+    def remove_recent_and_update_menu(self, directory_path):
+        """Elimina una carpeta del historial y actualiza el menú"""
+        # Eliminar del historial
+        self.remove_recent(directory_path)
+        
+        # Obtener el nombre de la carpeta para el mensaje
+        folder_name = os.path.basename(directory_path)
+        if not folder_name:  # En caso de que termine con /
+            folder_name = os.path.basename(os.path.dirname(directory_path))
+        
+        # Mostrar mensaje de confirmación
+        self.statusBar().showMessage(f"Eliminado '{folder_name}' del historial de carpetas recientes", 3000)
+        
+        # Volver a mostrar el menú actualizado
+        # Pequeña pausa para asegurar que el menú se cierre antes de volverlo a abrir
+        import time
+        time.sleep(0.1)
+        self.show_recents_menu()
+
+    def show_recents_menu(self):
+        """Muestra el menú desplegable de carpetas recientes"""
+        menu = QMenu(self)
+        
+        # Cargar carpetas recientes
+        recents = self.load_recents()
+        
+        if not recents:
+            # No hay carpetas recientes
+            action = QAction("No hay carpetas recientes", self)
+            action.setEnabled(False)
+            menu.addAction(action)
+        else:
+            # Agregar cada carpeta al menú
+            for i, recent_path in enumerate(recents):
+                # Crear widget personalizado para cada elemento del menú
+                widget_item = QWidget()
+                layout = QHBoxLayout(widget_item)
+                layout.setContentsMargins(5, 2, 5, 2)
+                layout.setSpacing(5)
+                
+                # Obtener solo el nombre de la carpeta para mostrar
+                folder_name = os.path.basename(recent_path)
+                if not folder_name:  # En caso de que termine con /
+                    folder_name = os.path.basename(os.path.dirname(recent_path))
+                
+                # Etiqueta con el nombre de la carpeta
+                label = QLabel(folder_name)
+                label.setToolTip(recent_path)  # Mostrar ruta completa en tooltip
+                
+                # Botón de eliminación
+                remove_button = QPushButton("×")
+                remove_button.setFixedSize(20, 20)
+                remove_button.setToolTip(f"Eliminar {folder_name} del historial")
+                remove_button.setStyleSheet("""
+                    QPushButton {
+                        border: 1px solid #ccc;
+                        border-radius: 3px;
+                        background-color: #f0f0f0;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #ff6b6b;
+                        border-color: #ff5252;
+                    }
+                """)
+                
+                # Conectar el botón de eliminación
+                remove_button.clicked.connect(lambda checked, path=recent_path: self.remove_recent_and_update_menu(path))
+                
+                # Conectar la acción para seleccionar la carpeta (haciendo clic en la etiqueta)
+                label.mouseReleaseEvent = lambda event, path=recent_path: self.select_recent_directory(path)
+                
+                layout.addWidget(label)
+                layout.addWidget(remove_button)
+                layout.addStretch()
+                
+                # Agregar el widget al menú
+                menu_action = QWidgetAction(self)
+                menu_action.setDefaultWidget(widget_item)
+                menu.addAction(menu_action)
+        
+        # Mostrar el menú en la posición del botón
+        button_rect = self.recents_button.rect()
+        pos = self.recents_button.mapToGlobal(button_rect.bottomLeft())
+        menu.exec(pos)
+
+    def select_recent_directory(self, directory_path):
+        """Establece una carpeta reciente como directorio de trabajo actual"""
+        if os.path.exists(directory_path) and os.path.isdir(directory_path):
+            # Agregar al historial de recientes para actualizar su posición
+            self.add_recent(directory_path)
+            self.current_directory = directory_path
+            self.statusBar().showMessage(f"Directorio de trabajo: {os.path.basename(self.current_directory)}")
+            # Configurar el directorio en el convertidor EPUB
+            self.epub_converter.set_directory(directory_path)
+            # Configurar directorio de trabajo en el panel de creación de EPUB
+            self.create_panel.set_working_directory(directory_path)
+            # Configurar directorio de trabajo en el panel de traducción
+            self.translate_panel.set_working_directory(directory_path)
+            # Habilitar botones
+            self.refresh_button.setEnabled(True)
+            self.open_dir_button.setEnabled(True)
+            # Actualizar título de la ventana
+            self.update_window_title()
+            self.load_chapters()
+        else:
+            self.statusBar().showMessage(f"Error: La carpeta no existe: {directory_path}")
+            # Eliminar del historial si no existe
+            self.remove_recent(directory_path)
+
+    def select_directory(self):
+        # Obtener el directorio inicial configurado
+        initial_dir = get_initial_directory()
+        directory = get_directory(initial_dir)
+        if directory:
+            # Agregar al historial de recientes
+            self.add_recent(directory)
+            self.current_directory = directory
+            self.statusBar().showMessage(f"Directorio de trabajo: {os.path.basename(self.current_directory)}")
+            # Configurar el directorio en el convertidor EPUB
+            self.epub_converter.set_directory(directory)
+            # Configurar directorio de trabajo en el panel de creación de EPUB
+            self.create_panel.set_working_directory(directory)
+            # Configurar directorio de trabajo en el panel de traducción
+            self.translate_panel.set_working_directory(directory)
+            # Habilitar botones
+            self.refresh_button.setEnabled(True)
+            self.open_dir_button.setEnabled(True)
+            # Actualizar título de la ventana
+            self.update_window_title()
+            self.load_chapters()
 
 def main():
     app = QApplication(sys.argv)

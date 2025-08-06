@@ -55,7 +55,7 @@ class PresetTermsDialog(QDialog):
     def load_preset_terms(self):
         """Carga los términos predefinidos desde el archivo JSON"""
         try:
-            json_path = Path(__file__).parent.parent / 'resources' / 'preset_terms.json'
+            json_path = Path(__file__).parent.parent / 'config' / 'preset_terms.json'
             if json_path.exists():
                 with open(json_path, 'r', encoding='utf-8') as f:
                     terms = json.load(f)
@@ -219,12 +219,11 @@ class TranslatePanel(QWidget):
         # Checkbox for enabling translation check
         self.check_translation_checkbox = QCheckBox("Comprobar")
         self.check_translation_checkbox.setToolTip("Verifica la calidad de la traducción\ncomparando con el texto original.\nEsta opción incrementa significativamente\nel consumo de tokens.")
-
+        self.check_translation_checkbox.setChecked(True)  # Por defecto está habilitado
 
         # Checkbox for translation refinement
         self.refine_translation_checkbox = QCheckBox("Refinar")
         self.refine_translation_checkbox.setToolTip("Mejora la traducción inicial mediante\nun proceso adicional de refinamiento.\nEsta opción también incrementa\nel consumo de tokens.")
-        self.refine_translation_checkbox.setChecked(True)  # Por defecto está habilitado
 
         options_layout.addWidget(self.check_translation_checkbox)
         options_layout.addWidget(self.refine_translation_checkbox)

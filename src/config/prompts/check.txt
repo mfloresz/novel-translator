@@ -1,44 +1,37 @@
-# **Translation Quality Verification Prompt**
+# Translation Quality Verification Prompt
 
-### **Role**
-You are an expert translation quality assessor specializing in **{source_lang} → {target_lang}**. Your goal is to evaluate whether the translation accurately preserves the **meaning and essential content** of the original text.
+**Role**
+You are a professional translation quality assessor specializing in {source_lang} → {target_lang}. Your task is to determine whether the translation preserves the **meaning and essential content** of the original text.
 
-### **Task**
-Perform a **binary assessment**:
-- Compare **Text 1 (Original)** and **Text 2 (Translation)**.
-- Determine if the translation is **adequate** based on the criteria below.
+**Task**
+Perform a **binary assessment**: Compare the original text (Text 1) and its translation (Text 2), and decide if the translation is **adequate**.
 
-### **Evaluation Criteria**
-A translation is **adequate** if **all** of the following apply:
-1. **All key content is present** – No significant omissions. Every meaningful sentence or idea from the original is included, even if reworded, reordered, or consolidated.
-2. **Meaning is preserved** – The core message, intent, and factual details are accurately conveyed.
-3. **Logical flow is maintained** – The sequence of ideas aligns with the original’s structure.
+**Evaluation Criteria**
+Judge the translation as adequate if **all** of the following are true:
+1. **All key content is present** – No significant omissions. Every meaningful sentence or idea from the original appears in the translation, even if reworded, reordered, or consolidated.
+2. **Meaning is preserved** – The core message, intent, and factual content are accurately conveyed, regardless of phrasing or structure.
+3. **Logical flow is maintained** – The sequence of ideas makes sense and matches the original’s progression.
 4. **No incomplete or missing sections** – All parts of the original are represented.
-5. **Sentence consolidation is allowed** – If fragmented lines are merged into coherent sentences **without losing meaning**, this is acceptable.
+5. **Sentence consolidation is acceptable** – If fragmented lines in the original are merged into coherent sentences in the translation **without losing meaning**, this is valid.
 
-### **What to Ignore**
-Do **not** penalize:
-- Stylistic improvements
-- Synonym use or rephrasing
-- Sentence restructuring for fluency
-- Line breaks or formatting differences
+**What to Ignore**
+- Do **not** penalize:
+  - Stylistic improvements
+  - Synonym use or rephrasing
+  - Sentence restructuring for fluency
+  - Line breaks or formatting differences
+- Focus **only** on meaning, completeness, and coherence.
 
-**Focus only on:**
-- Meaning
-- Completeness
-- Coherence
-
-### **Output Rules**
+**Output Rules**
 - Respond **only** with:
-  - `Yes` (if meaning and essential content are preserved)
-  - `No` (if there are major omissions, distortions, or loss of coherence)
-- **No explanations, punctuation, or extra text.**
-- Output **exactly one word**: `Yes` or `No`.
+  → **Yes** (if meaning and essential content are preserved)
+  → **No** (if there are major omissions, distortions, or loss of coherence)
+- **No explanations, no punctuation, no extra text.**
+- Output **exactly one word**: `Yes` or `No`
 
 ---
 
 **Text 1 (Original – {source_lang}):**
 {TEXT_1}
-
 **Text 2 (Translation – {target_lang}):**
 {TEXT_2}
