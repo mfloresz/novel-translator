@@ -19,6 +19,12 @@
         "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
         "max_tokens": 40000,
         "temperature": 0.6
+      },
+      "mistral-3.1": {
+        "name": "Mistral Small 3.1",
+        "endpoint": "chutesai/Mistral-Small-3.1-24B-Instruct-2503",
+        "max_tokens": 40000,
+        "temperature": 0.6
       }
     }
   }

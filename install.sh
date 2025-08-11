@@ -17,16 +17,12 @@ cp "$SOURCE_DIR/main.py" "$INSTALL_DIR/"
 echo "Copiando carpeta src..."
 cp -r "$SOURCE_DIR/src" "$INSTALL_DIR/"
 
-echo "Copiando run_nv.sh..."
-cp "$SOURCE_DIR/run_nv.sh" "$INSTALL_DIR/"
+echo "Copiando run_nt.sh..."
+cp "$SOURCE_DIR/run_nt.sh" "$INSTALL_DIR/"
 
-# Modificar run_nv.sh para que apunte al nuevo directorio
-echo "Actualizando run_nv.sh..."
-sed -i "s|cd ~/.local/bin/novel-translator|cd '$INSTALL_DIR'|g" "$INSTALL_DIR/run_nv.sh"
-
-# Dar permisos de ejecución a run_nv.sh
-echo "Dando permisos de ejecución a run_nv.sh..."
-chmod +x "$INSTALL_DIR/run_nv.sh"
+# Dar permisos de ejecución a run_nt.sh
+echo "Dando permisos de ejecución a run_nt.sh..."
+chmod +x "$INSTALL_DIR/run_nt.sh"
 
 echo "Instalación completada. Los archivos han sido copiados a $INSTALL_DIR"
-echo "Para ejecutar la aplicación, use: $INSTALL_DIR/run_nv.sh"
+echo "Para ejecutar la aplicación, use: $INSTALL_DIR/run_nt.sh"
