@@ -255,14 +255,4 @@ class TranslationManager(QObject):
             return self.db.get_custom_terms()
         return ""
 
-    def get_language_code_for_translation(self, display_name: str) -> str:
-        """
-        Obtiene el código de idioma real para usar en la traducción.
-        
-        Args:
-            display_name: Nombre mostrado en la GUI (ej: "Español (MX)")
-            
-        Returns:
-            Código de idioma para la traducción (ej: "Spanish (México)")
-        """
-        return self.translator.get_language_code_for_translation(display_name)
+    

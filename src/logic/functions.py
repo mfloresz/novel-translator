@@ -2,6 +2,8 @@ from PyQt6.QtWidgets import QMessageBox, QFileDialog, QDialog, QVBoxLayout, QHBo
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtCore import Qt
 import os
+import json
+from pathlib import Path
 
 # Funciones existentes
 def show_confirmation_dialog(message, title="Confirmación"):
@@ -341,7 +343,7 @@ def sanitize_directory_name(name):
         str: Nombre sanitizado válido para directorio
     """
     # Caracteres no válidos en nombres de archivo/directorio
-    invalid_chars = '<>:"/\\|?*'
+    invalid_chars = '<>:\"/\\|?*'
 
     # Reemplazar caracteres inválidos
     for char in invalid_chars:
@@ -358,3 +360,29 @@ def sanitize_directory_name(name):
         name = "Libro_Importado"
 
     return name
+
+def load_preset_terms(source_lang: str, target_lang: str) -> list[str]:
+    """
+    Carga los términos preestablecidos desde el archivo JSON específico
+    para el par de idiomas.
+
+    Args:
+        source_lang (str): Código del idioma de origen.
+        target_lang (str): Código del idioma de destino.
+
+    Returns:
+        list[str]: Lista de términos preestablecidos. Devuelve una lista
+                   vacía si el archivo no existe o no contiene términos.
+    """
+    lang_pair_dir = f"{source_lang}_{target_lang}"
+    preset_terms_path = Path(__file__).parent.parent / 'config' / 'prompts' / lang_pair_dir / 'preset_terms.json'
+
+    if not preset_terms_path.exists():
+        return []
+
+    try:
+        with open(preset_terms_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data.get("terms", [])
+    except (json.JSONDecodeError, KeyError):
+        return []

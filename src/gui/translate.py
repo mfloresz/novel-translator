@@ -11,12 +11,14 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt6.QtCore import Qt
 from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
-from src.logic.functions import show_confirmation_dialog
+from src.logic.functions import show_confirmation_dialog, load_preset_terms
 
 class PresetTermsDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, source_lang, target_lang, parent=None):
         super().__init__(parent)
         self.selected_term = None
+        self.source_lang = source_lang
+        self.target_lang = target_lang
         self.init_ui()
         self.load_preset_terms()
 
@@ -53,16 +55,13 @@ class PresetTermsDialog(QDialog):
         self.setLayout(layout)
 
     def load_preset_terms(self):
-        """Carga los términos predefinidos desde el archivo JSON"""
+        """Carga los términos predefinidos desde el archivo JSON específico del par de idiomas"""
         try:
-            json_path = Path(__file__).parent.parent / 'config' / 'preset_terms.json'
-            if json_path.exists():
-                with open(json_path, 'r', encoding='utf-8') as f:
-                    terms = json.load(f)
-
-                for term in terms:
-                    item = QListWidgetItem(term)
-                    self.terms_list.addItem(item)
+            terms = load_preset_terms(self.source_lang, self.target_lang)
+            self.terms_list.clear()
+            for term in terms:
+                item = QListWidgetItem(term)
+                self.terms_list.addItem(item)
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error al cargar términos predefinidos: {str(e)}")
 
@@ -182,15 +181,14 @@ class TranslatePanel(QWidget):
 
         # Populate language combos
         language_mapping = self.translation_manager.get_supported_languages()
-        languages = list(language_mapping.keys())
         self.source_lang_combo.clear()
         self.target_lang_combo.clear()
 
-        # Agregar idiomas con sus nombres de visualización como userData
-        for lang_key in languages:
-            # lang_key es tanto el nombre para mostrar como la clave
-            self.source_lang_combo.addItem(lang_key, userData=lang_key)
-            self.target_lang_combo.addItem(lang_key, userData=lang_key)
+        if language_mapping:
+            sorted_languages = sorted(language_mapping.items(), key=lambda x: (x[0] != 'auto', x[1]))
+            for code, name in sorted_languages:
+                self.source_lang_combo.addItem(name, userData=code)
+                self.target_lang_combo.addItem(name, userData=code)
 
         lang_layout.addWidget(QLabel("Idioma Origen:"))
         lang_layout.addWidget(self.source_lang_combo)
@@ -408,6 +406,9 @@ class TranslatePanel(QWidget):
             if target_index >= 0:
                 self.target_lang_combo.setCurrentIndex(target_index)
 
+            # Actualizar estado del botón de términos predefinidos
+            self.update_preset_terms_button_state()
+
         except Exception as e:
             print(f"Error cargando valores por defecto: {e}")
 
@@ -501,6 +502,24 @@ class TranslatePanel(QWidget):
         self.translation_manager.all_translations_completed.connect(self.handle_all_completed)
         self.translation_manager.error_occurred.connect(self.handle_error)
 
+        # Conectar cambio de idioma a la actualización del botón de términos
+        self.source_lang_combo.currentIndexChanged.connect(self.update_preset_terms_button_state)
+        self.target_lang_combo.currentIndexChanged.connect(self.update_preset_terms_button_state)
+
+    def update_preset_terms_button_state(self):
+        """
+        Habilita o deshabilita el botón de términos predefinidos basado en si
+        existen términos para el par de idiomas seleccionado.
+        """
+        source_lang = self.source_lang_combo.currentData()
+        target_lang = self.target_lang_combo.currentData()
+
+        if source_lang and target_lang:
+            terms = load_preset_terms(source_lang, target_lang)
+            self.preset_terms_btn.setEnabled(bool(terms))
+        else:
+            self.preset_terms_btn.setEnabled(False)
+
     def set_chapter_range(self, max_chapters):
         """Configura el rango máximo de capítulos"""
         self.start_chapter_spin.setText("1")
@@ -565,23 +584,13 @@ class TranslatePanel(QWidget):
             self.main_window.statusBar().showMessage("Error: Debe seleccionar un modelo válido")
             return
 
-        # Obtener idiomas seleccionados (claves para mostrar en GUI)
-        source_lang_display = self.source_lang_combo.currentData()
-        target_lang_display = self.target_lang_combo.currentData()
+        # Obtener idiomas seleccionados (códigos)
+        source_lang = self.source_lang_combo.currentData()
+        target_lang = self.target_lang_combo.currentData()
 
-        # Si por alguna razón currentData() devuelve None, usar currentText() como fallback
-        if source_lang_display is None:
-            source_lang_display = self.source_lang_combo.currentText()
-        if target_lang_display is None:
-            target_lang_display = self.target_lang_combo.currentText()
-
-        if source_lang_display == target_lang_display:
-            self.main_window.statusBar().showMessage("Error: Los idiomas de origen y destino no pueden ser iguales")
+        if not source_lang or not target_lang or source_lang == target_lang:
+            self.main_window.statusBar().showMessage("Error: Los idiomas de origen y destino deben ser diferentes y estar seleccionados")
             return
-
-        # Obtener códigos de idioma reales para la traducción
-        source_lang = self.translation_manager.get_language_code_for_translation(source_lang_display)
-        target_lang = self.translation_manager.get_language_code_for_translation(target_lang_display)
 
         # Obtener rango de capítulos
         try:
@@ -719,7 +728,14 @@ class TranslatePanel(QWidget):
 
     def show_preset_terms(self):
         """Muestra el diálogo con términos predefinidos"""
-        dialog = PresetTermsDialog(self)
+        source_lang = self.source_lang_combo.currentData()
+        target_lang = self.target_lang_combo.currentData()
+
+        if not source_lang or not target_lang:
+            QMessageBox.warning(self, "Error", "Seleccione los idiomas de origen y destino.")
+            return
+
+        dialog = PresetTermsDialog(source_lang, target_lang, self)
         if dialog.exec() == dialog.DialogCode.Accepted:
             selected_term = dialog.get_selected_term()
             if selected_term:

@@ -227,13 +227,13 @@ class EpubConverterLogic(QObject):
     def _format_text(self, text):
         """Convierte formato de texto simple a HTML sin solapamientos"""
         def repl(m):
-            inner = m.group(2) or m.group(4)
+            inner = m.group(2) or m.group(4) or m.group(6)
             if m.group(1):          # dos asteriscos → negritas
                 return f'<strong>{inner}</strong>'
-            else:                   # un asterisco → cursivas
+            else:                   # un asterisco o guion bajo → cursivas
                 return f'<em>{inner}</em>'
-
-        pattern = re.compile(r'(\*\*)([^*]+)\*\*|(\*)([^*]+)\*')
+        
+        pattern = re.compile(r'(\*\*)([^*]+)\*\*|(\*)([^*]+)\*|(_)([^_]+)_')
         return pattern.sub(repl, text)
 
     def _create_titlepage_html(self, title, author, description=""):

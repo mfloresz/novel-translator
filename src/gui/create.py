@@ -30,10 +30,12 @@ class CreateEpubPanel(QWidget):
 
         self.title_input = QLineEdit()
         self.title_input.setPlaceholderText("Ingrese el título del libro")
+        self.title_input.setAlignment(Qt.AlignmentFlag.AlignLeft)
         metadata_layout.addRow("Título:", self.title_input)
 
         self.author_input = QLineEdit()
         self.author_input.setPlaceholderText("Ingrese el nombre del autor")
+        self.author_input.setAlignment(Qt.AlignmentFlag.AlignLeft)
         metadata_layout.addRow("Autor:", self.author_input)
 
         # Right side - Cover section
@@ -142,7 +144,7 @@ class CreateEpubPanel(QWidget):
 
         # Inicializar estado de los inputs de rango
         self.toggle_range_inputs()
-
+        
     def select_cover(self):
         """Maneja la selección de la imagen de portada"""
         file_path, pixmap = get_cover_image(self.working_directory)
@@ -161,6 +163,14 @@ class CreateEpubPanel(QWidget):
         enable_inputs = self.range_specific.isChecked()
         self.range_from_input.setEnabled(enable_inputs)
         self.range_to_input.setEnabled(enable_inputs)
+
+    def _set_text_and_show_start(self, line_edit, text):
+        """Establece el texto en un QLineEdit y asegura que se muestre el principio del texto"""
+        line_edit.setText(text)
+        # Mover el cursor al inicio para asegurar que se muestra el principio del texto
+        line_edit.setCursorPosition(0)
+        # Desplazar el texto para mostrar el inicio
+        line_edit.home(False)
 
     def get_range(self):
         """Obtiene el rango seleccionado"""
@@ -216,9 +226,9 @@ class CreateEpubPanel(QWidget):
         try:
             metadata = self.db.get_book_metadata()
             if metadata.get('title'):
-                self.title_input.setText(metadata['title'])
+                self._set_text_and_show_start(self.title_input, metadata['title'])
             if metadata.get('author'):
-                self.author_input.setText(metadata['author'])
+                self._set_text_and_show_start(self.author_input, metadata['author'])
             if metadata.get('description'):
                 self.description_input.setPlainText(metadata['description'])
         except Exception as e:

@@ -1,7 +1,6 @@
 {
   "provider": "chutes",
   "model": "mistral-3.2",
-  "source_language": "Inglés",
-  "target_language": "Español (MX)",
-  "initial_directory": "/home/misael/Documentos/Lightnovels"
+  "source_language": "en-US",
+  "target_language": "es-MX"
 }

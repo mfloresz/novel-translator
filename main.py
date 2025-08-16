@@ -525,16 +525,13 @@ class NovelManagerApp(QMainWindow):
              if v['name'] == translate_panel.model_combo.currentText()),
             None
         )
-        # Obtener idiomas
-        source_lang_display = translate_panel.source_lang_combo.currentText()
-        target_lang_display = translate_panel.target_lang_combo.currentText()
-        if source_lang_display == target_lang_display:
-            self.statusBar().showMessage("Error: Los idiomas de origen y destino no pueden ser iguales")
+        # Obtener idiomas (códigos)
+        source_lang = translate_panel.source_lang_combo.currentData()
+        target_lang = translate_panel.target_lang_combo.currentData()
+
+        if not source_lang or not target_lang or source_lang == target_lang:
+            self.statusBar().showMessage("Error: Los idiomas de origen y destino deben ser diferentes y estar seleccionados")
             return
-            
-        # Obtener códigos de idioma reales para la traducción
-        source_lang = translate_panel.translation_manager.get_language_code_for_translation(source_lang_display)
-        target_lang = translate_panel.translation_manager.get_language_code_for_translation(target_lang_display)
         # Obtener términos personalizados
         custom_terms = translate_panel.terms_input.toPlainText().strip()
         # Obtener configuración de segmentación
@@ -716,6 +713,7 @@ class NovelManagerApp(QMainWindow):
         """Abre el diálogo de configuración"""
         try:
             dialog = SettingsDialog(self)
+            dialog.finished.connect(self.translate_panel.update_preset_terms_button_state)
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 # La configuración se guardó, actualizar la aplicación
                 self.apply_configuration()

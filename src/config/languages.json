@@ -1,5 +1,6 @@
 {
-    "auto": "Detectar automáticamente",
-    "Español (MX)": "Spanish (México)",
-    "Inglés": "English"
+  "auto": "auto",
+  "es-MX": "Español (MX)",
+  "en-US": "Inglés",
+  "fr-FR": "Francés"
 }

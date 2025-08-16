@@ -27,55 +27,36 @@ class TranslatorLogic:
         with open(models_path, 'r') as f:
             self.models_config = json.load(f)
 
-        self.prompt_template = self._load_prompt_template()
-        self.check_prompt_template = self._load_check_prompt_template()
-        self.refine_prompt_template = self._load_refine_prompt_template()
         self.segment_size = segment_size  # Tamaño objetivo para cada segmento
 
-    def _load_prompt_template(self) -> str:
+    def _load_prompt(self, prompt_name: str, source_lang: str, target_lang: str) -> str:
         """
-        Carga el prompt base desde el archivo translation.txt
+        Carga una plantilla de prompt desde un archivo, buscando en el
+        directorio específico del par de idiomas.
+
+        Args:
+            prompt_name (str): Nombre del archivo de prompt (ej: "translation.txt").
+            source_lang (str): Código del idioma de origen.
+            target_lang (str): Código del idioma de destino.
 
         Returns:
-            str: Contenido del prompt base
+            str: Contenido del prompt.
+        
+        Raises:
+            FileNotFoundError: Si no se encuentra la carpeta de prompts o el archivo de prompt.
         """
-        try:
-            prompt_path = Path(__file__).parent.parent / 'config' / 'prompts' / 'translation.txt'
-            with open(prompt_path, 'r', encoding='utf-8') as file:
-                return file.read()
-        except Exception as e:
-            print(f"Error cargando el prompt base: {str(e)}")
-            return ""
+        lang_pair_dir = f"{source_lang}_{target_lang}"
+        prompt_dir = Path(__file__).parent.parent / 'config' / 'prompts' / lang_pair_dir
 
-    def _load_check_prompt_template(self) -> str:
-        """
-        Carga el prompt base de comprobación desde check.txt
+        if not prompt_dir.exists() or not prompt_dir.is_dir():
+            raise FileNotFoundError(f"El directorio de prompts para '{lang_pair_dir}' no existe.")
 
-        Returns:
-            str: Contenido del prompt de comprobación
-        """
-        try:
-            check_path = Path(__file__).parent.parent / 'config' / 'prompts' / 'check.txt'
-            with open(check_path, 'r', encoding='utf-8') as file:
-                return file.read()
-        except Exception as e:
-            print(f"Error cargando el prompt de comprobación: {str(e)}")
-            return ""
+        prompt_path = prompt_dir / prompt_name
+        if not prompt_path.exists():
+            raise FileNotFoundError(f"No se pudo encontrar el prompt '{prompt_name}' en {prompt_dir}")
 
-    def _load_refine_prompt_template(self) -> str:
-        """
-        Carga el prompt base de refinamiento desde refine.txt
-
-        Returns:
-            str: Contenido del prompt de refinamiento
-        """
-        try:
-            refine_path = Path(__file__).parent.parent / 'config' / 'prompts' / 'refine.txt'
-            with open(refine_path, 'r', encoding='utf-8') as file:
-                return file.read()
-        except Exception as e:
-            print(f"Error cargando el prompt de refinamiento: {str(e)}")
-            return ""
+        with open(prompt_path, 'r', encoding='utf-8') as file:
+            return file.read()
 
     def _segment_text(self, text: str) -> List[str]:
         """
@@ -164,7 +145,8 @@ class TranslatorLogic:
         Returns:
             str: Prompt completo para la comprobación
         """
-        prompt = self.check_prompt_template
+        check_prompt_template = self._load_prompt("check.txt", source_lang, target_lang)
+        prompt = check_prompt_template
         prompt = prompt.replace("{source_lang}", source_lang)
         prompt = prompt.replace("{target_lang}", target_lang)
         prompt = prompt.replace("{TEXT_1}", original_text.strip())
@@ -187,7 +169,8 @@ class TranslatorLogic:
         Returns:
             str: Prompt completo para el refinamiento
         """
-        prompt = self.refine_prompt_template
+        refine_prompt_template = self._load_prompt("refine.txt", source_lang, target_lang)
+        prompt = refine_prompt_template
         prompt = prompt.replace("{source_lang}", source_lang)
         prompt = prompt.replace("{target_lang}", target_lang)
         prompt = prompt.replace("{source_text}", source_text.strip())
@@ -378,7 +361,8 @@ class TranslatorLogic:
                 session_logger.log_info(f"Traduciendo segmento {i} de {len(segments)}")
 
                 # Construir prompt base con reemplazo de etiquetas
-                prompt = self.prompt_template.replace(
+                prompt_template = self._load_prompt("translation.txt", source_lang, target_lang)
+                prompt = prompt_template.replace(
                     "{source_lang}", source_lang
                 ).replace(
                     "{target_lang}", target_lang
@@ -474,20 +458,8 @@ class TranslatorLogic:
     def get_supported_languages(self) -> Dict[str, str]:
         """
         Obtiene la lista de idiomas soportados.
-        Retorna un diccionario con las claves como nombres para mostrar en la GUI
-        y las claves mismas como valores para identificar el idioma.
+        Retorna un diccionario con los códigos como claves y los nombres para mostrar como valores.
         """
-        # Retornar las claves como display names y como valores para la GUI
-        return {k: k for k in self.lang_codes.keys()}
+        return self.lang_codes
 
-    def get_language_code_for_translation(self, display_name: str) -> str:
-        """
-        Obtiene el código de idioma real para usar en la traducción.
-
-        Args:
-            display_name: Nombre mostrado en la GUI (ej: "Español (MX)")
-
-        Returns:
-            Código de idioma para la traducción (ej: "Spanish (México)")
-        """
-        return self.lang_codes.get(display_name, display_name)
+    
