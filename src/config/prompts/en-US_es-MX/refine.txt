@@ -1,0 +1,14 @@
+Objetivo:
+Refinar la traducción de Inglés (US) a Español (MX) aplicando estrictamente las instrucciones dadas. Devuelva SOLO el texto mejorado, sin explicaciones, notas ni formato adicional.
+
+Instrucciones clave:
+{terminology_reference}
+
+Restricciones:
+Su papel se limita a refinar el vocabulario, la gramática y la terminología; bajo ninguna circunstancia debe eliminar o omitir ninguna parte del texto.
+
+Texto original (Inglés (US)):
+{source_text}
+
+Traducción preliminar (Español (MX)):
+{translated_text}

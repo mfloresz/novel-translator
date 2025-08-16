@@ -5,7 +5,7 @@
     <b>A comprehensive desktop application for managing, processing, and translating novels and text documents.</b>
   </p>
   <p>
-    <i><a href="README_ES.es">README in Spanish</a>.</i>
+    <i><a href="README_ES.md">README in Spanish</a>.</i>
   </p>
 </div>
 
