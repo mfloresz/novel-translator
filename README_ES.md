@@ -5,7 +5,7 @@
     <b>Una aplicación de escritorio completa para gestionar, procesar y traducir novelas y documentos de texto.</b>
   </p>
   <p>
-    <i><a href="README.md">README en Ingés</a>.</i>
+    <i><a href="README.md">English Version</a>.</i>
   </p>
 </div>
 
@@ -164,21 +164,6 @@ pip install -r requirements.txt
 ### Configuración de API Keys
 Crea un archivo `.env` en la raíz del proyecto con tus claves de API:
 `env
-# Google Gemini
-GEMINI_API_KEY=tu_clave_google_gemini
-
-# Chutes AI
-CHUTES_API_KEY=tu_clave_chutes_ai
-
-# Together AI
-TOGETHER_API_KEY=tu_clave_together_ai
-
-# DeepInfra
-DEEPINFRA_API_KEY=tu_clave_deepinfra
-
-# OpenAI
-OPENAI_API_KEY=tu_clave_openai
-`
 
 ### Configuración de la Aplicación
 La aplicación utiliza archivos de configuración JSON para personalizar su comportamiento:
@@ -276,7 +261,7 @@ python main.py
 
 ## Arquitectura del Proyecto
 
-`
+```
 novel-manager/
 │
 ├── 📁 src/
@@ -320,7 +305,7 @@ novel-manager/
 ├── 📄 install.sh                        # Script de instalación
 ├── 📄 run_nv.sh                         # Script de ejecución
 └── 📄 README.md                         # Documentación completa
-`
+```
 
 ### Componentes Principales
 

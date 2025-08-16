@@ -5,7 +5,7 @@
     <b>A comprehensive desktop application for managing, processing, and translating novels and text documents.</b>
   </p>
   <p>
-    <i><a href="README_ES.es">README in Spanish</a>.</i>
+    <i><a href="README_ES.md">README in Spanish</a>.</i>
   </p>
 </div>
 
@@ -276,7 +276,7 @@ python main.py
 
 ## Project Architecture
 
-`
+```
 novel-manager/
 │
 ├── 📁 src/
@@ -320,7 +320,7 @@ novel-manager/
 ├── 📄 install.sh                        # Installation script
 ├── 📄 run_nv.sh                         # Execution script
 └── 📄 README.md                         # Complete documentation
-`
+```
 
 ### Main Components
 
