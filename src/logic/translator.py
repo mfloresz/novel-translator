@@ -8,49 +8,55 @@ from src.logic.session_logger import session_logger
 class TranslatorLogic:
     def __init__(self, segment_size=None):
         """Inicializa el traductor con los idiomas soportados"""
-        self.lang_codes = {
-            'Español (MX)': 'Spanish (México)',
-            'Inglés': 'English'
-        }
+        # Cargar mapeo de idiomas desde languages.json
+        languages_path = Path(__file__).parent.parent / 'config' / 'languages.json'
+        try:
+            with open(languages_path, 'r', encoding='utf-8') as f:
+                self.lang_codes = json.load(f)
+        except Exception as e:
+            print(f"Error cargando languages.json: {e}")
+            # Fallback a valores hardcodeados si no se puede cargar el archivo
+            self.lang_codes = {
+                'auto': 'Detectar automáticamente',
+                'Español (MX)': 'Spanish (México)',
+                'Inglés': 'English'
+            }
 
         # Cargar configuración de modelos
-        models_path = Path(__file__).parent / 'translation_models.json'
+        models_path = Path(__file__).parent.parent / 'config' / 'models' / 'translation_models.json'
         with open(models_path, 'r') as f:
             self.models_config = json.load(f)
 
-        self.prompt_template = self._load_prompt_template()
-        self.check_prompt_template = self._load_check_prompt_template()
         self.segment_size = segment_size  # Tamaño objetivo para cada segmento
 
-    def _load_prompt_template(self) -> str:
+    def _load_prompt(self, prompt_name: str, source_lang: str, target_lang: str) -> str:
         """
-        Carga el prompt base desde el archivo prompt_base.txt
+        Carga una plantilla de prompt desde un archivo, buscando en el
+        directorio específico del par de idiomas.
+
+        Args:
+            prompt_name (str): Nombre del archivo de prompt (ej: "translation.txt").
+            source_lang (str): Código del idioma de origen.
+            target_lang (str): Código del idioma de destino.
 
         Returns:
-            str: Contenido del prompt base
+            str: Contenido del prompt.
+        
+        Raises:
+            FileNotFoundError: Si no se encuentra la carpeta de prompts o el archivo de prompt.
         """
-        try:
-            prompt_path = Path(__file__).parent / 'prompt_base.txt'
-            with open(prompt_path, 'r', encoding='utf-8') as file:
-                return file.read()
-        except Exception as e:
-            print(f"Error cargando el prompt base: {str(e)}")
-            return ""
+        lang_pair_dir = f"{source_lang}_{target_lang}"
+        prompt_dir = Path(__file__).parent.parent / 'config' / 'prompts' / lang_pair_dir
 
-    def _load_check_prompt_template(self) -> str:
-        """
-        Carga el prompt base de comprobación desde prompt_check.txt
+        if not prompt_dir.exists() or not prompt_dir.is_dir():
+            raise FileNotFoundError(f"El directorio de prompts para '{lang_pair_dir}' no existe.")
 
-        Returns:
-            str: Contenido del prompt de comprobación
-        """
-        try:
-            check_path = Path(__file__).parent / 'prompt_check.txt'
-            with open(check_path, 'r', encoding='utf-8') as file:
-                return file.read()
-        except Exception as e:
-            print(f"Error cargando el prompt de comprobación: {str(e)}")
-            return ""
+        prompt_path = prompt_dir / prompt_name
+        if not prompt_path.exists():
+            raise FileNotFoundError(f"No se pudo encontrar el prompt '{prompt_name}' en {prompt_dir}")
+
+        with open(prompt_path, 'r', encoding='utf-8') as file:
+            return file.read()
 
     def _segment_text(self, text: str) -> List[str]:
         """
@@ -139,11 +145,54 @@ class TranslatorLogic:
         Returns:
             str: Prompt completo para la comprobación
         """
-        prompt = self.check_prompt_template
-        prompt = prompt.replace("{source_lang}", self.lang_codes.get(source_lang, source_lang))
-        prompt = prompt.replace("{target_lang}", self.lang_codes.get(target_lang, target_lang))
+        check_prompt_template = self._load_prompt("check.txt", source_lang, target_lang)
+        prompt = check_prompt_template
+        prompt = prompt.replace("{source_lang}", source_lang)
+        prompt = prompt.replace("{target_lang}", target_lang)
         prompt = prompt.replace("{TEXT_1}", original_text.strip())
         prompt = prompt.replace("{TEXT_2}", translated_text.strip())
+        return prompt
+
+    def _build_refine_prompt(self, source_lang: str, target_lang: str,
+                            source_text: str, translated_text: str,
+                            custom_terms: str = "") -> str:
+        """
+        Construye el prompt para refinar la traducción.
+
+        Args:
+            source_lang (str): Idioma original
+            target_lang (str): Idioma destino
+            source_text (str): Texto original
+            translated_text (str): Texto traducido a refinar
+            custom_terms (str): Términos personalizados para la traducción
+
+        Returns:
+            str: Prompt completo para el refinamiento
+        """
+        refine_prompt_template = self._load_prompt("refine.txt", source_lang, target_lang)
+        prompt = refine_prompt_template
+        prompt = prompt.replace("{source_lang}", source_lang)
+        prompt = prompt.replace("{target_lang}", target_lang)
+        prompt = prompt.replace("{source_text}", source_text.strip())
+        prompt = prompt.replace("{translated_text}", translated_text.strip())
+
+        # Reemplazar etiqueta de terminología si existen términos personalizados
+        if custom_terms:
+            # Formatear los términos personalizados
+            terms = custom_terms.strip().split('\n')
+            terms = [
+                line if line.strip().startswith('- ') else f'- {line.strip()}'
+                for line in terms
+                if line.strip()
+            ]
+            formatted_terms = '\n'.join(terms)
+
+            # Reemplazar la etiqueta {terminology_reference} con los términos formateados
+            prompt = prompt.replace("{terminology_reference}", formatted_terms)
+        else:
+            # Si no hay términos personalizados, eliminar la etiqueta
+            prompt = prompt.replace("{terminology_reference}", "")
+
         return prompt
 
     def _check_translation(self, original_text: str, translated_text: str,
@@ -219,13 +268,66 @@ class TranslatorLogic:
             session_logger.log_error(f"Error al hacer la comprobación: {str(e)}")
             return False
 
+    def _refine_translation(self, source_text: str, translated_text: str,
+                           source_lang: str, target_lang: str,
+                           api_key: str, provider: str, model: str,
+                           custom_terms: str = "") -> Optional[str]:
+        """
+        Refina la traducción usando la API.
+
+        Args:
+            source_text (str): Texto original
+            translated_text (str): Texto traducido a refinar
+            source_lang (str): Idioma de origen
+            target_lang (str): Idioma de destino
+            api_key (str): API key
+            provider (str): Proveedor
+            model (str): Modelo
+            custom_terms (str): Términos personalizados para la traducción
+
+        Returns:
+            Optional[str]: Texto refinado si tiene éxito, None si falla o error
+        """
+        prompt = self._build_refine_prompt(source_lang, target_lang, source_text, translated_text, custom_terms)
+
+        provider_config = self.models_config.get(provider)
+        if not provider_config:
+            print(f"Proveedor no soportado para refinamiento: {provider}")
+            return None
+
+        model_config = provider_config['models'].get(model)
+        if not model_config:
+            print(f"Modelo no soportado para refinamiento: {model}")
+            return None
+
+        try:
+            response = translator_req.translate_segment(
+                provider,
+                "",  # texto ya incluido en prompt, pasar vacío para evitar doble agregado
+                api_key,
+                model_config,
+                prompt
+            )
+
+            if response is None:
+                session_logger.log_error("Error en el refinamiento de la traducción (respuesta nula)")
+                return None
+
+            return response
+
+        except Exception as e:
+            session_logger.log_error(f"Error al hacer el refinamiento: {str(e)}")
+            return None
+
     def translate_text(self, text: str, source_lang: str, target_lang: str,
                       api_key: str, provider: str, model: str,
-                      custom_terms: str = "", enable_check: bool = True) -> Optional[str]:
+                      custom_terms: str = "", enable_check: bool = True,
+                      enable_refine: bool = False) -> Optional[str]:
         """
         Traduce el texto utilizando el proveedor y modelo especificados.
 
-        Agrega comprobación de la traducción tras completarla si enable_check=True.
+        Agrega refinamiento de la traducción si enable_refine=True y
+        comprobación de la traducción tras completarla si enable_check=True.
 
         Args:
             text (str): Texto a traducir
@@ -236,6 +338,7 @@ class TranslatorLogic:
             model (str): Identificador del modelo
             custom_terms (str): Términos personalizados para la traducción
             enable_check (bool): Si True, realiza comprobación de traducción; si False, omite comprobación.
+            enable_refine (bool): Si True, realiza refinamiento de traducción; si False, omite refinamiento.
 
         Returns:
             Optional[str]: Texto traducido si la comprobación pasa o no se realiza, None si falla o error
@@ -257,21 +360,17 @@ class TranslatorLogic:
             for i, segment in enumerate(segments, 1):
                 session_logger.log_info(f"Traduciendo segmento {i} de {len(segments)}")
 
-                # Construir prompt base
-                prompt = self.prompt_template.replace(
-                    "{source_lang}", self.lang_codes[source_lang]
+                # Construir prompt base con reemplazo de etiquetas
+                prompt_template = self._load_prompt("translation.txt", source_lang, target_lang)
+                prompt = prompt_template.replace(
+                    "{source_lang}", source_lang
                 ).replace(
-                    "{target_lang}", self.lang_codes[target_lang]
+                    "{target_lang}", target_lang
                 )
 
-                # Agregar términos personalizados si existen
+                # Reemplazar etiqueta de terminología si existen términos personalizados
                 if custom_terms:
-                    ref_section = "**Terminology Reference**"
-                    final_instructions = "**Output Requirements**"
-
-                    pre_terms = prompt[:prompt.find(ref_section) + len(ref_section)]
-                    post_terms = prompt[prompt.find(final_instructions):]
-
+                    # Formatear los términos personalizados
                     terms = custom_terms.strip().split('\n')
                     terms = [
                         line if line.strip().startswith('- ') else f'- {line.strip()}'
@@ -280,10 +379,14 @@ class TranslatorLogic:
                     ]
                     formatted_terms = '\n'.join(terms)
 
-                    prompt = f"{pre_terms}\n{formatted_terms}{post_terms}"
+                    # Reemplazar la etiqueta {terminology_reference} con los términos formateados
+                    prompt = prompt.replace("{terminology_reference}", formatted_terms)
+                else:
+                    # Si no hay términos personalizados, eliminar la etiqueta
+                    prompt = prompt.replace("{terminology_reference}", "")
 
-                # Añadir el texto a traducir
-                prompt += f"\n\n{segment}"
+                # Reemplazar la etiqueta {text_to_translate} con el segmento actual
+                prompt = prompt.replace("{text_to_translate}", segment)
 
                 # Delegar la petición al módulo translator_req
                 translated_segment = translator_req.translate_segment(
@@ -297,6 +400,28 @@ class TranslatorLogic:
                 if translated_segment is None:
                     session_logger.log_error(f"Error traduciendo segmento {i}")
                     raise ValueError(f"Error traduciendo segmento {i}")
+
+                # Si enable_refine está habilitado, refinar la traducción del segmento
+                if enable_refine:
+                    session_logger.log_info(f"Refinando segmento {i} de {len(segments)}")
+                    refined_segment = self._refine_translation(
+                        source_text=segment,
+                        translated_text=translated_segment,
+                        source_lang=source_lang,
+                        target_lang=target_lang,
+                        api_key=api_key,
+                        provider=provider,
+                        model=model,
+                        custom_terms=custom_terms
+                    )
+
+                    if refined_segment is not None:
+                        # Usar la versión refinada
+                        translated_segment = refined_segment
+                        session_logger.log_info(f"Segmento {i} refinado exitosamente")
+                    else:
+                        # Continuar con la traducción original si el refinamiento falla
+                        session_logger.log_warning(f"Falló el refinamiento del segmento {i}, usando traducción original")
 
                 translated_segments.append(translated_segment)
 
@@ -333,5 +458,8 @@ class TranslatorLogic:
     def get_supported_languages(self) -> Dict[str, str]:
         """
         Obtiene la lista de idiomas soportados.
+        Retorna un diccionario con los códigos como claves y los nombres para mostrar como valores.
         """
-        return self.lang_codes.copy()
+        return self.lang_codes
+
+    

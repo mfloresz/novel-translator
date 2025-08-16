@@ -3,3 +3,8 @@ __pycache__
 chapters
 __init__.py
 .env
+.gitkeep
+recents.json
+src/config/recents.json
+src/gui/icons/v1
+src/gui/icons/v2

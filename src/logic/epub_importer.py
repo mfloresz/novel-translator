@@ -322,7 +322,11 @@ class EpubImporter(QObject):
             elements = main_content.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'blockquote', 'li'])
             for element in elements:
                 if hasattr(element, 'get_text') and hasattr(element, 'name'):
-                    text = element.get_text().strip()
+                    # Obtener el contenido HTML del elemento y convertirlo a markdown
+                    # Primero obtenemos el HTML del elemento
+                    inner_html = ''.join([str(content) for content in element.contents])
+                    # Luego lo convertimos a markdown
+                    text = self._html_to_markdown(inner_html).strip()
                     if text:
                         # Los encabezados y párrafos se separan con doble salto
                         if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'blockquote']:
@@ -330,7 +334,9 @@ class EpubImporter(QObject):
                         elif element.name == 'div':
                             # Solo añadir divs si contienen texto directo
                             try:
-                                direct_text = ''.join([str(t) for t in element.find_all(text=True, recursive=False)]).strip()
+                                # Para divs, también convertimos el contenido a markdown
+                                direct_html = ''.join([str(t) for t in element.find_all(text=True, recursive=False)])
+                                direct_text = self._html_to_markdown(direct_html).strip()
                                 if direct_text:
                                     result_parts.append(text)
                             except:
@@ -342,7 +348,9 @@ class EpubImporter(QObject):
 
         # Si no se encontró contenido estructurado, usar método de respaldo
         if not result_parts:
-            text = soup.get_text()
+            # Obtener el HTML completo del cuerpo y convertirlo a markdown
+            body_content = ''.join([str(content) for content in main_content.contents])
+            text = self._html_to_markdown(body_content)
             # Limpiar espacios múltiples
             text = re.sub(r'[ \t]+', ' ', text)
             # Dividir por saltos de línea y limpiar
@@ -443,3 +451,28 @@ class EpubImporter(QObject):
         if element is not None and element.text:
             return element.text.strip()
         return default
+
+    def _html_to_markdown(self, html_content: str) -> str:
+        """Convierte etiquetas HTML simples a formato markdown"""
+        if not html_content:
+            return html_content
+        
+        # Crear un elemento contenedor para parsear el HTML
+        soup = BeautifulSoup(f"<div>{html_content}</div>", 'html.parser')
+        container = soup.find('div')
+        
+        # Convertir <strong> y <b> a **texto**
+        for tag in container.find_all(['strong', 'b']):
+            tag.insert_before('**')
+            tag.insert_after('**')
+            tag.unwrap()
+
+        
+        # Convertir <em> y <i> a *texto*
+        for tag in container.find_all(['em', 'i']):
+            tag.insert_before('*')
+            tag.insert_after('*')
+            tag.unwrap()
+        
+        # Obtener el texto resultante
+        return ''.join([str(content) for content in container.contents])

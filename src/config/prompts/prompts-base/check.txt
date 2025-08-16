@@ -13,6 +13,7 @@ Judge the translation as adequate if **all** of the following are true:
 3. **Logical flow is maintained** – The sequence of ideas makes sense and matches the original’s progression.
 4. **No incomplete or missing sections** – All parts of the original are represented.
 5. **Sentence consolidation is acceptable** – If fragmented lines in the original are merged into coherent sentences in the translation **without losing meaning**, this is valid.
+6. **No untranslated text** – If any sentence or significant portion of Text 2 remains in {source_lang} instead of being fully translated to {target_lang}.
 
 **What to Ignore**
 - Do **not** penalize:

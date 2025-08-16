@@ -1,268 +1,413 @@
-<h1 align="center">
+<div align="center">
   <img src="src/gui/icons/app.png" width="150" height="150" alt="App Icon" />
-</h1>
+  <h1>Novel Manager</h1>
+  <p>
+    <b>A comprehensive desktop application for managing, processing, and translating novels and text documents.</b>
+  </p>
+  <p>
+    <i><a href="README_ES.es">README in Spanish</a>.</i>
+  </p>
+</div>
 
-# Novel Translator
+A complete desktop application to manage, process, and translate novels and text documents. Designed specifically to handle large literary projects with support for multiple AI providers, advanced chapter management, ebook creation, and EPUB importation.
 
-Una aplicación de escritorio para gestionar, procesar y traducir novelas y documentos de texto, con funcionalidades específicas para el manejo de capítulos, creación de ebooks e importación de EPUBs.
+## Features
 
-## Características
+### File Management
+- Intuitive graphical interface for file navigation and organization.
+- **EPUB file import:** Converts existing EPUBs to text files for editing.
+- **Automatic update:** "Update" button to synchronize the file list.
+- Preview and quick access to documents.
+- Support for text files (.txt).
+- File status tracking system with identifying colors.
+- **Metadata management:** Automatically saves and loads the project's title, author, and description.
+- **Recent folders:** History system of visited directories for quick access.
 
-### Gestión de Archivos
-- Interfaz gráfica intuitiva para navegación y organización de archivos
-- **Importación de archivos EPUB:** Convierte EPUBs existentes a archivos de texto para edición
-- **Actualización automática:** Botón "Actualizar" para sincronizar la lista de archivos
-- Vista previa y acceso rápido a documentos
-- Soporte para archivos de texto (.txt)
-- Sistema de seguimiento del estado de los archivos con colores identificativos
-- **Gestión de metadatos:** Guarda y carga automáticamente título y autor del proyecto
+### EPUB Import
+- Automatic conversion of EPUB files to text files (.txt).
+- Smart extraction of chapters and content.
+- Preservation of the original narrative structure.
+- Automatic creation of an organized directory.
+- Validation of EPUB files before import.
+- **Configurable import options:**
+  - Add automatic numbering to content.
+  - Insert chapter titles into the content.
 
-### Importación de EPUB
-- Conversión automática de archivos EPUB a archivos de texto (.txt)
-- Extracción inteligente de capítulos y contenido
-- Preservación de la estructura narrativa original
-- Creación automática de directorio organizado
-- Validación de archivos EPUB antes de la importación
+### Advanced Automatic Translation
+![Translation](assets/translate.webp)
 
-### Traducción Automática
-![Traducción](assets/translate.webp)
-
-- Integración con APIs de traducción:
-  - Google Gemini (Flash 2.0, Flash 2.0 Lite, Flash 2.0 Exp)
-  - Together AI (Qwen3-235B, Llama 3.3 70B)
-  - DeepInfra (Sao10K L3.3-70B-Euryale, Gemma 3 27B)
+- **Multiple integrated AI providers:**
+  - Google Gemini (Flash 2.5 Lite)
+  - Chutes AI (Mistral Small 3.2, Skyfall V2)
+  - Together AI (Llama 3.3 70B)
+  - DeepInfra (Sao10K L3.3-70B-Euryale, Qwen 3 A3B)
   - OpenAI (GPT-4.1 Nano)
-- Soporte para múltiples idiomas:
-  - Español (Neutro)
-  - Inglés
-  - Francés
-  - Alemán
-  - Italiano
-- Funciones avanzadas:
-  - Control de rango de capítulos
-  - **Comprobación automática de calidad de traducción**
-  - Sistema de pausas automáticas entre traducciones
-  - Base de datos para registro de traducciones y términos personalizados
-  - **Segmentación inteligente de texto** para optimizar traducciones largas
-  - Gestión de errores y recuperación
-  - **Traducción individual por capítulo** desde la tabla principal
+- **Multilingual support:**
+  - Spanish (Mexico) with contextual translation.
+  - English
+  - Automatic language detection.
+- **Advanced translation features:**
+  - **Granular control of chapter range** (individual or in batches).
+  - **Automatic quality check** with a retry system.
+  - **Automatic refinement** to improve the quality of the translated text.
+  - **Intelligent text segmentation** that respects sentences and paragraphs.
+  - Automatic pause system between translations to avoid API limits.
+  - Integrated database to avoid re-translations.
+  - **Custom terms per project** with automatic persistence.
+  - Individual translation per chapter from the main interface.
+  - Detailed logging system for monitoring translations.
 
-**Pestaña Traducir:** Permite traducir archivos de texto utilizando APIs de traducción, con soporte para segmentación y revisión de la traducción.
+**Translate Tab:** Allows translating text files using translation APIs, with support for segmentation, revision, and refinement of the translation.
 
-*   **API Key:** Ingresa la clave de la API del proveedor de traducción (se carga automáticamente desde .env).
-*   **Proveedor:** Selecciona el proveedor de la API de traducción.
-*   **Modelo:** Elige el modelo de traducción específico del proveedor seleccionado.
-*   **Idioma Origen:** Selecciona el idioma original del texto a traducir.
-*   **Idioma Destino:** Define el idioma al que se traducirá el texto.
-*   **Segmentar texto:** Opción para dividir el texto en segmentos más pequeños para optimizar la traducción.
-*   **Habilitar comprobación de traducción:** Activa/desactiva la verificación automática de calidad.
-*   **Términos Personalizados:** Ingresa términos específicos con su traducción para garantizar coherencia (se guardan automáticamente).
-*   **Rango de Capítulos:** Define el rango de capítulos a traducir (desde - hasta).
-*   **Traducir:** Inicia el proceso de traducción por lotes.
-*   **Detener:** Interrumpe el proceso en curso.
+*   **API Key:** Enter the API key of the translation provider (loaded automatically from .env).
+*   **Provider:** Select the translation API provider.
+*   **Model:** Choose the specific translation model of the selected provider.
+*   **Source Language:** Select the original language of the text to be translated.
+*   **Target Language:** Define the language to which the text will be translated.
+*   **Segment text:** Option to divide the text into smaller segments to optimize translation.
+*   **Check translation:** Enables/disables automatic quality verification after translation.
+*   **Refine translation:** Enables/disables automatic refinement to improve the quality of the initial translation.
+*   **Custom Terms:** Enter specific terms with their translation to ensure consistency (saved automatically).
+*   **Chapter Range:** Define the range of chapters to translate (from - to).
+*   **Translate:** Starts the batch translation process.
+*   **Stop:** Interrupts the ongoing process.
 
-### Limpieza de Archivos
-![Limpieza](assets/clean.webp)
+### File Cleaning
+![Cleaning](assets/clean.webp)
 
-#### Modos de Limpieza
-1. **Eliminar contenido después de texto específico**
-   - Elimina todo el contenido del archivo a partir de un texto indicado
-   - Útil para eliminar anuncios, notas, enlaces
+#### Cleaning Modes
+1. **Delete content after specific text**
+   - Deletes all file content from a specified text.
+   - Useful for removing ads, notes, links.
 
-2. **Eliminar duplicados**
-   - Elimina secciones duplicadas que comienzan en un texto marcado
+2. **Delete duplicates**
+   - Deletes duplicate sections that start with a marked text.
 
-3. **Eliminar línea específica**
-   - Elimina líneas que empiezan con un texto determinado
+3. **Delete specific line**
+   - Deletes lines that start with a certain text.
 
-4. **Eliminar líneas en blanco múltiples**
-   - Normaliza el espaciado eliminando líneas en blanco consecutivas
+4. **Delete multiple blank lines**
+   - Normalizes spacing by removing consecutive blank lines.
 
-5. **Buscar y reemplazar texto**
-   - Reemplaza todas las ocurrencias de un texto por otro
+5. **Find and replace text**
+   - Replaces all occurrences of a text with another.
 
-#### Control de Rango
-- Procesamiento selectivo por rango de capítulos (todos o de - a)
+#### Range Control
+- Selective processing by chapter range (all or from - to).
 
-#### Características adicionales
-- Vista previa antes de aplicar cambios
-- Procesamiento por lotes
-- Respaldo automático de archivos originales
-- Sistema de recuperación ante errores
-- Registro de operaciones
+#### Additional Features
+- Preview before applying changes.
+- Batch processing.
+- Automatic backup of original files.
+- Error recovery system.
+- Operation logging.
 
-### Creación de EPUB
+### Ebook EPUB Creation
 ![epub](assets/ebook.webp)
-- Conversión de archivos de texto a EPUB
-- **Gestión inteligente de metadatos:** Guardado y carga automática de título y autor
-- Soporte para imágenes de portada con detección automática
-- Numeración automática de capítulos
-- Estilos CSS predefinidos y optimizados
-- **Preservación de metadatos entre sesiones**
+- **Professional conversion from TXT to EPUB** with a literary structure.
+- **Advanced metadata management:**
+  - Automatic saving and loading of title, author, and description.
+  - Persistence between work sessions.
+  - Synchronization with a local database.
+- **Intelligent cover detection:**
+  - Automatic search for files (cover.jpg, portada.png, etc.).
+  - Support for multiple image formats.
+  - Alternative manual selection.
+- **Literary organization:**
+  - Automatic chapter numbering.
+  - Optimized navigation structure.
+  - Professional and responsive CSS styles.
+- **Complete metadata handling** with automatic backup.
 
-**Pestaña Ebook:** Facilita la creación de EPUBs a partir de los archivos de texto.
+**Ebook Tab:** Facilitates the creation of EPUBs from text files.
 
-*   **Título:** Introduce el título del libro (se guarda automáticamente por proyecto).
-*   **Autor:** Ingresa el nombre del autor (se guarda automáticamente por proyecto).
-*   **Guardar Metadatos:** Botón para guardar manualmente título y autor del proyecto actual.
-*   **Portada:**
-    - Seleccionar imagen manualmente
-    - Detección automática de portadas (cover.jpg, portada.png, etc.)
-    - Limpiar portada seleccionada
-*   **Rango de Capítulos:** Con opción de incluir todos los capítulos o definir uno específico (desde-hasta).
-*   **Crear EPUB:** Inicia la generación del EPUB con las configuraciones proporcionadas.
+*   **Title:** Enter the book title (saved automatically per project).
+*   **Author:** Enter the author's name (saved automatically per project).
+*   **Description:** Enter the book's description or synopsis (saved automatically per project).
+*   **Save Metadata:** Button to manually save the title, author, and description of the current project.
+*   **Cover:**
+    - Select image manually.
+    - Automatic detection of covers (cover.jpg, portada.png, etc.).
+    - Clear selected cover.
+*   **Chapter Range:** With the option to include all chapters or define a specific one (from-to).
+*   **Create EPUB:** Starts the EPUB generation with the provided settings.
 
-## Requisitos
+## System Requirements
 
-### Dependencias
-```bash
-pip install PyQt6 beautifulsoup4 pypub3 requests python-dotenv Pillow
-```
+### Project Dependencies
+`bash
+pip install PyQt6>=6.0.0 beautifulsoup4>=4.12.0 pypub3>=2.0.8 requests>=2.28.0 python-dotenv>=1.0.0 Pillow>=10.0.0
+`
 
-### Sistemas Operativos
-- Windows
-- Linux (KDE, GNOME)
-- macOS
+## Installation
 
-## Instalación
-
-1. Clona el repositorio:
-```bash
-git clone https://github.com/usuario/novel-manager.git
+1. Clone the repository:
+`bash
+git clone https://github.com/Misael-Ponce/novel-manager.git
 cd novel-manager
-```
+`
 
-2. Crea el entorno virtual:
-```bash
+2. Create the virtual environment:
+`bash
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
-```
+`
 
-3. Instala las dependencias:
-```bash
+3. Install the dependencies:
+`bash
 pip install -r requirements.txt
-```
+`
 
-## Configuración
+## Initial Setup
 
-Añade tus claves API en el archivo `.env` en la raíz del proyecto:
-```env
-GEMINI_API_KEY=tu_clave_google_gemini
-TOGETHER_API_KEY=tu_clave_together_ai
-DEEPINFRA_API_KEY=tu_clave_deepinfra
-OPENAI_API_KEY=tu_clave_openai
-```
+### API Key Configuration
+Create a `.env` file in the project root with your API keys:
+`env
+# Google Gemini
+GEMINI_API_KEY=your_google_gemini_key
 
-## Uso
+# Chutes AI
+CHUTES_API_KEY=your_chutes_ai_key
 
-### Iniciar la aplicación
-```bash
+# Together AI
+TOGETHER_API_KEY=your_together_ai_key
+
+# DeepInfra
+DEEPINFRA_API_KEY=your_deepinfra_key
+
+# OpenAI
+OPENAI_API_KEY=your_openai_key
+`
+
+### Application Configuration
+The application uses JSON configuration files to customize its behavior:
+
+- **[`src/config/config.json`](src/config/config.json)**: Main configuration (provider, model, languages, initial directory).
+- **[`src/config/models/translation_models.json`](src/config/models/translation_models.json)**: Available models per provider.
+- **[`src/config/languages.json`](src/config/languages.json)**: Language mapping for translation.
+
+### Advanced Configuration
+You can customize:
+- Default translation provider and model.
+- Source and target languages.
+- Initial working directory.
+- Segmentation size for long translations.
+- User interface behavior.
+
+## Usage
+
+### Starting the Application
+`bash
 python main.py
-```
+`
 
-### Flujo de trabajo básico
+### Recommended Workflow
 
-1. **Seleccionar o Importar Contenido**
-   - **Navegar:** Usa el botón "Navegar" para escoger una carpeta con archivos `.txt`.
-   - **Importar EPUB:** Usa "Importar EPUB" para convertir un archivo EPUB existente a archivos de texto editables.
-   - Los archivos se cargarán automáticamente, mostrando su estado con colores identificativos.
+#### 1. **Initial Setup**
+- Configure your API keys in the `.env` file.
+- Adjust the translation settings in **Settings > Configuration**.
+- Select your preferred working directory.
 
-2. **Gestión de Archivos**
-   - **Actualizar:** Usa el botón "Actualizar" si modificas archivos manualmente fuera de la aplicación.
-   - **Abrir:** Haz clic en "Abrir" en cualquier fila para ver el contenido del capítulo.
-   - **Traducir individual:** Usa el botón "Traducir" de cada fila para traducir capítulos específicos.
+#### 2. **Content Import**
+**Option A: Import from EPUB**
+- Click on "Import EPUB" and select your file.
+- Choose import options (numbering, chapter titles).
+- The application will automatically create an organized structure.
 
-3. **Limpiar Archivos**
-   - En la pestaña "Limpiar", selecciona modo y rango.
-   - Ajusta opciones específicas según el tipo de limpieza.
-   - Presiona "Limpiar" para aplicar cambios.
+**Option B: Use existing files**
+- Click on "Open" and select a folder with `.txt` files.
+- The application will automatically detect and organize the chapters.
 
-4. **Traducir**
-   - En la pestaña "Traducir", las API keys se cargan automáticamente.
-   - Configura proveedor, modelo, idiomas origen y destino.
-   - Define rango de capítulos y términos personalizados.
-   - Habilita/deshabilita la comprobación automática de calidad.
-   - Usa segmentación para textos largos.
-   - Presiona "Traducir" para procesar por lotes o usa los botones individuales en la tabla.
+#### 3. **Project Management**
+- **Update:** Synchronize manual changes in the files.
+- **Open:** Access the full content of any chapter.
+- **Visual status:** Colors indicate completed translations (green), errors (red), or pending (black).
+- **Individual translation:** Translate specific chapters without affecting others.
+- **Recent folders:** Quickly access recent projects using the "Recent folders" button.
 
-5. **Crear EPUB**
-   - En la pestaña "Ebook", los metadatos se cargan automáticamente si existen.
-   - Ingresa o modifica título y autor.
-   - Usa "Guardar Metadatos" para preservar la información del proyecto.
-   - La portada se detecta automáticamente o se puede seleccionar manualmente.
-   - Define el rango de capítulos o selecciona todos.
-   - Presiona "Crear EPUB" para generar el libro electrónico.
+#### 4. **Advanced Processing**
+**Text Cleaning:**
+- Delete content after specific text.
+- Remove duplicates and unwanted lines.
+- Bulk find and replace text.
+- Normalize spaces and line breaks.
 
-### Características Avanzadas
+**Professional Translation:**
+- Configure AI provider and model.
+- Define custom terms per project.
+- Activate segmentation for long texts.
+- Enable quality check and refinement.
+- Monitor progress with detailed logging.
 
-#### Base de Datos Integrada
-- **Registro de traducciones:** Evita retraducir archivos ya procesados.
-- **Términos personalizados:** Se guardan automáticamente por proyecto.
-- **Metadatos del libro:** Título y autor se preservan entre sesiones.
-- **Respaldo JSON:** Sistema de recuperación si SQLite falla.
+#### 5. **Ebook Generation**
+- **Smart metadata:** Title, author, and description are saved automatically.
+- **Automatic cover:** Detection of cover images in multiple formats.
+- **Professional structure:** Optimized navigation and responsive CSS styles.
+- **Ready export:** Compatible with most e-readers.
 
-#### Estados de Archivos
-- **Sin procesar:** Archivos nuevos o no traducidos (texto negro).
-- **Traducido:** Archivos procesados exitosamente (texto verde).
-- **Error:** Archivos con problemas en el procesamiento (texto rojo).
+### Advanced Technical Features
 
-#### Funciones de Productividad
-- **Detección automática de portadas:** Busca archivos como cover.jpg, portada.png automáticamente.
-- **Carga automática de API keys:** Las claves se cargan desde el archivo .env según el proveedor.
-- **Segmentación inteligente:** Divide textos largos respetando oraciones y párrafos.
-- **Comprobación de calidad:** Verifica automáticamente la calidad de las traducciones.
-- **Actualización de listas:** Sincroniza la interfaz con cambios manuales en archivos.
+#### Hybrid Database System
+- **Main SQLite:** Efficient storage of translations, custom terms, and metadata.
+- **Automatic JSON backup:** Recovery system for database failures.
+- **Transactional management:** Atomic operations for data integrity.
+- **Optimized indexing:** Quick search for files and translations.
 
-## Estructura del Proyecto
+#### Smart State Management
+- **Real-time color system:**
+  - 🔴 **Error:** Problems in processing.
+  - 🟢 **Translated:** Process completed successfully.
+  - ⚫ **Pending:** Unprocessed or queued.
+- **Automatic backup:** Persistence of states between sessions.
+- **Change detection:** Synchronization with external modifications.
 
-```
+#### Performance Optimization
+- **Asynchronous processing:** Background translations without blocking the interface.
+- **Intelligent segmentation:** Algorithm that respects narrative structure when splitting long texts.
+- **Memory management:** Optimized for large files (100+ chapters).
+- **Translation cache:** Avoids unnecessary re-translations.
+
+#### Logging and Monitoring System
+- **Detailed session logging:** All operations recorded with timestamps.
+- **API monitoring:** Tracking of token consumption and rate limits.
+- **Error diagnosis:** Complete information for troubleshooting.
+- **Log export:** Structured files for later analysis.
+
+## Project Architecture
+
+`
 novel-manager/
 │
-├── src/
-│   ├── gui/
-│   │   ├── clean.py           # Interfaz de limpieza
-│   │   ├── create.py          # Interfaz creación EPUB (con gestión de metadatos)
-│   │   ├── translate.py       # Interfaz traducción (con validación y segmentación)
-│   │   └── icons/             # Iconos de la aplicación
+├── 📁 src/
+│   ├── 📁 gui/                          # User Interface
+│   │   ├── 📄 clean.py                  # File cleaning panel
+│   │   ├── 📄 create.py                 # EPUB creation panel
+│   │   ├── 📄 translate.py              # Advanced translation panel
+│   │   ├── 📄 settings_gui.py           # Configuration dialog
+│   │   └── 📁 icons/                    # Application visual resources
 │   │
-│   └── logic/
-│       ├── cleaner.py         # Lógica de limpieza de archivos
-│       ├── creator.py         # Lógica de creación EPUB
-│       ├── database.py        # Sistema de base de datos (SQLite + JSON backup)
-│       ├── epub_importer.py   # Importador de archivos EPUB
-│       ├── functions.py       # Funciones auxiliares y validaciones
-│       ├── get_path.py        # Selección de directorio multiplataforma
-│       ├── loader.py          # Carga de archivos y metadatos
-│       ├── prompt_base.txt    # Plantilla de prompts para traducción
-│       ├── prompt_check.txt   # Plantilla para verificación de traducciones
-│       ├── translation_manager.py # Gestión de traducciones por lotes
-│       ├── translation_models.json # Configuración de APIs y modelos
-│       ├── translator.py      # Lógica principal de traducción
-│       └── translator_req.py  # Manejador de requests a APIs
+│   ├── 📁 logic/                        # Business Logic
+│   │   ├── 📄 cleaner.py                # Text processing
+│   │   ├── 📄 creator.py                # EPUB generation
+│   │   ├── 📄 database.py               # Hybrid database management
+│   │   ├── 📄 epub_importer.py          # EPUB import
+│   │   ├── 📄 functions.py              # Utilities and validations
+│   │   ├── 📄 get_path.py               # Directory selection
+│   │   ├── 📄 loader.py                 # File and metadata loading
+│   │   ├── 📄 session_logger.py         # Logging system
+│   │   ├── 📄 translation_manager.py    # Translation management
+│   │   ├── 📄 translator.py             # Translation engine
+│   │   └── 📄 translator_req.py         # API communication
+│   │
+│   ├── 📁 config/                       # Configuration
+│   │   ├── 📄 config.json               # Main configuration
+│   │   ├── 📄 languages.json            # Language mapping
+│   │   ├── 📁 models/
+│   │   │   └── 📄 translation_models.json # Available AI models
+│   │   └── 📁 prompts/
+│   │       ├── 📄 translation.txt       # Translation template
+│   │       ├── 📄 check.txt             # Verification template
+│   │       └── 📄 refine.txt            # Refinement template
+│   │
+│   └── 📁 resources/                    # Additional resources
+│       └── 📄 preset_terms.json         # Predefined terms
 │
-├── .env                       # Variables de entorno (API keys)
-├── main.py                    # Entrada principal de la aplicación
-├── requirements.txt           # Dependencias del proyecto
-└── README.md                  # Documentación completa
-```
+├── 📄 .env                              # Environment variables (API keys)
+├── 📄 .env.example                      # Environment variable template
+├── 📄 main.py                           # Main entry point
+├── 📄 requirements.txt                  # Project dependencies
+├── 📄 install.sh                        # Installation script
+├── 📄 run_nv.sh                         # Execution script
+└── 📄 README.md                         # Complete documentation
+`
 
-## Funciones Adicionales
+### Main Components
 
-### Importación de EPUB
-- **Validación previa:** Verifica la integridad del archivo EPUB antes de importar.
-- **Extracción de contenido:** Convierte capítulos a archivos .txt numerados secuencialmente.
-- **Preservación de estructura:** Mantiene la organización narrativa original.
-- **Creación de directorio:** Genera automáticamente una carpeta organizada para el proyecto.
+#### 🎯 User Interface (GUI)
+- **PyQt6:** Modern framework for desktop applications.
+- **Automatic theme detection:** Support for light/dark system themes.
+- **Responsive interface:** Design adaptable to different screen sizes.
+- **Themed icons:** Icon system that adapts to the system theme.
 
-### Sistema de Actualización
-- **Sincronización automática:** El botón "Actualizar" detecta cambios manuales en archivos.
-- **Preservación de estados:** Mantiene información de traducciones y metadatos al actualizar.
-- **Detección de archivos eliminados:** Actualiza la tabla eliminando referencias a archivos inexistentes.
-- **Reajuste de rangos:** Los números de capítulo se mantienen consistentes tras los cambios.
+#### ⚙️ Translation Engine
+- **Multi-provider:** Support for multiple AI APIs.
+- **Intelligent segmentation:** Advanced algorithm that preserves narrative structure.
+- **Quality system:** Automatic checking and refinement.
+- **Error management:** Robust system with retries and logging.
 
-### Gestión de Metadatos Inteligente
-- **Carga automática:** Los metadatos se cargan automáticamente al abrir un proyecto.
-- **Guardado persistente:** Título y autor se preservan en la base de datos local.
-- **Sincronización entre pestañas:** Los metadatos son consistentes en toda la aplicación.
-- **Respaldo múltiple:** Información guardada tanto en SQLite como en JSON.
+#### 💾 Data Management
+- **Hybrid database:** SQLite + automatic JSON backup.
+- **Persistence:** All data is saved automatically.
+- **Integrity:** Transaction system for critical data.
+- **Performance:** Optimized indexing for large data volumes.
+
+#### 🔌 API Integration
+- **Modular abstraction:** Design that facilitates adding new providers.
+- **Rate limit handling:** Automatic control of requests.
+- **Consumption monitoring:** Tracking of tokens and costs.
+- **Fallback system:** Handling of network and API errors.
+
+## Additional Features
+
+### 🚀 Highlighted Functionalities
+
+#### 📂 Recent Folders System
+- **Automatic history:** The application automatically saves the last 10 visited directories.
+- **Quick access:** "Recent folders" button in the main interface to browse previous projects.
+- **Intuitive management:**
+  - Display of folder names with tooltips showing full paths.
+  - Delete button (×) to remove specific folders from history.
+  - Automatic update when selecting a recent folder.
+- **Persistence:** Recent folders are saved in `src/config/recents.json` between sessions.
+- **Functionality:** When selecting a recent folder, the application automatically loads it as the current working directory.
+
+#### 📚 Advanced EPUB Import System
+- **Comprehensive validation:** Verifies structure and content before importing.
+- **Intelligent extraction:** Converts chapters to sequentially numbered .txt files.
+- **Narrative preservation:** Maintains original structure and organization.
+- **Automatic metadata:** Extracts title, author, and description from the original EPUB.
+- **Intelligent cover:** Automatic detection of cover images.
+
+#### 🔄 Intelligent Synchronization System
+- **Real-time change detection:** Monitors external modifications.
+- **Complete preservation:** Maintains states, translations, and metadata.
+- **Dynamic management:** Detects new, deleted, or modified files.
+- **Automatic readjustment:** Maintains consistency in numbering and states.
+
+#### 📊 Advanced Metadata Management
+- **Multi-level system:** Title, author, description with full persistence.
+- **Global synchronization:** Consistent metadata throughout the application.
+- **Import/export:** Compatibility with EPUB standards.
+- **Change history:** Tracking of metadata modifications.
+
+#### ⚡ High-Performance Translation System
+- **Multi-provider engine:** Support for multiple AI APIs simultaneously.
+- **Narrative segmentation:** Advanced algorithm that respects story structure.
+- **3-level quality system:**
+  1. **Initial translation** with optimized prompts.
+  2. **Automatic refinement** to improve quality.
+  3. **Final verification** with cross-validation.
+- **Intelligent resource management:**
+  - Automatic rate limit control.
+  - Retry system with exponential backoff.
+  - Token consumption monitoring.
+  - Strategic pauses between requests.
+
+#### 🔧 Flexible Configuration System
+- **Per-project configuration:** Each project can have its own configuration.
+- **Predefined templates:** Optimized settings for different text types.
+- **Hot-swapping:** Configuration changes without restarting the application.
+- **Automatic backup:** All settings are saved automatically.
+
+#### 📈 Monitoring and Diagnosis System
+- **Structured logging:** Detailed recording of all operations.
+- **Performance metrics:** Processing times, resource consumption.
+- **Automatic diagnosis:** Detection and reporting of common problems.
+- **Report export:** Generation of detailed reports for analysis.
+
+#### 🛡️ Backup and Recovery System
+- **Hybrid database:** SQLite + automatic JSON backup.
+- **Recovery points:** Checkpoint system for long operations.
+- **Failure recovery:** Automatic recovery mechanisms for errors.
+-- **Data integrity:** Automatic verification and repair of corrupt data.

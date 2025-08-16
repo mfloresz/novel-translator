@@ -68,6 +68,7 @@ class EpubConverterLogic(QObject):
             data (dict): Diccionario con los datos del libro
                 - title: Título del libro
                 - author: Autor del libro
+                - description: Descripción del libro
                 - cover_path: Ruta a la imagen de portada
                 - start_chapter: Número de capítulo inicial (o None para todos)
                 - end_chapter: Número de capítulo final (o None para todos)
@@ -110,7 +111,7 @@ class EpubConverterLogic(QObject):
 
             # Crear página de título como primer capítulo
             self.progress_updated.emit("Creando página de título...")
-            titlepage_html = self._create_titlepage_html(data['title'], data['author'])
+            titlepage_html = self._create_titlepage_html(data['title'], data['author'], data.get('description', ''))
             title_chapter = pypub.create_chapter_from_html(titlepage_html.encode('utf-8'), title="Título")
             epub.add_chapter(title_chapter)
 
@@ -140,8 +141,6 @@ class EpubConverterLogic(QObject):
         except Exception as e:
             error_message = f"Error al crear EPUB: {str(e)}"
             self.conversion_finished.emit(False, error_message)
-
-
 
     def _extract_chapter_title(self, file_info):
         """Extrae el título del capítulo del archivo"""
@@ -187,31 +186,24 @@ class EpubConverterLogic(QObject):
             html_tag.append(head_tag)
 
             body_tag = soup.new_tag('body')
-            # h1_tag = soup.new_tag('h1')
-            #3h1_tag.string = chapter_title
-            # body_tag.append(h1_tag)
 
             # Separar párrafos por dobles saltos de línea y agregar <p>
             paragraphs = [p.strip() for p in chapter_content.split('\n\n') if p.strip()]
-            for p in paragraphs:
-                formatted_content = self._format_text(p)
+            for paragraph_text in paragraphs:
+                # Procesar cada línea del párrafo
+                lines_in_paragraph = [line.strip() for line in paragraph_text.split('\n') if line.strip()]
+                formatted_text = ' '.join(lines_in_paragraph)
+
+                # Aplicar formato de texto (negritas, cursivas)
+                formatted_text = self._format_text(formatted_text)
+
+                # Crear párrafo HTML
                 p_tag = soup.new_tag('p')
-                # Manejar contenido con HTML de manera simple
-                if '<em>' in formatted_content:
-                    # Dividir por etiquetas <em> y procesarlas
-                    parts = re.split(r'(<em>.*?</em>)', formatted_content)
-                    for part in parts:
-                        if part.startswith('<em>') and part.endswith('</em>'):
-                            # Crear etiqueta em
-                            em_tag = soup.new_tag('em')
-                            em_tag.string = part[4:-5]  # Extraer contenido entre <em> y </em>
-                            p_tag.append(em_tag)
-                        elif part:
-                            # Agregar texto plano
-                            p_tag.append(part)
-                else:
-                    # Solo texto plano
-                    p_tag.string = formatted_content
+
+                # Usar BeautifulSoup para parsear el HTML formateado
+                formatted_soup = BeautifulSoup(formatted_text, 'html.parser')
+                p_tag.extend(formatted_soup.contents)
+
                 body_tag.append(p_tag)
 
             html_tag.append(body_tag)
@@ -220,7 +212,6 @@ class EpubConverterLogic(QObject):
             return str(soup)
 
         except Exception as e:
-            self.progress_updated.emit(f"Error al procesar capítulo {file_info['name']}: {str(e)}")
             return None
 
     def _clean_chapter_title(self, title):
@@ -234,16 +225,18 @@ class EpubConverterLogic(QObject):
         return title
 
     def _format_text(self, text):
-        """Convierte formato de texto simple a HTML"""
-        # Convertir *texto* a cursiva <em>texto</em>
-        # Usar un patrón que capture texto entre asteriscos que no contenga asteriscos
-        formatted_text = re.sub(r'\*([^*]+)\*', r'<em>\1</em>', text)
+        """Convierte formato de texto simple a HTML sin solapamientos"""
+        def repl(m):
+            inner = m.group(2) or m.group(4) or m.group(6)
+            if m.group(1):          # dos asteriscos → negritas
+                return f'<strong>{inner}</strong>'
+            else:                   # un asterisco o guion bajo → cursivas
+                return f'<em>{inner}</em>'
+        
+        pattern = re.compile(r'(\*\*)([^*]+)\*\*|(\*)([^*]+)\*|(_)([^_]+)_')
+        return pattern.sub(repl, text)
 
-
-
-        return formatted_text
-
-    def _create_titlepage_html(self, title, author):
+    def _create_titlepage_html(self, title, author, description=""):
         """Crea HTML para la página de título"""
         soup = BeautifulSoup('', 'html.parser')
         html_tag = soup.new_tag('html')
@@ -270,6 +263,27 @@ class EpubConverterLogic(QObject):
         p_author = soup.new_tag('p')
         p_author.string = f"por {author}"
         div_titlepage.append(p_author)
+
+        # Agregar descripción si está disponible
+        if description.strip():
+            # Separar párrafos por dobles saltos de línea
+            paragraphs = [p.strip() for p in description.split('\n\n') if p.strip()]
+            for paragraph_text in paragraphs:
+                # Procesar cada línea del párrafo
+                lines_in_paragraph = [line.strip() for line in paragraph_text.split('\n') if line.strip()]
+                formatted_text = ' '.join(lines_in_paragraph)
+
+                # Aplicar formato de texto (negritas, cursivas)
+                formatted_text = self._format_text(formatted_text)
+
+                # Crear párrafo HTML
+                p_description = soup.new_tag('p')
+
+                # Usar BeautifulSoup para parsear el HTML formateado
+                formatted_soup = BeautifulSoup(formatted_text, 'html.parser')
+                p_description.extend(formatted_soup.contents)
+
+                div_titlepage.append(p_description)
 
         body_tag.append(div_titlepage)
         html_tag.append(body_tag)

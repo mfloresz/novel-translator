@@ -3,6 +3,7 @@ import tempfile
 import time
 from datetime import datetime
 from typing import Optional
+import json
 
 class SessionLogger:
     """
@@ -12,7 +13,18 @@ class SessionLogger:
 
     def __init__(self):
         self.log_file_path: Optional[str] = None
+        self.models_config = self._load_models_config()
         self._create_log_file()
+
+    def _load_models_config(self) -> dict:
+        """Carga la configuración de modelos desde el archivo JSON"""
+        try:
+            models_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'models', 'translation_models.json')
+            with open(models_path, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error cargando configuración de modelos: {e}")
+            return {}
 
     def _create_log_file(self) -> None:
         """Crea el archivo de log en el directorio temporal del sistema"""
@@ -50,16 +62,20 @@ class SessionLogger:
 
     def log_api_request(self, provider: str, model: str, text_length: int) -> None:
         """Registra una petición a la API"""
-        message = f"Petición API - Proveedor: {provider}, Modelo: {model}, Longitud texto: {text_length}"
+        # Obtener nombres formateados desde la configuración
+        provider_name = self._get_provider_name(provider)
+        model_name = self._get_model_name(provider, model)
+        
+        message = f"{provider_name}: {model_name}, Longitud texto: {text_length}"
         self._write_log("API_REQUEST", message)
 
     def log_api_response(self, provider: str, success: bool, response_text: str = None, error_message: str = None) -> None:
         """Registra la respuesta de la API"""
         if success:
-            message = f"Respuesta API exitosa - Proveedor: {provider}"
+            message = "Respuesta API exitosa"
             self._write_log("API_RESPONSE", message)
         else:
-            message = f"Error en API - Proveedor: {provider}"
+            message = "Error en API"
             if error_message:
                 message += f"\nError: {error_message}"
             elif response_text:
@@ -84,6 +100,25 @@ class SessionLogger:
         result = "PASÓ" if passed else "FALLÓ"
         message = f"Comprobación {result} - Archivo: {filename}, Intento: {attempt}"
         self._write_log("CHECK_RESULT", message)
+
+    def _get_provider_name(self, provider: str) -> str:
+        """Obtiene el nombre formateado del proveedor desde la configuración"""
+        if provider in self.models_config:
+            return self.models_config[provider].get('name', provider.capitalize())
+        return provider.capitalize()
+
+    def _get_model_name(self, provider: str, model: str) -> str:
+        """Obtiene el nombre formateado del modelo desde la configuración"""
+        if provider in self.models_config and 'models' in self.models_config[provider]:
+            models = self.models_config[provider]['models']
+            # Buscar el modelo por model_id o endpoint
+            for model_key, model_config in models.items():
+                if model_config.get('model_id') == model or model_config.get('endpoint') == model:
+                    return model_config.get('name', model)
+            # Si no se encuentra por model_id o endpoint, buscar por clave
+            if model in models:
+                return models[model].get('name', model)
+        return model
 
     def _write_log(self, level: str, message: str) -> None:
         """Escribe un mensaje al archivo de log"""

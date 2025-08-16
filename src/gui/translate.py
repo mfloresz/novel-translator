@@ -7,11 +7,81 @@ from typing import Optional, Dict
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                            QPushButton, QLineEdit, QGroupBox, QComboBox,
                            QSpinBox, QFormLayout, QPlainTextEdit, QRadioButton,
-                           QCheckBox, QDialog, QMessageBox)
+                           QCheckBox, QDialog, QMessageBox, QListWidget, QListWidgetItem)
 from PyQt6.QtCore import Qt
 from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
-from src.logic.functions import show_confirmation_dialog
+from src.logic.functions import show_confirmation_dialog, load_preset_terms
+
+class PresetTermsDialog(QDialog):
+    def __init__(self, source_lang, target_lang, parent=None):
+        super().__init__(parent)
+        self.selected_term = None
+        self.source_lang = source_lang
+        self.target_lang = target_lang
+        self.init_ui()
+        self.load_preset_terms()
+
+    def init_ui(self):
+        self.setWindowTitle("Términos Predefinidos")
+        self.setModal(True)
+        self.resize(500, 400)
+
+        layout = QVBoxLayout()
+
+        # Instrucciones
+        instructions = QLabel("Seleccione un término para agregarlo al campo de términos personalizados:")
+        instructions.setWordWrap(True)
+        layout.addWidget(instructions)
+
+        # Lista de términos
+        self.terms_list = QListWidget()
+        self.terms_list.itemDoubleClicked.connect(self.on_term_double_clicked)
+        layout.addWidget(self.terms_list)
+
+        # Botones
+        buttons_layout = QHBoxLayout()
+        self.cancel_button = QPushButton("Cancelar")
+        self.add_button = QPushButton("Agregar Término")
+
+        self.cancel_button.clicked.connect(self.reject)
+        self.add_button.clicked.connect(self.add_selected_term)
+
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.cancel_button)
+        buttons_layout.addWidget(self.add_button)
+
+        layout.addLayout(buttons_layout)
+        self.setLayout(layout)
+
+    def load_preset_terms(self):
+        """Carga los términos predefinidos desde el archivo JSON específico del par de idiomas"""
+        try:
+            terms = load_preset_terms(self.source_lang, self.target_lang)
+            self.terms_list.clear()
+            for term in terms:
+                item = QListWidgetItem(term)
+                self.terms_list.addItem(item)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Error al cargar términos predefinidos: {str(e)}")
+
+    def on_term_double_clicked(self, item):
+        """Maneja el doble clic en un término"""
+        self.selected_term = item.text()
+        self.accept()
+
+    def add_selected_term(self):
+        """Agrega el término seleccionado"""
+        current_item = self.terms_list.currentItem()
+        if current_item:
+            self.selected_term = current_item.text()
+            self.accept()
+        else:
+            QMessageBox.information(self, "Información", "Por favor seleccione un término de la lista.")
+
+    def get_selected_term(self):
+        """Retorna el término seleccionado"""
+        return self.selected_term
 
 class ApiKeyConfigDialog(QDialog):
     def __init__(self, provider_name, current_api_key="", parent=None):
@@ -23,18 +93,15 @@ class ApiKeyConfigDialog(QDialog):
     def init_ui(self):
         self.setWindowTitle(f"Configurar API Key - {self.provider_name}")
         self.setModal(True)
-        self.resize(400, 200)
+        self.resize(400, 150)
 
         layout = QVBoxLayout()
 
         # Información
         info_label = QLabel(
-            f"Configurar API Key para {self.provider_name}\n\n"
-            "Esta configuración es TEMPORAL y se perderá al cerrar la aplicación.\n"
-            "Para cambios permanentes, modifique el archivo .env en la raíz del proyecto."
+            f"Esta configuración es TEMPORAL y se perderá al salir. Para cambios permanentes edite el archivo .env"
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("QLabel { color: #666; margin-bottom: 10px; }")
         layout.addWidget(info_label)
 
         # Campo API Key
@@ -69,6 +136,7 @@ class TranslatePanel(QWidget):
         super().__init__()
         self.main_window = main_window
         self.translation_manager = TranslationManager()
+        self.working_directory = None
 
         # Variable para almacenar API keys temporales
         self.temp_api_keys = {}
@@ -77,6 +145,9 @@ class TranslatePanel(QWidget):
         env_path = Path(__file__).parent.parent.parent / '.env'
         if env_path.exists():
             load_dotenv(dotenv_path=env_path)
+
+        # Cargar configuración por defecto
+        self.default_config = self._load_default_config()
 
         self.init_ui()
         self.connect_signals()
@@ -89,7 +160,7 @@ class TranslatePanel(QWidget):
         # Provider and Model selection
         provider_layout = QHBoxLayout()
         self.provider_combo = QComboBox()
-        self.config_button = QPushButton("⚙️")
+        self.config_button = QPushButton("⚙")
         self.config_button.setToolTip("Cambiar API Key")
         self.config_button.setMaximumWidth(30)
         self.config_button.clicked.connect(self.configure_api_key)
@@ -109,9 +180,15 @@ class TranslatePanel(QWidget):
         self.target_lang_combo = QComboBox()
 
         # Populate language combos
-        languages = list(self.translation_manager.get_supported_languages().keys())
-        self.source_lang_combo.addItems(languages)
-        self.target_lang_combo.addItems(languages)
+        language_mapping = self.translation_manager.get_supported_languages()
+        self.source_lang_combo.clear()
+        self.target_lang_combo.clear()
+
+        if language_mapping:
+            sorted_languages = sorted(language_mapping.items(), key=lambda x: (x[0] != 'auto', x[1]))
+            for code, name in sorted_languages:
+                self.source_lang_combo.addItem(name, userData=code)
+                self.target_lang_combo.addItem(name, userData=code)
 
         lang_layout.addWidget(QLabel("Idioma Origen:"))
         lang_layout.addWidget(self.source_lang_combo)
@@ -120,36 +197,66 @@ class TranslatePanel(QWidget):
 
         form_layout.addRow(lang_layout)
 
+        # Combined layout for segmentation and translation options
+        options_layout = QHBoxLayout()
+
         # Text segmentation options
-        segmentation_layout = QHBoxLayout()
-        self.segment_checkbox = QRadioButton("Segmentar texto (caracteres)")
+        self.segment_checkbox = QRadioButton("Segmentar texto")
+        self.segment_checkbox.setToolTip("Divide el texto en segmentos más pequeños\npara procesarlos por separado.\nÚtil para textos largos que exceden\nlos límites del modelo.")
         self.segment_size_input = QLineEdit()
         self.segment_size_input.setPlaceholderText("Caracteres por segmento")
         self.segment_size_input.setEnabled(False)
         self.segment_size_input.setText("5000")  # Valor por defecto
 
-        segmentation_layout.addWidget(self.segment_checkbox)
-        segmentation_layout.addWidget(self.segment_size_input)
-        segmentation_layout.addStretch()
+        options_layout.addWidget(self.segment_checkbox)
+        options_layout.addWidget(self.segment_size_input)
 
-        form_layout.addRow(segmentation_layout)
+        # Add separator
+        options_layout.addWidget(QLabel("Traducción:"))
 
-        # New checkbox for enabling translation check
-        self.check_translation_checkbox = QCheckBox("Habilitar comprobación de traducción")
+        # Checkbox for enabling translation check
+        self.check_translation_checkbox = QCheckBox("Comprobar")
+        self.check_translation_checkbox.setToolTip("Verifica la calidad de la traducción\ncomparando con el texto original.\nEsta opción incrementa significativamente\nel consumo de tokens.")
         self.check_translation_checkbox.setChecked(True)  # Por defecto está habilitado
 
-        form_layout.addRow(self.check_translation_checkbox)
+        # Checkbox for translation refinement
+        self.refine_translation_checkbox = QCheckBox("Refinar")
+        self.refine_translation_checkbox.setToolTip("Mejora la traducción inicial mediante\nun proceso adicional de refinamiento.\nEsta opción también incrementa\nel consumo de tokens.")
+
+        options_layout.addWidget(self.check_translation_checkbox)
+        options_layout.addWidget(self.refine_translation_checkbox)
+        options_layout.addStretch()
+
+        form_layout.addRow(options_layout)
 
         # Custom Terms section
         terms_group = QGroupBox("Términos Personalizados")
         terms_layout = QVBoxLayout()
 
-        # Instrucciones para los términos
+        # Instrucciones para los términos con botones
+        terms_header_layout = QHBoxLayout()
+
         terms_instructions = QLabel(
             "Ingrese los términos y sus traducciones (uno por línea)"
         )
         terms_instructions.setWordWrap(True)
-        terms_layout.addWidget(terms_instructions)
+        terms_header_layout.addWidget(terms_instructions)
+
+        # Botón para copiar símbolo →
+        self.copy_arrow_btn = QPushButton("→")
+        self.copy_arrow_btn.setMaximumWidth(30)
+        self.copy_arrow_btn.setToolTip("Copiar símbolo → al portapapeles")
+        self.copy_arrow_btn.clicked.connect(self.copy_arrow_symbol)
+        terms_header_layout.addWidget(self.copy_arrow_btn)
+
+        # Botón para mostrar términos predefinidos
+        self.preset_terms_btn = QPushButton("⚙")
+        self.preset_terms_btn.setMaximumWidth(30)
+        self.preset_terms_btn.setToolTip("Cargar términos predefinidos")
+        self.preset_terms_btn.clicked.connect(self.show_preset_terms)
+        terms_header_layout.addWidget(self.preset_terms_btn)
+
+        terms_layout.addLayout(terms_header_layout)
 
         # Campo para los términos personalizados
         self.terms_input = QPlainTextEdit()
@@ -202,6 +309,9 @@ class TranslatePanel(QWidget):
         # Cargar proveedores y modelos
         self.load_translation_models()
 
+        # Cargar valores por defecto de la configuración
+        self._load_default_values()
+
         # Comentar estas líneas para permitir escritura libre
         # self.start_chapter_spin.textChanged.connect(self.adjust_chapter_range)
         # self.end_chapter_spin.textChanged.connect(self.adjust_chapter_range)
@@ -209,33 +319,112 @@ class TranslatePanel(QWidget):
         # Conectar el checkbox de segmentación
         self.segment_checkbox.toggled.connect(self.segment_size_input.setEnabled)
 
+    def _load_default_config(self) -> Dict:
+        """Carga la configuración por defecto desde config.json"""
+        try:
+            config_path = Path(__file__).parent.parent / 'config' / 'config.json'
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"Error cargando configuración por defecto: {e}")
+
+        # Valores por defecto si no se puede cargar el archivo
+        return {
+            "provider": "chutes",
+            "model": "mistral-3.2",
+            "source_language": "Inglés",
+            "target_language": "Español (MX)"
+        }
+
     def load_translation_models(self):
         """Carga los proveedores y modelos desde el JSON"""
         try:
-            models_path = Path(__file__).parent.parent / 'logic' / 'translation_models.json'
+            models_path = Path(__file__).parent.parent / 'config' / 'models' / 'translation_models.json'
             with open(models_path, 'r') as f:
                 self.models_config = json.load(f)
 
             # Cargar proveedores
             self.provider_combo.clear()
-            self.provider_combo.addItems([config['name'] for config in self.models_config.values()])
+            for key, config in self.models_config.items():
+                self.provider_combo.addItem(config['name'], userData=key)
 
             # Conectar señal de cambio de proveedor
             self.provider_combo.currentTextChanged.connect(self.update_models)
 
-
-
             # Cargar modelos iniciales
             self.update_models()
-
-
 
         except Exception as e:
             print(f"Error cargando modelos: {e}")
 
+    def _load_default_values(self):
+        """Carga los valores por defecto de la configuración en los controles"""
+        try:
+            # Establecer proveedor por defecto
+            default_provider = self.default_config.get('provider', '')
+            provider_index = -1
+            for i in range(self.provider_combo.count()):
+                if self.provider_combo.itemData(i) == default_provider:
+                    provider_index = i
+                    break
+
+            if provider_index >= 0:
+                self.provider_combo.setCurrentIndex(provider_index)
+                # Actualizar modelos después de seleccionar el proveedor
+                self.update_models()
+
+                # Establecer modelo por defecto
+                default_model = self.default_config.get('model', '')
+                model_index = -1
+                for i in range(self.model_combo.count()):
+                    if self.model_combo.itemData(i) == default_model:
+                        model_index = i
+                        break
+
+                if model_index >= 0:
+                    self.model_combo.setCurrentIndex(model_index)
+
+            # Establecer idiomas por defecto
+            default_source = self.default_config.get('source_language', '')
+            source_index = -1
+            for i in range(self.source_lang_combo.count()):
+                if self.source_lang_combo.itemData(i) == default_source:
+                    source_index = i
+                    break
+
+            if source_index >= 0:
+                self.source_lang_combo.setCurrentIndex(source_index)
+
+            default_target = self.default_config.get('target_language', '')
+            target_index = -1
+            for i in range(self.target_lang_combo.count()):
+                if self.target_lang_combo.itemData(i) == default_target:
+                    target_index = i
+                    break
+
+            if target_index >= 0:
+                self.target_lang_combo.setCurrentIndex(target_index)
+
+            # Actualizar estado del botón de términos predefinidos
+            self.update_preset_terms_button_state()
+
+        except Exception as e:
+            print(f"Error cargando valores por defecto: {e}")
+
     def configure_api_key(self):
         """Abre el diálogo de configuración de API Key"""
+        provider_key = self.provider_combo.currentData()
         provider_name = self.provider_combo.currentText()
+
+        # Si por alguna razón currentData() devuelve None, buscar por nombre como fallback
+        if provider_key is None:
+            provider_key = next(
+                (k for k, v in self.models_config.items()
+                 if v['name'] == provider_name),
+                None
+            )
+
         if not provider_name:
             return
 
@@ -247,22 +436,21 @@ class TranslatePanel(QWidget):
             new_api_key = dialog.get_api_key()
             if new_api_key:
                 # Guardar API key temporal para el proveedor actual
-                provider_key = next(
-                    (k for k, v in self.models_config.items()
-                     if v['name'] == provider_name),
-                    None
-                )
                 if provider_key:
                     self.temp_api_keys[provider_key] = new_api_key
                     self.main_window.statusBar().showMessage(f"API Key configurada temporalmente para {provider_name}", 3000)
 
     def get_current_api_key(self):
         """Obtiene la API key actual (temporal o del .env)"""
-        provider_key = next(
-            (k for k, v in self.models_config.items()
-             if v['name'] == self.provider_combo.currentText()),
-            None
-        )
+        provider_key = self.provider_combo.currentData()
+
+        # Si por alguna razón currentData() devuelve None, buscar por nombre como fallback
+        if provider_key is None:
+            provider_key = next(
+                (k for k, v in self.models_config.items()
+                 if v['name'] == self.provider_combo.currentText()),
+                None
+            )
 
         if provider_key:
             # Priorizar API key temporal si existe
@@ -278,16 +466,28 @@ class TranslatePanel(QWidget):
     def update_models(self):
         """Actualiza la lista de modelos según el proveedor seleccionado"""
         try:
-            provider = next(
-                (k for k, v in self.models_config.items()
-                 if v['name'] == self.provider_combo.currentText()),
-                None
-            )
+            provider = self.provider_combo.currentData()
+
+            # Si por alguna razón currentData() devuelve None, buscar por nombre como fallback
+            if provider is None:
+                provider = next(
+                    (k for k, v in self.models_config.items()
+                     if v['name'] == self.provider_combo.currentText()),
+                    None
+                )
 
             if provider:
                 self.model_combo.clear()
-                models = self.models_config[provider]['models']
-                self.model_combo.addItems([m['name'] for m in models.values()])
+                # Encontrar la clave del proveedor
+                provider_key = next(
+                    (k for k, v in self.models_config.items()
+                     if v['name'] == self.provider_combo.currentText()),
+                    None
+                )
+                if provider_key:
+                    models = self.models_config[provider_key]['models']
+                    for key, model in models.items():
+                        self.model_combo.addItem(model['name'], userData=key)
         except Exception as e:
             print(f"Error actualizando modelos: {e}")
 
@@ -301,6 +501,24 @@ class TranslatePanel(QWidget):
         self.translation_manager.translation_completed.connect(self.handle_translation_completed)
         self.translation_manager.all_translations_completed.connect(self.handle_all_completed)
         self.translation_manager.error_occurred.connect(self.handle_error)
+
+        # Conectar cambio de idioma a la actualización del botón de términos
+        self.source_lang_combo.currentIndexChanged.connect(self.update_preset_terms_button_state)
+        self.target_lang_combo.currentIndexChanged.connect(self.update_preset_terms_button_state)
+
+    def update_preset_terms_button_state(self):
+        """
+        Habilita o deshabilita el botón de términos predefinidos basado en si
+        existen términos para el par de idiomas seleccionado.
+        """
+        source_lang = self.source_lang_combo.currentData()
+        target_lang = self.target_lang_combo.currentData()
+
+        if source_lang and target_lang:
+            terms = load_preset_terms(source_lang, target_lang)
+            self.preset_terms_btn.setEnabled(bool(terms))
+        else:
+            self.preset_terms_btn.setEnabled(False)
 
     def set_chapter_range(self, max_chapters):
         """Configura el rango máximo de capítulos"""
@@ -319,12 +537,11 @@ class TranslatePanel(QWidget):
 
     def load_saved_terms(self):
         """Carga los términos guardados cuando se selecciona un directorio"""
-        if self.main_window.current_directory:
-                # Siempre reinicializar con el nuevo directorio
-                self.translation_manager.initialize(self.main_window.current_directory)
-                saved_terms = self.translation_manager.get_custom_terms()
-                if saved_terms:
-                    self.terms_input.setPlainText(saved_terms)
+        if self.working_directory:
+            self.translation_manager.initialize(self.working_directory)
+            saved_terms = self.translation_manager.get_custom_terms()
+            if saved_terms:
+                self.terms_input.setPlainText(saved_terms)
 
     def start_translation(self):
         """Inicia el proceso de traducción"""
@@ -339,23 +556,40 @@ class TranslatePanel(QWidget):
             return
 
         # Obtener proveedor y modelo seleccionados
-        provider = next(
-            (k for k, v in self.models_config.items()
-             if v['name'] == self.provider_combo.currentText()),
-            None
-        )
-        model = next(
-            (k for k, v in self.models_config[provider]['models'].items()
-             if v['name'] == self.model_combo.currentText()),
-            None
-        )
+        provider = self.provider_combo.currentData()
 
-        # Obtener idiomas seleccionados
-        source_lang = self.source_lang_combo.currentText()
-        target_lang = self.target_lang_combo.currentText()
+        # Si por alguna razón currentData() devuelve None, buscar por nombre como fallback
+        if provider is None:
+            provider = next(
+                (k for k, v in self.models_config.items()
+                 if v['name'] == self.provider_combo.currentText()),
+                None
+            )
 
-        if source_lang == target_lang:
-            self.main_window.statusBar().showMessage("Error: Los idiomas de origen y destino no pueden ser iguales")
+        if not provider:
+            self.main_window.statusBar().showMessage("Error: Debe seleccionar un proveedor válido")
+            return
+
+        model = self.model_combo.currentData()
+
+        # Si por alguna razón currentData() devuelve None, buscar por nombre como fallback
+        if model is None:
+            model = next(
+                (k for k, v in self.models_config[provider]['models'].items()
+                 if v['name'] == self.model_combo.currentText()),
+                None
+            )
+
+        if not model:
+            self.main_window.statusBar().showMessage("Error: Debe seleccionar un modelo válido")
+            return
+
+        # Obtener idiomas seleccionados (códigos)
+        source_lang = self.source_lang_combo.currentData()
+        target_lang = self.target_lang_combo.currentData()
+
+        if not source_lang or not target_lang or source_lang == target_lang:
+            self.main_window.statusBar().showMessage("Error: Los idiomas de origen y destino deben ser diferentes y estar seleccionados")
             return
 
         # Obtener rango de capítulos
@@ -382,6 +616,9 @@ class TranslatePanel(QWidget):
 
         # Obtener estado de la comprobación
         enable_check = self.check_translation_checkbox.isChecked()
+
+        # Obtener estado del refinamiento
+        enable_refine = self.refine_translation_checkbox.isChecked()
 
         # Confirmar la operación
         if not show_confirmation_dialog(
@@ -430,7 +667,8 @@ class TranslatePanel(QWidget):
             self.update_file_status,
             custom_terms,
             segment_size,
-            enable_check   # <-- Pasar nuevo parámetro para habilitar comprobación
+            enable_check,   # <-- Pasar parámetro para habilitar comprobación
+            enable_refine   # <-- Pasar parámetro para habilitar refinamiento
         )
 
     def stop_translation(self):
@@ -471,3 +709,39 @@ class TranslatePanel(QWidget):
                     # Aplicar color usando el método de la ventana principal
                     self.main_window._apply_status_color(status_item, status)
                 break
+
+    def set_working_directory(self, directory):
+        """Establece el directorio de trabajo y recarga los términos guardados"""
+        self.working_directory = directory
+        # Recargar términos guardados cuando se cambia el directorio
+        self.load_saved_terms()
+
+    def copy_arrow_symbol(self):
+        """Copia el símbolo → al portapapeles"""
+        from PyQt6.QtWidgets import QApplication
+        clipboard = QApplication.clipboard()
+        if clipboard:
+            clipboard.setText("→")
+            self.main_window.statusBar().showMessage("Símbolo → copiado al portapapeles", 2000)
+        else:
+            self.main_window.statusBar().showMessage("Error: No se pudo acceder al portapapeles", 3000)
+
+    def show_preset_terms(self):
+        """Muestra el diálogo con términos predefinidos"""
+        source_lang = self.source_lang_combo.currentData()
+        target_lang = self.target_lang_combo.currentData()
+
+        if not source_lang or not target_lang:
+            QMessageBox.warning(self, "Error", "Seleccione los idiomas de origen y destino.")
+            return
+
+        dialog = PresetTermsDialog(source_lang, target_lang, self)
+        if dialog.exec() == dialog.DialogCode.Accepted:
+            selected_term = dialog.get_selected_term()
+            if selected_term:
+                current_text = self.terms_input.toPlainText()
+                if current_text:
+                    new_text = current_text + "\n" + selected_term
+                else:
+                    new_text = selected_term
+                self.terms_input.setPlainText(new_text)

@@ -1,0 +1,31 @@
+{
+  "gemini": {
+    "name": "Google Gemini",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
+    "models": {
+      "gemini-2.5-flash-lite": {
+        "name": "Gemini Flash 2.5 Lite",
+        "endpoint": "gemini-2.5-flash-lite:generateContent",
+        "temperature": 0.6
+      }
+    }
+  },
+  "chutes": {
+    "name": "Chutes AI",
+    "base_url": "https://llm.chutes.ai/v1/chat/completions",
+    "models": {
+      "mistral-3.2": {
+        "name": "Mistral Small 3.2",
+        "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
+        "max_tokens": 40000,
+        "temperature": 0.6
+      },
+      "mistral-3.1": {
+        "name": "Mistral Small 3.1",
+        "endpoint": "chutesai/Mistral-Small-3.1-24B-Instruct-2503",
+        "max_tokens": 40000,
+        "temperature": 0.6
+      }
+    }
+  }
+}

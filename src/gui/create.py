@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                            QPushButton, QLineEdit, QRadioButton, QGroupBox,
-                           QFormLayout)
+                           QFormLayout, QTextEdit)
 from PyQt6.QtCore import Qt, pyqtSignal
 from src.logic.functions import get_cover_image, preview_image
 from src.logic.database import TranslationDatabase
@@ -21,48 +21,70 @@ class CreateEpubPanel(QWidget):
     def init_ui(self):
         # Main layout
         main_layout = QVBoxLayout()
-        form_layout = QFormLayout()
 
-        # Metadata section
+        # Top section with metadata and cover
+        top_layout = QHBoxLayout()
+
+        # Left side - Metadata form
+        metadata_layout = QFormLayout()
+
         self.title_input = QLineEdit()
         self.title_input.setPlaceholderText("Ingrese el título del libro")
-        form_layout.addRow("Título:", self.title_input)
+        self.title_input.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        metadata_layout.addRow("Título:", self.title_input)
 
         self.author_input = QLineEdit()
         self.author_input.setPlaceholderText("Ingrese el nombre del autor")
-        form_layout.addRow("Autor:", self.author_input)
+        self.author_input.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        metadata_layout.addRow("Autor:", self.author_input)
 
-        # Cover section
-        cover_group = QGroupBox("Portada")
+        # Right side - Cover section
         cover_layout = QVBoxLayout()
 
-        # Preview label with fixed size and border
+        # Preview label with 3:4 proportion (165x220)
         self.cover_preview = QLabel()
-        self.cover_preview.setFixedSize(150, 150)
+        self.cover_preview.setFixedSize(165, 220)
         self.cover_preview.setStyleSheet("""
             QLabel {
-                border: 2px solid #cccccc;
-                background-color: #f5f5f5;
+                background-color: transparent;
                 border-radius: 5px;
             }
         """)
         self.cover_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.cover_preview.setText("Sin imagen")
 
-        # Cover buttons layout
-        cover_buttons_layout = QHBoxLayout()
+        # Cover buttons layout (vertical)
+        cover_buttons_layout = QVBoxLayout()
         self.cover_select_button = QPushButton("Seleccionar")
         self.cover_clear_button = QPushButton("Limpiar")
 
         self.cover_select_button.clicked.connect(self.select_cover)
         self.cover_clear_button.clicked.connect(self.clear_cover)
 
+        # Add buttons in vertical order: Select on top, Clear below
         cover_buttons_layout.addWidget(self.cover_select_button)
         cover_buttons_layout.addWidget(self.cover_clear_button)
 
+        # Add cover buttons to cover layout after cover preview
         cover_layout.addWidget(self.cover_preview)
         cover_layout.addLayout(cover_buttons_layout)
-        cover_group.setLayout(cover_layout)
+
+        # Add metadata and cover to top layout
+        top_layout.addLayout(metadata_layout)
+        top_layout.addLayout(cover_layout)
+
+        # Description section
+        description_layout = QVBoxLayout()
+        description_label = QLabel("Descripción:")
+        self.description_input = QTextEdit()
+        self.description_input.setPlaceholderText("Ingrese la descripción del libro")
+        # Eliminar el límite de altura para que ocupe todo el espacio disponible
+        description_layout.addWidget(description_label)
+        description_layout.addWidget(self.description_input)
+
+        # Add description to metadata layout after author
+        metadata_layout.addRow(description_label)
+        metadata_layout.addRow(self.description_input)
 
         # Range section
         range_group = QGroupBox("Rango de capítulos")
@@ -95,16 +117,16 @@ class CreateEpubPanel(QWidget):
 
         # Buttons layout
         buttons_layout = QHBoxLayout()
-        
+
         # Save metadata button
         self.save_metadata_button = QPushButton("Guardar Metadatos")
         self.save_metadata_button.clicked.connect(self.save_metadata)
         self.save_metadata_button.setEnabled(False)  # Deshabilitado hasta tener directorio
         self.save_metadata_button.setToolTip(
-            "Guarda el título y autor para este directorio de trabajo.\n"
+            "Guarda el título, autor y descripción para este directorio de trabajo.\n"
             "Se cargarán automáticamente cuando abras este directorio."
         )
-        
+
         # Create button
         self.create_button = QPushButton("Crear EPUB")
         self.create_button.clicked.connect(self.request_epub_creation)
@@ -113,8 +135,7 @@ class CreateEpubPanel(QWidget):
         buttons_layout.addWidget(self.create_button)
 
         # Add all elements to main layout
-        main_layout.addLayout(form_layout)
-        main_layout.addWidget(cover_group)
+        main_layout.addLayout(top_layout)
         main_layout.addWidget(range_group)
         main_layout.addLayout(buttons_layout)
         main_layout.addStretch()
@@ -123,7 +144,7 @@ class CreateEpubPanel(QWidget):
 
         # Inicializar estado de los inputs de rango
         self.toggle_range_inputs()
-
+        
     def select_cover(self):
         """Maneja la selección de la imagen de portada"""
         file_path, pixmap = get_cover_image(self.working_directory)
@@ -142,6 +163,14 @@ class CreateEpubPanel(QWidget):
         enable_inputs = self.range_specific.isChecked()
         self.range_from_input.setEnabled(enable_inputs)
         self.range_to_input.setEnabled(enable_inputs)
+
+    def _set_text_and_show_start(self, line_edit, text):
+        """Establece el texto en un QLineEdit y asegura que se muestre el principio del texto"""
+        line_edit.setText(text)
+        # Mover el cursor al inicio para asegurar que se muestra el principio del texto
+        line_edit.setCursorPosition(0)
+        # Desplazar el texto para mostrar el inicio
+        line_edit.home(False)
 
     def get_range(self):
         """Obtiene el rango seleccionado"""
@@ -162,6 +191,7 @@ class CreateEpubPanel(QWidget):
         data = {
             'title': self.title_input.text().strip(),
             'author': self.author_input.text().strip(),
+            'description': self.description_input.toPlainText().strip(),
             'cover_path': self.cover_path,
             'start_chapter': start_chapter,
             'end_chapter': end_chapter
@@ -170,10 +200,11 @@ class CreateEpubPanel(QWidget):
         self.epub_creation_requested.emit(data)
 
     def reset_form(self):
-        """Reinicia solo la portada y el rango, mantiene título y autor"""
-        # No limpiar título y autor - mantener los datos
+        """Reinicia solo la portada y el rango, mantiene título, autor y descripción"""
+        # No limpiar título, autor ni descripción - mantener los datos
         # self.title_input.clear()
         # self.author_input.clear()
+        # self.description_input.clear()
         self.clear_cover()
         self.range_all.setChecked(True)
         self.range_from_input.clear()
@@ -186,36 +217,39 @@ class CreateEpubPanel(QWidget):
         self.save_metadata_button.setEnabled(True)
         self.auto_load_cover()
         self.load_metadata()
-    
+
     def load_metadata(self):
         """Carga los metadatos guardados del directorio actual"""
         if not self.db:
             return
-        
+
         try:
             metadata = self.db.get_book_metadata()
             if metadata.get('title'):
-                self.title_input.setText(metadata['title'])
+                self._set_text_and_show_start(self.title_input, metadata['title'])
             if metadata.get('author'):
-                self.author_input.setText(metadata['author'])
+                self._set_text_and_show_start(self.author_input, metadata['author'])
+            if metadata.get('description'):
+                self.description_input.setPlainText(metadata['description'])
         except Exception as e:
             print(f"Error cargando metadatos: {e}")
-    
+
     def save_metadata(self):
         """Guarda manualmente los metadatos del libro"""
         if not self.db:
             return
-        
+
         title = self.title_input.text().strip()
         author = self.author_input.text().strip()
-        
-        if not title and not author:
+        description = self.description_input.toPlainText().strip()
+
+        if not title and not author and not description:
             from src.logic.functions import show_error_dialog
-            show_error_dialog("Ingrese al menos el título o el autor para guardar.")
+            show_error_dialog("Ingrese al menos el título, autor o descripción para guardar.")
             return
-        
+
         try:
-            success = self.db.save_book_metadata(title, author)
+            success = self.db.save_book_metadata(title, author, description)
             if success:
                 # Emitir señal para mostrar mensaje en barra de estado
                 self.status_message_requested.emit("Metadatos guardados exitosamente", 3000)
@@ -230,7 +264,7 @@ class CreateEpubPanel(QWidget):
         """Busca automáticamente una imagen de portada en el directorio de trabajo"""
         if not self.working_directory:
             return
-            
+
         import os
         # Patrones comunes de nombres de portada
         cover_patterns = [
@@ -241,7 +275,7 @@ class CreateEpubPanel(QWidget):
             'COVER.jpg', 'COVER.jpeg', 'COVER.png',
             'PORTADA.jpg', 'PORTADA.jpeg', 'PORTADA.png'
         ]
-        
+
         for pattern in cover_patterns:
             potential_cover = os.path.join(self.working_directory, pattern)
             if os.path.exists(potential_cover):
@@ -251,40 +285,7 @@ class CreateEpubPanel(QWidget):
                     if not pixmap.isNull():
                         self.cover_path = potential_cover
                         preview_image(pixmap, self.cover_preview)
-                        # Mostrar mensaje de confirmación
-                        self.show_auto_cover_message(os.path.basename(potential_cover))
                         break
                 except Exception:
                     continue
 
-    def show_auto_cover_message(self, filename):
-        """Muestra un mensaje temporal indicando que se encontró una portada"""
-        from PyQt6.QtWidgets import QLabel
-        from PyQt6.QtCore import QTimer
-        from PyQt6.QtGui import QFont
-        
-        # Crear etiqueta temporal
-        self.auto_cover_label = QLabel(f"✓ Portada encontrada: {filename}")
-        self.auto_cover_label.setStyleSheet("""
-            QLabel {
-                background-color: #d4edda;
-                color: #155724;
-                border: 1px solid #c3e6cb;
-                border-radius: 4px;
-                padding: 8px;
-                font-weight: bold;
-            }
-        """)
-        
-        # Añadir la etiqueta al layout principal
-        layout = self.layout()
-        layout.insertWidget(0, self.auto_cover_label)
-        
-        # Configurar timer para ocultar el mensaje después de 3 segundos
-        QTimer.singleShot(3000, self.hide_auto_cover_message)
-
-    def hide_auto_cover_message(self):
-        """Oculta el mensaje de portada encontrada"""
-        if hasattr(self, 'auto_cover_label'):
-            self.auto_cover_label.deleteLater()
-            del self.auto_cover_label
