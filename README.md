@@ -276,7 +276,7 @@ python main.py
 
 ## Project Architecture
 
-`
+```
 novel-manager/
 │
 ├── 📁 src/
@@ -320,7 +320,7 @@ novel-manager/
 ├── 📄 install.sh                        # Installation script
 ├── 📄 run_nv.sh                         # Execution script
 └── 📄 README.md                         # Complete documentation
-`
+```
 
 ### Main Components
 
