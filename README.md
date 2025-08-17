@@ -11,433 +11,143 @@
 
 A complete desktop application to manage, process, and translate novels and text documents. Designed specifically to handle large literary projects with support for multiple AI providers, advanced chapter management, ebook creation, and EPUB importation.
 
-## Features
+## Motivations
 
-### File Management
-- Intuitive graphical interface for file navigation and organization.
-- **EPUB file import:** Converts existing EPUBs to text files for editing.
-- **Automatic update:** "Update" button to synchronize the file list.
-- Preview and quick access to documents.
-- Support for text files (.txt).
-- File status tracking system with identifying colors.
-- **Metadata management:** Automatically saves and loads the project's title, author, and description.
-- **Recent folders:** History system of visited directories for quick access.
+I created this application because I have some novels that were translated to Spanish but with very poor quality. It's also useful for translating novels that don't yet have quality Spanish translations. I designed it to work alongside the LightNovel-Crawler tool (https://github.com/dipu-bd/lightnovel-crawler).
 
-### EPUB Import
-- Automatic conversion of EPUB files to text files (.txt).
-- Smart extraction of chapters and content.
-- Preservation of the original narrative structure.
-- Automatic creation of an organized directory.
-- Validation of EPUB files before import.
-- **Configurable import options:**
-  - Add automatic numbering to content.
-  - Insert chapter titles into the content.
+## Quick Start
 
-### Advanced Automatic Translation
-![Translation](assets/translate.webp)
+### Requirements
+- Python 3.8+
+- PyQt6>=6.0.0
+- See [Installation](#installation) for full dependencies
 
-- **Multiple integrated AI providers:**
-  - Google Gemini (Flash 2.5 Lite)
-  - Chutes AI (Mistral Small 3.2, Skyfall V2)
-  - Together AI (Llama 3.3 70B)
-  - DeepInfra (Sao10K L3.3-70B-Euryale, Qwen 3 A3B)
-  - OpenAI (GPT-4.1 Nano)
-- **Multilingual support:**
-  - Spanish (Mexico) with contextual translation.
-  - English
-  - Automatic language detection.
-- **Advanced translation features:**
-  - **Granular control of chapter range** (individual or in batches).
-  - **Automatic quality check** with a retry system.
-  - **Automatic refinement** to improve the quality of the translated text.
-  - **Intelligent text segmentation** that respects sentences and paragraphs.
-  - Automatic pause system between translations to avoid API limits.
-  - Integrated database to avoid re-translations.
-  - **Custom terms per project** with automatic persistence.
-  - Individual translation per chapter from the main interface.
-  - Detailed logging system for monitoring translations.
-
-**Translate Tab:** Allows translating text files using translation APIs, with support for segmentation, revision, and refinement of the translation.
-
-*   **API Key:** Enter the API key of the translation provider (loaded automatically from .env).
-*   **Provider:** Select the translation API provider.
-*   **Model:** Choose the specific translation model of the selected provider.
-*   **Source Language:** Select the original language of the text to be translated.
-*   **Target Language:** Define the language to which the text will be translated.
-*   **Segment text:** Option to divide the text into smaller segments to optimize translation.
-*   **Check translation:** Enables/disables automatic quality verification after translation.
-*   **Refine translation:** Enables/disables automatic refinement to improve the quality of the initial translation.
-*   **Custom Terms:** Enter specific terms with their translation to ensure consistency (saved automatically).
-*   **Chapter Range:** Define the range of chapters to translate (from - to).
-*   **Translate:** Starts the batch translation process.
-*   **Stop:** Interrupts the ongoing process.
-
-### File Cleaning
-![Cleaning](assets/clean.webp)
-
-#### Cleaning Modes
-1. **Delete content after specific text**
-   - Deletes all file content from a specified text.
-   - Useful for removing ads, notes, links.
-
-2. **Delete duplicates**
-   - Deletes duplicate sections that start with a marked text.
-
-3. **Delete specific line**
-   - Deletes lines that start with a certain text.
-
-4. **Delete multiple blank lines**
-   - Normalizes spacing by removing consecutive blank lines.
-
-5. **Find and replace text**
-   - Replaces all occurrences of a text with another.
-
-#### Range Control
-- Selective processing by chapter range (all or from - to).
-
-#### Additional Features
-- Preview before applying changes.
-- Batch processing.
-- Automatic backup of original files.
-- Error recovery system.
-- Operation logging.
-
-### Ebook EPUB Creation
-![epub](assets/ebook.webp)
-- **Professional conversion from TXT to EPUB** with a literary structure.
-- **Advanced metadata management:**
-  - Automatic saving and loading of title, author, and description.
-  - Persistence between work sessions.
-  - Synchronization with a local database.
-- **Intelligent cover detection:**
-  - Automatic search for files (cover.jpg, portada.png, etc.).
-  - Support for multiple image formats.
-  - Alternative manual selection.
-- **Literary organization:**
-  - Automatic chapter numbering.
-  - Optimized navigation structure.
-  - Professional and responsive CSS styles.
-- **Complete metadata handling** with automatic backup.
-
-**Ebook Tab:** Facilitates the creation of EPUBs from text files.
-
-*   **Title:** Enter the book title (saved automatically per project).
-*   **Author:** Enter the author's name (saved automatically per project).
-*   **Description:** Enter the book's description or synopsis (saved automatically per project).
-*   **Save Metadata:** Button to manually save the title, author, and description of the current project.
-*   **Cover:**
-    - Select image manually.
-    - Automatic detection of covers (cover.jpg, portada.png, etc.).
-    - Clear selected cover.
-*   **Chapter Range:** With the option to include all chapters or define a specific one (from-to).
-*   **Create EPUB:** Starts the EPUB generation with the provided settings.
-
-## System Requirements
-
-### Project Dependencies
-`bash
-pip install PyQt6>=6.0.0 beautifulsoup4>=4.12.0 pypub3>=2.0.8 requests>=2.28.0 python-dotenv>=1.0.0 Pillow>=10.0.0
-`
-
-## Installation
-
+### Installation
 1. Clone the repository:
-`bash
+```bash
 git clone https://github.com/Misael-Ponce/novel-manager.git
 cd novel-manager
-`
+```
 
-2. Create the virtual environment:
-`bash
+2. Create virtual environment:
+```bash
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
-`
+```
 
-3. Install the dependencies:
-`bash
+3. Install dependencies:
+```bash
 pip install -r requirements.txt
-`
+```
 
-## Initial Setup
+4. Configure API keys (create `.env` file from `.env.example`)
 
-### API Key Configuration
-Create a `.env` file in the project root with your API keys:
-
-### Application Configuration
-The application uses JSON configuration files to customize its behavior:
-
-- **[`src/config/config.json`](src/config/config.json)**: Main configuration (provider, model, languages, initial directory).
-- **[`src/config/models/translation_models.json`](src/config/models/translation_models.json)**: Available models per provider.
-- **[`src/config/languages.json`](src/config/languages.json)**: Language mapping for translation.
-
-### Advanced Configuration
-You can customize:
-- Default translation provider and model.
-- Source and target languages.
-- Initial working directory.
-- Segmentation size for long translations.
-- User interface behavior.
-
-## Usage
-
-### Starting the Application
-`bash
+5. Run the application:
+```bash
 python main.py
-`
+```
 
-### Recommended Workflow
+## Key Features
 
-#### 1. **Initial Setup**
-- Configure your API keys in the `.env` file.
-- Adjust the translation settings in **Settings > Configuration**.
-- Select your preferred working directory.
+### 📁 File Management
+- Intuitive graphical interface for file navigation
+- **EPUB Import**: Convert existing EPUBs to text files
+- Automatic file synchronization and preview
+- File status tracking with color indicators
+- Recent folders history for quick access
 
-#### 2. **Content Import**
-**Option A: Import from EPUB**
-- Click on "Import EPUB" and select your file.
-- Choose import options (numbering, chapter titles).
-- The application will automatically create an organized structure.
+### 🌐 Advanced Translation
+- **Multiple AI Providers**: Google Gemini, Chutes AI, Together AI, DeepInfra, OpenAI
+- **Smart Features**: Granular chapter control, automatic quality checks, refinement
+- **Custom Terms**: Project-specific terminology with persistence
+- **Intelligent Segmentation**: Respects narrative structure
+- **Database Integration**: Avoids re-translations
 
-**Option B: Use existing files**
-- Click on "Open" and select a folder with `.txt` files.
-- The application will automatically detect and organize the chapters.
+### 🧹 Text Cleaning
+- **5 Cleaning Modes**: Delete content after text, remove duplicates, delete specific lines, normalize spacing, find & replace
+- **Range Control**: Process specific chapters or all files
+- **Preview & Backup**: Preview changes before applying and automatic backup
 
-#### 3. **Project Management**
-- **Update:** Synchronize manual changes in the files.
-- **Open:** Access the full content of any chapter.
-- **Visual status:** Colors indicate completed translations (green), errors (red), or pending (black).
-- **Individual translation:** Translate specific chapters without affecting others.
-- **Recent folders:** Quickly access recent projects using the "Recent folders" button.
+### 📚 EPUB Creation
+- **Professional Conversion**: TXT to EPUB with literary structure
+- **Smart Metadata**: Automatic title, author, and description management
+- **Cover Detection**: Automatic cover image detection (cover.jpg, portada.png, etc.)
+- **Responsive Design**: Professional CSS styles optimized for e-readers
 
-#### 4. **Advanced Processing**
-**Text Cleaning:**
-- Delete content after specific text.
-- Remove duplicates and unwanted lines.
-- Bulk find and replace text.
-- Normalize spaces and line breaks.
+## Usage Guide
 
-**Professional Translation:**
-- Configure AI provider and model.
-- Define custom terms per project.
-- Activate segmentation for long texts.
-- Enable quality check and refinement.
-- Monitor progress with detailed logging.
+### Basic Workflow
+1. **Setup**: Configure API keys and translation settings
+2. **Import**: Load existing files or import from EPUB
+3. **Process**: Clean text, translate chapters, or create EPUBs
+4. **Export**: Generate professional ebooks
 
-#### 5. **Ebook Generation**
-- **Smart metadata:** Title, author, and description are saved automatically.
-- **Automatic cover:** Detection of cover images in multiple formats.
-- **Professional structure:** Optimized navigation and responsive CSS styles.
-- **Ready export:** Compatible with most e-readers.
+### Interface Overview
+- **Main Panel**: File browser with status indicators
+- **Translate Tab**: Configure and execute translations
+- **Clean Tab**: Apply text cleaning operations
+- **Ebook Tab**: Create EPUBs with metadata and covers
 
-### Advanced Technical Features
+## Configuration
 
-#### Hybrid Database System
-- **Main SQLite:** Efficient storage of translations, custom terms, and metadata.
-- **Automatic JSON backup:** Recovery system for database failures.
-- **Transactional management:** Atomic operations for data integrity.
-- **Optimized indexing:** Quick search for files and translations.
+### API Setup
+Create a `.env` file with your API keys:
+```env
+GOOGLE_GEMINI_API_KEY=your_key_here
+CHUTES_API_KEY=your_key_here
+# Add other provider keys as needed
+```
 
-#### Smart State Management
-- **Real-time color system:**
-  - 🔴 **Error:** Problems in processing.
-  - 🟢 **Translated:** Process completed successfully.
-  - ⚫ **Pending:** Unprocessed or queued.
-- **Automatic backup:** Persistence of states between sessions.
-- **Change detection:** Synchronization with external modifications.
+### Application Settings
+- **Location**: `src/config/config.json`
+- **Customizable**: Default provider, model, languages, segmentation size
+- **Persistence**: Settings saved automatically per project
 
-#### Performance Optimization
-- **Asynchronous processing:** Background translations without blocking the interface.
-- **Intelligent segmentation:** Algorithm that respects narrative structure when splitting long texts.
-- **Memory management:** Optimized for large files (100+ chapters).
-- **Translation cache:** Avoids unnecessary re-translations.
+## Advanced Features
 
-#### Logging and Monitoring System
-- **Detailed session logging:** All operations recorded with timestamps.
-- **API monitoring:** Tracking of token consumption and rate limits.
-- **Error diagnosis:** Complete information for troubleshooting.
-- **Log export:** Structured files for later analysis.
+### 🏗️ Architecture
+- **Hybrid Database**: SQLite with automatic JSON backup
+- **Asynchronous Processing**: Background translations without UI blocking
+- **Smart State Management**: Real-time status tracking with persistence
+- **Modular Design**: Easy to extend with new providers and features
 
-## Project Architecture
+### 🔧 Technical Details
+- **Performance**: Optimized for large files (100+ chapters)
+- **Error Handling**: Robust retry mechanisms and logging
+- **Resource Management**: Automatic rate limit control and monitoring
+- **Logging**: Detailed session logging with export capabilities
 
+## Project Structure
 ```
 novel-manager/
-│
-├── 📁 src/
-│   ├── 📁 gui/                          # User Interface
-│   │   ├── 📄 clean.py                  # File cleaning panel
-│   │   ├── 📄 create.py                 # EPUB creation panel
-│   │   ├── 📄 translate.py              # Advanced translation panel
-│   │   ├── 📄 settings_gui.py           # Configuration dialog
-│   │   └── 📁 icons/                    # Application visual resources
-│   │
-│   ├── 📁 logic/                        # Business Logic
-│   │   ├── 📄 cleaner.py                # Text processing
-│   │   ├── 📄 creator.py                # EPUB generation
-│   │   ├── 📄 database.py               # Hybrid database management
-│   │   ├── 📄 epub_importer.py          # EPUB import
-│   │   ├── 📄 functions.py              # Utilities and validations
-│   │   ├── 📄 get_path.py               # Directory selection
-│   │   ├── 📄 loader.py                 # File and metadata loading
-│   │   ├── 📄 session_logger.py         # Logging system
-│   │   ├── 📄 translation_manager.py    # Translation management
-│   │   ├── 📄 translator.py             # Translation engine
-│   │   └── 📄 translator_req.py         # API communication
-│   │
-│   ├── 📁 config/                       # Configuration
-│   │   ├── 📄 config.json               # Main configuration
-│   │   ├── 📄 languages.json            # Language mapping
-│   │   ├── 📁 models/
-│   │   │   └── 📄 translation_models.json # Available AI models
-│   │   └── 📁 prompts/
-│   │       ├── 📄 translation.txt       # Translation template
-│   │       ├── 📄 check.txt             # Verification template
-│   │       └── 📄 refine.txt            # Refinement template
-│   │
-│   └── 📁 resources/                    # Additional resources
-│       └── 📄 preset_terms.json         # Predefined terms
-│
-├── 📄 .env                              # Environment variables (API keys)
-├── 📄 .env.example                      # Environment variable template
-├── 📄 main.py                           # Main entry point
-├── 📄 requirements.txt                  # Project dependencies
-├── 📄 install.sh                        # Installation script
-├── 📄 run_nv.sh                         # Execution script
-└── 📄 README.md                         # Complete documentation
+├── src/
+│   ├── gui/           # User Interface
+│   ├── logic/         # Business Logic
+│   └── config/        # Configuration Files
+├── main.py            # Entry Point
+├── requirements.txt   # Dependencies
+└── README.md          # This File
 ```
-
-### Main Components
-
-#### 🎯 User Interface (GUI)
-- **PyQt6:** Modern framework for desktop applications.
-- **Automatic theme detection:** Support for light/dark system themes.
-- **Responsive interface:** Design adaptable to different screen sizes.
-- **Themed icons:** Icon system that adapts to the system theme.
-
-#### ⚙️ Translation Engine
-- **Multi-provider:** Support for multiple AI APIs.
-- **Intelligent segmentation:** Advanced algorithm that preserves narrative structure.
-- **Quality system:** Automatic checking and refinement.
-- **Error management:** Robust system with retries and logging.
-
-#### 💾 Data Management
-- **Hybrid database:** SQLite + automatic JSON backup.
-- **Persistence:** All data is saved automatically.
-- **Integrity:** Transaction system for critical data.
-- **Performance:** Optimized indexing for large data volumes.
-
-#### 🔌 API Integration
-- **Modular abstraction:** Design that facilitates adding new providers.
-- **Rate limit handling:** Automatic control of requests.
-- **Consumption monitoring:** Tracking of tokens and costs.
-- **Fallback system:** Handling of network and API errors.
-
-## Additional Features
-
-### 🚀 Highlighted Functionalities
-
-#### 📂 Recent Folders System
-- **Automatic history:** The application automatically saves the last 10 visited directories.
-- **Quick access:** "Recent folders" button in the main interface to browse previous projects.
-- **Intuitive management:**
-  - Display of folder names with tooltips showing full paths.
-  - Delete button (×) to remove specific folders from history.
-  - Automatic update when selecting a recent folder.
-- **Persistence:** Recent folders are saved in `src/config/recents.json` between sessions.
-- **Functionality:** When selecting a recent folder, the application automatically loads it as the current working directory.
-
-#### 📚 Advanced EPUB Import System
-- **Comprehensive validation:** Verifies structure and content before importing.
-- **Intelligent extraction:** Converts chapters to sequentially numbered .txt files.
-- **Narrative preservation:** Maintains original structure and organization.
-- **Automatic metadata:** Extracts title, author, and description from the original EPUB.
-- **Intelligent cover:** Automatic detection of cover images.
-
-#### 🔄 Intelligent Synchronization System
-- **Real-time change detection:** Monitors external modifications.
-- **Complete preservation:** Maintains states, translations, and metadata.
-- **Dynamic management:** Detects new, deleted, or modified files.
-- **Automatic readjustment:** Maintains consistency in numbering and states.
-
-#### 📊 Advanced Metadata Management
-- **Multi-level system:** Title, author, description with full persistence.
-- **Global synchronization:** Consistent metadata throughout the application.
-- **Import/export:** Compatibility with EPUB standards.
-- **Change history:** Tracking of metadata modifications.
-
-#### ⚡ High-Performance Translation System
-- **Multi-provider engine:** Support for multiple AI APIs simultaneously.
-- **Narrative segmentation:** Advanced algorithm that respects story structure.
-- **3-level quality system:**
-  1. **Initial translation** with optimized prompts.
-  2. **Automatic refinement** to improve quality.
-  3. **Final verification** with cross-validation.
-- **Intelligent resource management:**
-  - Automatic rate limit control.
-  - Retry system with exponential backoff.
-  - Token consumption monitoring.
-  - Strategic pauses between requests.
-
-#### 🔧 Flexible Configuration System
-- **Per-project configuration:** Each project can have its own configuration.
-- **Predefined templates:** Optimized settings for different text types.
-- **Hot-swapping:** Configuration changes without restarting the application.
-- **Automatic backup:** All settings are saved automatically.
-
-#### 📈 Monitoring and Diagnosis System
-- **Structured logging:** Detailed recording of all operations.
-- **Performance metrics:** Processing times, resource consumption.
-- **Automatic diagnosis:** Detection and reporting of common problems.
-- **Report export:** Generation of detailed reports for analysis.
-
-#### 🛡️ Backup and Recovery System
-- **Hybrid database:** SQLite + automatic JSON backup.
-- **Recovery points:** Checkpoint system for long operations.
-- **Failure recovery:** Automatic recovery mechanisms for errors.
--- **Data integrity:** Automatic verification and repair of corrupt data.#### 🛡️ Backup and Recovery System
-- **Hybrid database:** SQLite + automatic JSON backup.
-- **Recovery points:** Checkpoint system for long operations.
-- **Failure recovery:** Automatic recovery mechanisms for errors.
--- **Data integrity:** Automatic verification and repair of corrupt data.
 
 ## Multilingual Support
+- **Interface Languages**: English (US), Spanish (Mexico)
+- **Translation Languages**: English, Spanish (Mexico), with automatic detection
+- **Adding Languages**: Create JSON files in `src/config/i18n/`
 
-Novel Manager now supports multiple interface languages. The application currently includes:
+## Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-- **Spanish (Mexico)** - Default language
-- **English (United States)** - Full translation of all interface elements
+## License
+[Add license information here]
 
-### Language Selection
+## Support
+For issues and questions:
+- Create an issue on GitHub
+- Check the logs in the application directory
 
-To change the interface language:
-
-1. Open the application
-2. Click on the "Settings" button (gear icon) in the main toolbar
-3. In the configuration dialog, select "Interface Language" 
-4. Choose your preferred language from the dropdown menu
-5. Click "Save" to apply the changes
-6. Restart the application for the language change to take effect
-
-### Adding New Languages
-
-To add support for a new language:
-
-1. Create a new JSON file in `src/config/i18n/` with the language code as the filename (e.g., `fr_FR.json` for French)
-2. Follow the structure of existing language files, using the same key format
-3. Translate all interface strings to the new language
-4. The new language will automatically appear in the language selection dropdown
-
-### Language File Structure
-
-Language files follow a simple key-value structure:
-```json
-{
-  "language_name": "English (US)",
-  "main_window.title": "Novel Translator",
-  "settings_dialog.title": "Settings",
-  "clean_panel.text_label": "Text:",
-  ...
-}
-```
-
-Each key represents a specific UI element, and the value is the translated text for that element.
+## Disclaimer
+While this project works, I cannot guarantee its functionality as it was created with the help of AI.
