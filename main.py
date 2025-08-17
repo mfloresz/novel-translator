@@ -17,9 +17,11 @@ from src.logic.get_path import get_directory, get_initial_directory
 from src.logic.loader import FileLoader
 from src.logic.creator import EpubConverterLogic
 from src.logic.epub_importer import EpubImporter
-from src.logic.functions import show_confirmation_dialog, show_import_confirmation_dialog
+from src.logic.functions import show_confirmation_dialog, show_import_confirmation_dialog, get_file_range, show_error_dialog
 from src.logic.database import TranslationDatabase
 from src.logic.session_logger import session_logger
+from src.logic.status_manager import get_status_color, get_status_code_from_text
+from src.logic.language_manager import LanguageManager
 import subprocess
 
 class ElidedLabel(QLabel):
@@ -57,7 +59,11 @@ class NovelManagerApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.current_directory = None
-        self.setWindowTitle("Novel Translator")
+        
+        # Initialize language manager
+        self.lang_manager = self._init_language_manager()
+        
+        self.setWindowTitle(self.lang_manager.get_string("main_window.title"))
         self.setGeometry(100, 100, 1000, 580)
         # Establecer ícono de la aplicación
         app_icon_path = "src/gui/icons/app.png"
@@ -79,31 +85,31 @@ class NovelManagerApp(QMainWindow):
         # Directory section - Solo botones, sin mostrar la ruta
         dir_layout = QHBoxLayout()
         # Botón Abrir
-        self.nav_button = QPushButton("Abrir")
+        self.nav_button = QPushButton(self.lang_manager.get_string("main_window.nav_button"))
         self.nav_button.clicked.connect(self.select_directory)
         # Botón Importar EPUB
-        self.import_epub_button = QPushButton("Importar EPUB")
+        self.import_epub_button = QPushButton(self.lang_manager.get_string("main_window.import_epub_button"))
         self.import_epub_button.clicked.connect(self.import_epub)
         # Botón Abrir Directorio
-        self.open_dir_button = QPushButton("Abrir Directorio")
+        self.open_dir_button = QPushButton(self.lang_manager.get_string("main_window.open_dir_button"))
         self.open_dir_button.clicked.connect(self.open_working_directory)
         self.open_dir_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
         # Botón Actualizar (con ícono)
         self.refresh_button = QPushButton()
         self.refresh_button.clicked.connect(self.refresh_files)
         self.refresh_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
-        self.refresh_button.setToolTip("Actualizar")
+        self.refresh_button.setToolTip(self.lang_manager.get_string("main_window.refresh_button.tooltip"))
         # Botón Recientes (con ícono)
         self.recents_button = QPushButton()
-        self.recents_button.setToolTip("Carpetas recientes")
+        self.recents_button.setToolTip(self.lang_manager.get_string("main_window.recents_button.tooltip"))
         self.recents_button.clicked.connect(self.show_recents_menu)
         # Botón Registro (con ícono)
         self.log_button = QPushButton()
         self.log_button.clicked.connect(self.open_log_file)
-        self.log_button.setToolTip("Registro")
+        self.log_button.setToolTip(self.lang_manager.get_string("main_window.log_button.tooltip"))
         # Botón Ajustes (con ícono)
         self.settings_button = QPushButton()
-        self.settings_button.setToolTip("Ajustes")
+        self.settings_button.setToolTip(self.lang_manager.get_string("main_window.settings_button.tooltip"))
         self.settings_button.clicked.connect(self.open_settings)
         # Agregar botones en el orden especificado
         dir_layout.addWidget(self.nav_button)
@@ -117,7 +123,12 @@ class NovelManagerApp(QMainWindow):
         # Chapters table
         self.chapters_table = QTableWidget()
         self.chapters_table.setColumnCount(4)
-        self.chapters_table.setHorizontalHeaderLabels(["Nombre", "Estado", "Abrir", "Traducir"])
+        self.chapters_table.setHorizontalHeaderLabels([
+            self.lang_manager.get_string("main_window.chapters_table.column.name"),
+            self.lang_manager.get_string("main_window.chapters_table.column.status"),
+            self.lang_manager.get_string("main_window.chapters_table.column.open"),
+            self.lang_manager.get_string("main_window.chapters_table.column.translate")
+        ])
         # Configure the automatic row numbering column
         self.chapters_table.verticalHeader().setVisible(True)
         self.chapters_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
@@ -143,11 +154,12 @@ class NovelManagerApp(QMainWindow):
         # Create individual tab panels with reference to main window
         self.clean_panel = CleanPanel(self)
         self.create_panel = CreateEpubPanel()
+        self.create_panel.set_main_window(self)
         self.translate_panel = TranslatePanel(self)  # Modificado para pasar self
         # Add panels to the tab widget
-        self.tab_widget.addTab(self.clean_panel, "Limpiar")
-        self.tab_widget.addTab(self.create_panel, "Ebook")
-        self.tab_widget.addTab(self.translate_panel, "Traducir")
+        self.tab_widget.addTab(self.clean_panel, self.lang_manager.get_string("clean_panel.tab_label", "Limpiar"))
+        self.tab_widget.addTab(self.create_panel, self.lang_manager.get_string("create_panel.tab_label", "Ebook"))
+        self.tab_widget.addTab(self.translate_panel, self.lang_manager.get_string("translate_panel.tab_label", "Traducir"))
         right_layout.addWidget(self.tab_widget)
         # Add both panels to splitter
         splitter.addWidget(left_panel)
@@ -155,9 +167,9 @@ class NovelManagerApp(QMainWindow):
         # Set initial sizes (left:right ratio roughly 2:1)
         splitter.setSizes([650, 350])
         # Status bar
-        self.statusBar().showMessage("Estado: Seleccione un directorio de trabajo o importe un EPUB")
+        self.statusBar().showMessage(self.lang_manager.get_string("main_window.status.select_directory"))
         # Initialize file loader
-        self.file_loader = FileLoader()
+        self.file_loader = FileLoader(self.lang_manager)
         self.file_loader.files_loaded.connect(self._add_files_to_table)
         self.file_loader.loading_finished.connect(self._loading_finished)
         self.file_loader.loading_error.connect(self._show_loading_error)
@@ -184,6 +196,20 @@ class NovelManagerApp(QMainWindow):
         
         # Cargar configuración al iniciar
         self.apply_configuration()
+
+    def _init_language_manager(self):
+        """Initialize the language manager with the configured UI language."""
+        try:
+            config_path = Path(__file__).parent / 'src' / 'config' / 'config.json'
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                ui_language = config.get('ui_language', 'es_MX')
+                return LanguageManager(ui_language)
+        except Exception as e:
+            print(f"Error initializing language manager: {e}")
+            # Fallback to Spanish if there's an error
+            return LanguageManager('es_MX')
 
     def closeEvent(self, event):
         """Limpia recursos al cerrar la aplicación"""
@@ -309,25 +335,6 @@ class NovelManagerApp(QMainWindow):
         except Exception as e:
             print(f"Error cargando iconos de botones: {e}")
 
-    def select_directory(self):
-        # Obtener el directorio inicial configurado
-        initial_dir = get_initial_directory()
-        directory = get_directory(initial_dir)
-        if directory:
-            self.current_directory = directory
-            self.statusBar().showMessage(f"Directorio de trabajo: {os.path.basename(self.current_directory)}")
-            # Configurar el directorio en el convertidor EPUB
-            self.epub_converter.set_directory(directory)
-            # Configurar directorio de trabajo en el panel de creación de EPUB
-            self.create_panel.set_working_directory(directory)
-            # Configurar directorio de trabajo en el panel de traducción
-            self.translate_panel.set_working_directory(directory)
-            # Habilitar botones
-            self.refresh_button.setEnabled(True)
-            self.open_dir_button.setEnabled(True)
-            # Actualizar título de la ventana
-            self.update_window_title()
-            self.load_chapters()
 
     def refresh_files(self):
         """Actualiza la lista de archivos del directorio actual"""
@@ -372,9 +379,9 @@ class NovelManagerApp(QMainWindow):
             self.chapters_table.setItem(row, 0, name_item)
             self.chapters_table.setItem(row, 1, status_item)
             # Botón para abrir el archivo
-            open_button = QPushButton("Abrir")
+            open_button = QPushButton(self.lang_manager.get_string("main_window.chapters_table.column.open"))
             # Botón para traducir solo este capítulo específico con la configuración actual
-            translate_button = QPushButton("Traducir")
+            translate_button = QPushButton(self.lang_manager.get_string("main_window.chapters_table.column.translate"))
             file_path = os.path.join(self.current_directory, file_data['name'])
             open_button.clicked.connect(lambda checked, path=file_path: self.open_file(path))
             translate_button.clicked.connect(lambda checked, filename=file_data['name']: self.translate_single_file(filename))
@@ -423,27 +430,23 @@ class NovelManagerApp(QMainWindow):
         Maneja la solicitud de creación de EPUB.
         """
         if not self.current_directory:
-            self.statusBar().showMessage("Error: Seleccione un directorio de trabajo primero")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("create_panel.epub_creation.error.no_directory"))
             return
         # Validar el rango de capítulos si se especificó
         if data['start_chapter'] is not None and data['end_chapter'] is not None:
             total_chapters = self.chapters_table.rowCount()
             if data['start_chapter'] < 1 or data['end_chapter'] > total_chapters:
                 self.statusBar().showMessage(
-                    f"Error: El rango debe estar entre 1 y {total_chapters}"
-                )
+                    self.lang_manager.get_string("create_panel.epub_creation.error.invalid_range").format(
+                        max_chapters=total_chapters))
                 return
             if data['start_chapter'] > data['end_chapter']:
                 self.statusBar().showMessage(
-                    "Error: El capítulo inicial no puede ser mayor que el final"
-                )
+                    self.lang_manager.get_string("create_panel.epub_creation.error.range_order"))
                 return
-        # Confirmar la operación
-        if not show_confirmation_dialog(
-            "¿Desea proceder con la creación del EPUB?\n"
-            "Esto puede tomar varios segundos dependiendo del número de capítulos."
-        ):
-            return
+        # Obtener archivos en el rango
+        files = get_file_range(self.chapters_table, data['start_chapter'], data['end_chapter'])
         # Iniciar la creación del EPUB
         self.epub_converter.set_directory(self.current_directory)
         self.epub_converter.create_epub(data, self.chapters_table)
@@ -459,11 +462,13 @@ class NovelManagerApp(QMainWindow):
         """
         if success:
             # Mostrar mensaje de éxito
-            self.statusBar().showMessage(message, 5000)
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("create_panel.epub_creation.success") + ": " + message, 5000)
             # No reiniciar el formulario - mantener datos
         else:
             # Mostrar mensaje de error
-            self.statusBar().showMessage(f"Error: {message}")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("create_panel.epub_creation.error").format(error=message))
         QApplication.processEvents()  # Forzar actualización de UI
 
     def handle_single_translation_completed(self):
@@ -480,15 +485,18 @@ class NovelManagerApp(QMainWindow):
 
     def _apply_status_color(self, status_item, status):
         """Aplica color al item de estado según su valor, usando la paleta del sistema."""
-        palette = QApplication.instance().palette()
-        if status == "Error":
-            # Usar un color fijo para error
-            status_item.setForeground(QColor(165, 42, 42)) # Rojo oscuro
-        elif status == "Traducido":
-            # Igual para "Traducido"
-            status_item.setForeground(QColor(34, 139, 34)) # Verde oscuro
+        # Convertir texto a código (para compatibilidad con valores existentes)
+        status_code = get_status_code_from_text(status)
+        
+        # Obtener color específico para el código de estado
+        color_rgb = get_status_color(status_code)
+        
+        if color_rgb:
+            # Aplicar color específico
+            status_item.setForeground(QColor(*color_rgb))
         else:
-            # Para estados neutros, usar el color de texto predeterminado del sistema
+            # Usar color de texto predeterminado del sistema
+            palette = QApplication.instance().palette()
             status_item.setForeground(palette.color(QPalette.ColorRole.Text))
 
     def _update_all_status_colors(self):
@@ -549,7 +557,7 @@ class NovelManagerApp(QMainWindow):
         # Obtener estado del refinamiento
         enable_refine = translate_panel.refine_translation_checkbox.isChecked()
         # Confirmar la operación
-        from src.logic.functions import show_confirmation_dialog
+        
         if not show_confirmation_dialog(
             f"Se traducirá el archivo '{filename}'.\n¿Desea continuar?"
         ):
@@ -644,7 +652,7 @@ class NovelManagerApp(QMainWindow):
         else:
             # Mostrar mensaje de error
             self.statusBar().showMessage(f"Error: {message}")
-            from src.logic.functions import show_error_dialog
+            
             show_error_dialog(message, "Error al importar EPUB")
 
     def show_status_message(self, message, timeout=0):
@@ -717,9 +725,9 @@ class NovelManagerApp(QMainWindow):
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 # La configuración se guardó, actualizar la aplicación
                 self.apply_configuration()
-                self.statusBar().showMessage("Configuración actualizada", 3000)
+                self.statusBar().showMessage(self.lang_manager.get_string("main_window.settings_updated"), 3000)
         except Exception as e:
-            self.statusBar().showMessage(f"Error al abrir configuración: {str(e)}")
+            self.statusBar().showMessage(self.lang_manager.get_string("main_window.settings_open_error").format(error=str(e)))
 
     def apply_configuration(self):
         """Aplica la configuración guardada a los componentes de la aplicación"""
@@ -1019,11 +1027,14 @@ class NovelManagerApp(QMainWindow):
             self.update_window_title()
             self.load_chapters()
 
-def main():
-    app = QApplication(sys.argv)
-    window = NovelManagerApp()
-    window.show()
-    sys.exit(app.exec())
-
 if __name__ == "__main__":
-    main()
+    try:
+        app = QApplication(sys.argv)
+        window = NovelManagerApp()
+        window.show()
+        sys.exit(app.exec())
+    except Exception as e:
+        print(f"Error starting application: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

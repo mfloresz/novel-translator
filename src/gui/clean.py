@@ -18,26 +18,26 @@ class CleanPanel(QWidget):
 
         # Text section
         text_layout = QVBoxLayout()
-        text_label = QLabel("Texto:")
+        text_label = QLabel(self.main_window.lang_manager.get_string("clean_panel.text_label"))
         self.text_input = QLineEdit()
         text_layout.addWidget(text_label)
         text_layout.addWidget(self.text_input)
 
         # Añadir campo para texto de reemplazo
         self.replace_input = QLineEdit()
-        self.replace_input.setPlaceholderText("Texto de reemplazo")
-        text_layout.addWidget(QLabel("Reemplazar por:"))
+        self.replace_input.setPlaceholderText(self.main_window.lang_manager.get_string("clean_panel.replace_placeholder"))
+        text_layout.addWidget(QLabel(self.main_window.lang_manager.get_string("clean_panel.replace_label")))
         text_layout.addWidget(self.replace_input)
 
         # Task section
-        task_group = QGroupBox("Tarea:")
+        task_group = QGroupBox(self.main_window.lang_manager.get_string("clean_panel.task_group"))
         task_layout = QVBoxLayout()
 
-        self.task_remove_from_text = QRadioButton("Eliminar a partir del texto")
-        self.task_remove_duplicates = QRadioButton("Eliminar duplicados")
-        self.task_remove_line = QRadioButton("Eliminar linea")
-        self.task_remove_blanks = QRadioButton("Eliminar líneas en blanco múltiples")
-        self.task_search_replace = QRadioButton("Buscar y reemplazar")
+        self.task_remove_from_text = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.task_remove_from_text"))
+        self.task_remove_duplicates = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.task_remove_duplicates"))
+        self.task_remove_line = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.task_remove_line"))
+        self.task_remove_blanks = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.task_remove_blanks"))
+        self.task_search_replace = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.task_search_replace"))
 
         task_layout.addWidget(self.task_remove_from_text)
         task_layout.addWidget(self.task_remove_duplicates)
@@ -48,16 +48,16 @@ class CleanPanel(QWidget):
         task_group.setLayout(task_layout)
 
         # Range section
-        range_group = QGroupBox("Rango:")
+        range_group = QGroupBox(self.main_window.lang_manager.get_string("clean_panel.range_group"))
         range_layout = QVBoxLayout()
 
-        self.range_all = QRadioButton("Todos")
+        self.range_all = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.range_all"))
         self.range_all.setChecked(True)  # Por defecto seleccionado
 
         range_from_layout = QHBoxLayout()
-        self.range_from = QRadioButton("De:")
+        self.range_from = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.range_from"))
         self.range_from_input = QLineEdit()
-        range_from_label = QLabel("a:")
+        range_from_label = QLabel(self.main_window.lang_manager.get_string("clean_panel.range_to"))
         self.range_to_input = QLineEdit()
 
         range_from_layout.addWidget(self.range_from)
@@ -71,7 +71,7 @@ class CleanPanel(QWidget):
         range_group.setLayout(range_layout)
 
         # Clean button
-        self.clean_button = QPushButton("Limpiar")
+        self.clean_button = QPushButton(self.main_window.lang_manager.get_string("clean_panel.clean_button"))
         self.clean_button.clicked.connect(self.handle_clean)
 
         # Add all layouts to the main layout
@@ -85,24 +85,28 @@ class CleanPanel(QWidget):
 
     def handle_clean(self):
         if not self.main_window.current_directory:
-            self.main_window.statusBar().showMessage("Error: Seleccione un directorio primero")
+            self.main_window.statusBar().showMessage(
+                self.main_window.lang_manager.get_string("clean_panel.error.no_directory"))
             return
 
         # Obtener modo de limpieza
         mode = self._get_cleaning_mode()
         if not mode:
-            self.main_window.statusBar().showMessage("Error: Seleccione una tarea")
+            self.main_window.statusBar().showMessage(
+                self.main_window.lang_manager.get_string("clean_panel.error.no_task"))
             return
 
         # Obtener rango
         try:
             start, end = self._get_range()
         except ValueError as e:
-            self.main_window.statusBar().showMessage(f"Error: {str(e)}")
+            self.main_window.statusBar().showMessage(
+                self.main_window.lang_manager.get_string("clean_panel.error.invalid_range").format(error=str(e)))
             return
 
         # Confirmar operación
-        if not show_confirmation_dialog("Esta operación modificará los archivos originales. ¿Desea continuar?"):
+        if not show_confirmation_dialog(
+                self.main_window.lang_manager.get_string("clean_panel.confirmation")):
             return
 
         # Obtener archivos en el rango
@@ -118,7 +122,8 @@ class CleanPanel(QWidget):
         )
 
         self.main_window.statusBar().showMessage(
-            f"Proceso completado. Archivos procesados: {processed}, modificados: {modified}"
+            self.main_window.lang_manager.get_string("clean_panel.process_completed").format(
+                processed=processed, modified=modified)
         )
 
     def _get_cleaning_mode(self):

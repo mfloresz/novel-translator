@@ -16,7 +16,20 @@ class CreateEpubPanel(QWidget):
         self.cover_path = None
         self.working_directory = None  # Directorio de trabajo actual
         self.db = None  # Base de datos para metadatos
+        self.main_window = None  # Referencia a la ventana principal
+        # Note: init_ui() will be called after set_main_window is called
+
+    def set_main_window(self, main_window):
+        """Establece la referencia a la ventana principal y inicializa la UI."""
+        self.main_window = main_window
         self.init_ui()
+
+    def _get_string(self, key, default_text=""):
+        """Get a localized string from the language manager."""
+        if self.main_window and hasattr(self.main_window, 'lang_manager'):
+            return self.main_window.lang_manager.get_string(key, default_text)
+        # If main_window is not set yet, return the default text or key
+        return default_text if default_text else key
 
     def init_ui(self):
         # Main layout
@@ -29,14 +42,14 @@ class CreateEpubPanel(QWidget):
         metadata_layout = QFormLayout()
 
         self.title_input = QLineEdit()
-        self.title_input.setPlaceholderText("Ingrese el título del libro")
+        self.title_input.setPlaceholderText(self._get_string("create_panel.title_placeholder"))
         self.title_input.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        metadata_layout.addRow("Título:", self.title_input)
+        metadata_layout.addRow(self._get_string("create_panel.title_label"), self.title_input)
 
         self.author_input = QLineEdit()
-        self.author_input.setPlaceholderText("Ingrese el nombre del autor")
+        self.author_input.setPlaceholderText(self._get_string("create_panel.author_placeholder"))
         self.author_input.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        metadata_layout.addRow("Autor:", self.author_input)
+        metadata_layout.addRow(self._get_string("create_panel.author_label"), self.author_input)
 
         # Right side - Cover section
         cover_layout = QVBoxLayout()
@@ -51,12 +64,12 @@ class CreateEpubPanel(QWidget):
             }
         """)
         self.cover_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.cover_preview.setText("Sin imagen")
+        self.cover_preview.setText(self._get_string("create_panel.cover_label"))
 
         # Cover buttons layout (vertical)
         cover_buttons_layout = QVBoxLayout()
-        self.cover_select_button = QPushButton("Seleccionar")
-        self.cover_clear_button = QPushButton("Limpiar")
+        self.cover_select_button = QPushButton(self._get_string("create_panel.cover_select_button"))
+        self.cover_clear_button = QPushButton(self._get_string("create_panel.cover_clear_button"))
 
         self.cover_select_button.clicked.connect(self.select_cover)
         self.cover_clear_button.clicked.connect(self.clear_cover)
@@ -75,9 +88,9 @@ class CreateEpubPanel(QWidget):
 
         # Description section
         description_layout = QVBoxLayout()
-        description_label = QLabel("Descripción:")
+        description_label = QLabel(self._get_string("create_panel.description_label"))
         self.description_input = QTextEdit()
-        self.description_input.setPlaceholderText("Ingrese la descripción del libro")
+        self.description_input.setPlaceholderText(self._get_string("create_panel.description_placeholder"))
         # Eliminar el límite de altura para que ocupe todo el espacio disponible
         description_layout.addWidget(description_label)
         description_layout.addWidget(self.description_input)
@@ -87,19 +100,19 @@ class CreateEpubPanel(QWidget):
         metadata_layout.addRow(self.description_input)
 
         # Range section
-        range_group = QGroupBox("Rango de capítulos")
+        range_group = QGroupBox(self._get_string("create_panel.range_group"))
         range_layout = QVBoxLayout()
 
-        self.range_all = QRadioButton("Todos los capítulos")
+        self.range_all = QRadioButton(self._get_string("create_panel.range_all"))
         self.range_all.setChecked(True)
 
         range_specific_layout = QHBoxLayout()
-        self.range_specific = QRadioButton("Especificar rango:")
+        self.range_specific = QRadioButton(self._get_string("create_panel.range_specific"))
         self.range_from_input = QLineEdit()
-        self.range_from_input.setPlaceholderText("Desde")
-        range_to_label = QLabel("a")
+        self.range_from_input.setPlaceholderText(self._get_string("create_panel.range_from_placeholder"))
+        range_to_label = QLabel(self._get_string("create_panel.range_to"))
         self.range_to_input = QLineEdit()
-        self.range_to_input.setPlaceholderText("Hasta")
+        self.range_to_input.setPlaceholderText(self._get_string("create_panel.range_to_placeholder"))
 
         # Configurar el layout del rango específico
         range_specific_layout.addWidget(self.range_specific)
@@ -119,16 +132,15 @@ class CreateEpubPanel(QWidget):
         buttons_layout = QHBoxLayout()
 
         # Save metadata button
-        self.save_metadata_button = QPushButton("Guardar Metadatos")
+        self.save_metadata_button = QPushButton(self._get_string("create_panel.save_metadata_button"))
         self.save_metadata_button.clicked.connect(self.save_metadata)
         self.save_metadata_button.setEnabled(False)  # Deshabilitado hasta tener directorio
         self.save_metadata_button.setToolTip(
-            "Guarda el título, autor y descripción para este directorio de trabajo.\n"
-            "Se cargarán automáticamente cuando abras este directorio."
+            self._get_string("create_panel.save_metadata_button.tooltip")
         )
 
         # Create button
-        self.create_button = QPushButton("Crear EPUB")
+        self.create_button = QPushButton(self._get_string("create_panel.create_button"))
         self.create_button.clicked.connect(self.request_epub_creation)
 
         buttons_layout.addWidget(self.save_metadata_button)
@@ -156,7 +168,7 @@ class CreateEpubPanel(QWidget):
         """Limpia la imagen de portada"""
         self.cover_path = None
         self.cover_preview.clear()
-        self.cover_preview.setText("Sin imagen")
+        self.cover_preview.setText(self._get_string("create_panel.cover_label"))
 
     def toggle_range_inputs(self):
         """Habilita/deshabilita los inputs de rango según la selección"""
@@ -197,7 +209,10 @@ class CreateEpubPanel(QWidget):
             'end_chapter': end_chapter
         }
 
-        self.epub_creation_requested.emit(data)
+        # Emitir señal para solicitar confirmación antes de crear el EPUB
+        from src.logic.functions import show_confirmation_dialog
+        if show_confirmation_dialog(self._get_string("create_panel.epub_creation.confirmation")):
+            self.epub_creation_requested.emit(data)
 
     def reset_form(self):
         """Reinicia solo la portada y el rango, mantiene título, autor y descripción"""
@@ -245,20 +260,21 @@ class CreateEpubPanel(QWidget):
 
         if not title and not author and not description:
             from src.logic.functions import show_error_dialog
-            show_error_dialog("Ingrese al menos el título, autor o descripción para guardar.")
+            show_error_dialog(self._get_string("create_panel.metadata.save_empty"))
             return
 
         try:
             success = self.db.save_book_metadata(title, author, description)
             if success:
                 # Emitir señal para mostrar mensaje en barra de estado
-                self.status_message_requested.emit("Metadatos guardados exitosamente", 3000)
+                self.status_message_requested.emit(self._get_string("create_panel.metadata.save_success"), 3000)
                 # Emitir señal para actualizar título de ventana
                 self.metadata_saved.emit()
             else:
-                self.status_message_requested.emit("Error al guardar los metadatos", 5000)
+                self.status_message_requested.emit(self._get_string("create_panel.metadata.save_error"), 5000)
         except Exception as e:
-            self.status_message_requested.emit(f"Error al guardar metadatos: {str(e)}", 5000)
+            self.status_message_requested.emit(
+                self._get_string("create_panel.metadata.save_error_general").format(error=str(e)), 5000)
 
     def auto_load_cover(self):
         """Busca automáticamente una imagen de portada en el directorio de trabajo"""

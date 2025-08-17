@@ -163,7 +163,6 @@ pip install -r requirements.txt
 
 ### Configuración de API Keys
 Crea un archivo `.env` en la raíz del proyecto con tus claves de API:
-`env
 
 ### Configuración de la Aplicación
 La aplicación utiliza archivos de configuración JSON para personalizar su comportamiento:
