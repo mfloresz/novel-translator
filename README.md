@@ -25,7 +25,7 @@ I created this application because I have some novels that were translated to Sp
 ### Installation
 1. Clone the repository:
 ```bash
-git clone https://github.com/Misael-Ponce/novel-manager.git
+git clone https://github.com/mfloresz/novel-manager.git
 cd novel-manager
 ```
 
@@ -140,20 +140,6 @@ novel-manager/
 - **Interface Languages**: English (US), Spanish (Mexico)
 - **Translation Languages**: English, Spanish (Mexico), with automatic detection
 - **Adding Languages**: Create JSON files in `src/config/i18n/`
-
-## Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## License
-[Add license information here]
-
-## Support
-For issues and questions:
-- Create an issue on GitHub
-- Check the logs in the application directory
 
 ## Disclaimer
 While this project works, I cannot guarantee its functionality as it was created with the help of AI.
