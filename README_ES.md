@@ -1,6 +1,6 @@
 <div align="center">
   <img src="src/gui/icons/app.png" width="150" height="150" alt="App Icon" />
-  <h1>Novel Manager</h1>
+  <h1>Novel Translator</h1>
   <p>
     <b>Una aplicación de escritorio completa para gestionar, procesar y traducir novelas y documentos de texto.</b>
   </p>
