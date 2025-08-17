@@ -2,6 +2,7 @@ from typing import List
 from PyQt6.QtCore import QObject, pyqtSignal
 import os
 from .database import TranslationDatabase
+from .status_manager import STATUS_UNPROCESSED, STATUS_TRANSLATED, get_status_text
 
 class FileLoader(QObject):
     files_loaded = pyqtSignal(list)
@@ -9,9 +10,20 @@ class FileLoader(QObject):
     loading_error = pyqtSignal(str)
     metadata_loaded = pyqtSignal(dict)  # Nueva señal para metadatos
 
-    def __init__(self):
+    def __init__(self, lang_manager=None):
         super().__init__()
         self.db = None
+        self.lang_manager = lang_manager
+
+    def set_language_manager(self, lang_manager):
+        """Set the language manager for status translations."""
+        self.lang_manager = lang_manager
+
+    def _get_status_string(self, key, default_text=""):
+        """Get a localized status string from the language manager."""
+        if self.lang_manager:
+            return self.lang_manager.get_string(key, default_text)
+        return default_text if default_text else key
 
     def load_files(self, directory: str) -> None:
         """
@@ -26,7 +38,9 @@ class FileLoader(QObject):
             for f in sorted(os.listdir(directory)):
                 if f.endswith('.txt'):
                     # Verificar si el archivo está traducido
-                    status = 'Traducido' if self.db.is_file_translated(f) else 'Sin procesar'
+                    is_translated = self.db.is_file_translated(f) if self.db else False
+                    status_code = STATUS_TRANSLATED if is_translated else STATUS_UNPROCESSED
+                    status = get_status_text(status_code, self.lang_manager)
                     txt_files.append({
                         'name': f,
                         'status': status

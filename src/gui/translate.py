@@ -12,6 +12,7 @@ from PyQt6.QtCore import Qt
 from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
 from src.logic.functions import show_confirmation_dialog, load_preset_terms
+from src.logic.status_manager import STATUS_TRANSLATED, STATUS_ERROR, STATUS_PROCESSING, get_status_text
 
 class PresetTermsDialog(QDialog):
     def __init__(self, source_lang, target_lang, parent=None):
@@ -19,18 +20,25 @@ class PresetTermsDialog(QDialog):
         self.selected_term = None
         self.source_lang = source_lang
         self.target_lang = target_lang
+        self.main_window = parent.main_window if parent else None
         self.init_ui()
         self.load_preset_terms()
 
+    def _get_string(self, key, default_text=""):
+        """Get a localized string from the language manager."""
+        if self.main_window and hasattr(self.main_window, 'lang_manager'):
+            return self.main_window.lang_manager.get_string(key, default_text)
+        return default_text or key
+
     def init_ui(self):
-        self.setWindowTitle("Términos Predefinidos")
+        self.setWindowTitle(self._get_string("translate_panel.preset_terms_dialog.title"))
         self.setModal(True)
         self.resize(500, 400)
 
         layout = QVBoxLayout()
 
         # Instrucciones
-        instructions = QLabel("Seleccione un término para agregarlo al campo de términos personalizados:")
+        instructions = QLabel(self._get_string("translate_panel.preset_terms_dialog.instructions"))
         instructions.setWordWrap(True)
         layout.addWidget(instructions)
 
@@ -41,8 +49,8 @@ class PresetTermsDialog(QDialog):
 
         # Botones
         buttons_layout = QHBoxLayout()
-        self.cancel_button = QPushButton("Cancelar")
-        self.add_button = QPushButton("Agregar Término")
+        self.cancel_button = QPushButton(self._get_string("translate_panel.preset_terms_dialog.cancel_button"))
+        self.add_button = QPushButton(self._get_string("translate_panel.preset_terms_dialog.add_button"))
 
         self.cancel_button.clicked.connect(self.reject)
         self.add_button.clicked.connect(self.add_selected_term)
@@ -63,7 +71,8 @@ class PresetTermsDialog(QDialog):
                 item = QListWidgetItem(term)
                 self.terms_list.addItem(item)
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Error al cargar términos predefinidos: {str(e)}")
+            QMessageBox.warning(self, self._get_string("error_dialog.title"), 
+                              self._get_string("translate_panel.preset_terms_dialog.load_error").format(error=str(e)))
 
     def on_term_double_clicked(self, item):
         """Maneja el doble clic en un término"""
@@ -77,7 +86,8 @@ class PresetTermsDialog(QDialog):
             self.selected_term = current_item.text()
             self.accept()
         else:
-            QMessageBox.information(self, "Información", "Por favor seleccione un término de la lista.")
+            QMessageBox.information(self, self._get_string("information_dialog.title", "Información"), 
+                                  self._get_string("translate_panel.preset_terms_dialog.no_selection"))
 
     def get_selected_term(self):
         """Retorna el término seleccionado"""
@@ -88,36 +98,41 @@ class ApiKeyConfigDialog(QDialog):
         super().__init__(parent)
         self.provider_name = provider_name
         self.api_key = current_api_key
+        self.main_window = parent.main_window if parent else None
         self.init_ui()
 
+    def _get_string(self, key, default_text=""):
+        """Get a localized string from the language manager."""
+        if self.main_window and hasattr(self.main_window, 'lang_manager'):
+            return self.main_window.lang_manager.get_string(key, default_text)
+        return default_text or key
+
     def init_ui(self):
-        self.setWindowTitle(f"Configurar API Key - {self.provider_name}")
+        self.setWindowTitle(self._get_string("translate_panel.api_key_dialog.title").format(provider=self.provider_name))
         self.setModal(True)
         self.resize(400, 150)
 
         layout = QVBoxLayout()
 
         # Información
-        info_label = QLabel(
-            f"Esta configuración es TEMPORAL y se perderá al salir. Para cambios permanentes edite el archivo .env"
-        )
+        info_label = QLabel(self._get_string("translate_panel.api_key_dialog.info"))
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
 
         # Campo API Key
         form_layout = QFormLayout()
         self.api_input = QLineEdit()
-        self.api_input.setPlaceholderText("Ingrese su API key")
+        self.api_input.setPlaceholderText(self._get_string("translate_panel.api_key_dialog.api_key_placeholder"))
         self.api_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.api_input.setText(self.api_key)
-        form_layout.addRow("API Key:", self.api_input)
+        form_layout.addRow(self._get_string("translate_panel.api_key_dialog.api_key_label"), self.api_input)
         layout.addLayout(form_layout)
 
         # Botones
         buttons_layout = QHBoxLayout()
 
-        self.ok_button = QPushButton("Aceptar")
-        self.cancel_button = QPushButton("Cancelar")
+        self.ok_button = QPushButton(self._get_string("translate_panel.api_key_dialog.ok_button"))
+        self.cancel_button = QPushButton(self._get_string("translate_panel.api_key_dialog.cancel_button"))
 
         self.ok_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)
@@ -135,7 +150,7 @@ class TranslatePanel(QWidget):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
-        self.translation_manager = TranslationManager()
+        self.translation_manager = TranslationManager(main_window.lang_manager)
         self.working_directory = None
 
         # Variable para almacenar API keys temporales
@@ -152,6 +167,12 @@ class TranslatePanel(QWidget):
         self.init_ui()
         self.connect_signals()
 
+    def _get_string(self, key, default_text=""):
+        """Get a localized string from the language manager."""
+        if hasattr(self.main_window, 'lang_manager'):
+            return self.main_window.lang_manager.get_string(key, default_text)
+        return default_text or key
+
     def init_ui(self):
         # Main layout
         main_layout = QVBoxLayout()
@@ -161,15 +182,15 @@ class TranslatePanel(QWidget):
         provider_layout = QHBoxLayout()
         self.provider_combo = QComboBox()
         self.config_button = QPushButton("⚙")
-        self.config_button.setToolTip("Cambiar API Key")
+        self.config_button.setToolTip(self._get_string("translate_panel.api_key_dialog.title").format(provider=""))
         self.config_button.setMaximumWidth(30)
         self.config_button.clicked.connect(self.configure_api_key)
         self.model_combo = QComboBox()
 
-        provider_layout.addWidget(QLabel("Proveedor:"))
+        provider_layout.addWidget(QLabel(self._get_string("translate_panel.provider_label")))
         provider_layout.addWidget(self.provider_combo)
         provider_layout.addWidget(self.config_button)
-        provider_layout.addWidget(QLabel("Modelo:"))
+        provider_layout.addWidget(QLabel(self._get_string("translate_panel.model_label")))
         provider_layout.addWidget(self.model_combo)
 
         form_layout.addRow(provider_layout)
@@ -190,9 +211,9 @@ class TranslatePanel(QWidget):
                 self.source_lang_combo.addItem(name, userData=code)
                 self.target_lang_combo.addItem(name, userData=code)
 
-        lang_layout.addWidget(QLabel("Idioma Origen:"))
+        lang_layout.addWidget(QLabel(self._get_string("translate_panel.source_language_label")))
         lang_layout.addWidget(self.source_lang_combo)
-        lang_layout.addWidget(QLabel("Idioma Destino:"))
+        lang_layout.addWidget(QLabel(self._get_string("translate_panel.target_language_label")))
         lang_layout.addWidget(self.target_lang_combo)
 
         form_layout.addRow(lang_layout)
@@ -201,10 +222,10 @@ class TranslatePanel(QWidget):
         options_layout = QHBoxLayout()
 
         # Text segmentation options
-        self.segment_checkbox = QRadioButton("Segmentar texto")
-        self.segment_checkbox.setToolTip("Divide el texto en segmentos más pequeños\npara procesarlos por separado.\nÚtil para textos largos que exceden\nlos límites del modelo.")
+        self.segment_checkbox = QRadioButton(self._get_string("translate_panel.segment_checkbox"))
+        self.segment_checkbox.setToolTip(self._get_string("translate_panel.segment_checkbox.tooltip"))
         self.segment_size_input = QLineEdit()
-        self.segment_size_input.setPlaceholderText("Caracteres por segmento")
+        self.segment_size_input.setPlaceholderText(self._get_string("translate_panel.segment_size_placeholder"))
         self.segment_size_input.setEnabled(False)
         self.segment_size_input.setText("5000")  # Valor por defecto
 
@@ -215,13 +236,13 @@ class TranslatePanel(QWidget):
         options_layout.addWidget(QLabel("Traducción:"))
 
         # Checkbox for enabling translation check
-        self.check_translation_checkbox = QCheckBox("Comprobar")
-        self.check_translation_checkbox.setToolTip("Verifica la calidad de la traducción\ncomparando con el texto original.\nEsta opción incrementa significativamente\nel consumo de tokens.")
+        self.check_translation_checkbox = QCheckBox(self._get_string("translate_panel.check_translation_checkbox"))
+        self.check_translation_checkbox.setToolTip(self._get_string("translate_panel.check_translation_checkbox.tooltip"))
         self.check_translation_checkbox.setChecked(True)  # Por defecto está habilitado
 
         # Checkbox for translation refinement
-        self.refine_translation_checkbox = QCheckBox("Refinar")
-        self.refine_translation_checkbox.setToolTip("Mejora la traducción inicial mediante\nun proceso adicional de refinamiento.\nEsta opción también incrementa\nel consumo de tokens.")
+        self.refine_translation_checkbox = QCheckBox(self._get_string("translate_panel.refine_translation_checkbox"))
+        self.refine_translation_checkbox.setToolTip(self._get_string("translate_panel.refine_translation_checkbox.tooltip"))
 
         options_layout.addWidget(self.check_translation_checkbox)
         options_layout.addWidget(self.refine_translation_checkbox)
@@ -230,29 +251,27 @@ class TranslatePanel(QWidget):
         form_layout.addRow(options_layout)
 
         # Custom Terms section
-        terms_group = QGroupBox("Términos Personalizados")
+        terms_group = QGroupBox(self._get_string("translate_panel.terms_group"))
         terms_layout = QVBoxLayout()
 
         # Instrucciones para los términos con botones
         terms_header_layout = QHBoxLayout()
 
-        terms_instructions = QLabel(
-            "Ingrese los términos y sus traducciones (uno por línea)"
-        )
+        terms_instructions = QLabel(self._get_string("translate_panel.terms_instructions"))
         terms_instructions.setWordWrap(True)
         terms_header_layout.addWidget(terms_instructions)
 
         # Botón para copiar símbolo →
-        self.copy_arrow_btn = QPushButton("→")
+        self.copy_arrow_btn = QPushButton(self._get_string("translate_panel.copy_arrow_button"))
         self.copy_arrow_btn.setMaximumWidth(30)
-        self.copy_arrow_btn.setToolTip("Copiar símbolo → al portapapeles")
+        self.copy_arrow_btn.setToolTip(self._get_string("translate_panel.copy_arrow_button.tooltip"))
         self.copy_arrow_btn.clicked.connect(self.copy_arrow_symbol)
         terms_header_layout.addWidget(self.copy_arrow_btn)
 
         # Botón para mostrar términos predefinidos
-        self.preset_terms_btn = QPushButton("⚙")
+        self.preset_terms_btn = QPushButton(self._get_string("translate_panel.preset_terms_button"))
         self.preset_terms_btn.setMaximumWidth(30)
-        self.preset_terms_btn.setToolTip("Cargar términos predefinidos")
+        self.preset_terms_btn.setToolTip(self._get_string("translate_panel.preset_terms_button.tooltip"))
         self.preset_terms_btn.clicked.connect(self.show_preset_terms)
         terms_header_layout.addWidget(self.preset_terms_btn)
 
@@ -268,19 +287,19 @@ class TranslatePanel(QWidget):
         main_layout.addWidget(terms_group)
 
         # Chapter range group
-        range_group = QGroupBox("Rango de Capítulos")
+        range_group = QGroupBox(self._get_string("translate_panel.range_group"))
         range_layout = QHBoxLayout()
 
         # Start chapter input
         self.start_chapter_spin = QLineEdit()
-        self.start_chapter_spin.setPlaceholderText("Desde")
-        range_layout.addWidget(QLabel("Capítulo Inicio:"))
+        self.start_chapter_spin.setPlaceholderText(self._get_string("translate_panel.range_start_placeholder"))
+        range_layout.addWidget(QLabel(self._get_string("translate_panel.range_start_label")))
         range_layout.addWidget(self.start_chapter_spin)
 
         # End chapter input
         self.end_chapter_spin = QLineEdit()
-        self.end_chapter_spin.setPlaceholderText("Hasta")
-        range_layout.addWidget(QLabel("Capítulo Fin:"))
+        self.end_chapter_spin.setPlaceholderText(self._get_string("translate_panel.range_end_placeholder"))
+        range_layout.addWidget(QLabel(self._get_string("translate_panel.range_end_label")))
         range_layout.addWidget(self.end_chapter_spin)
 
         range_group.setLayout(range_layout)
@@ -290,11 +309,11 @@ class TranslatePanel(QWidget):
         buttons_layout = QHBoxLayout()
 
         # Translate button
-        self.translate_button = QPushButton("Traducir")
+        self.translate_button = QPushButton(self._get_string("translate_panel.translate_button"))
         self.translate_button.setEnabled(True)
 
         # Stop button
-        self.stop_button = QPushButton("Detener")
+        self.stop_button = QPushButton(self._get_string("translate_panel.stop_button"))
         self.stop_button.setEnabled(False)
 
         buttons_layout.addWidget(self.translate_button)
@@ -546,13 +565,15 @@ class TranslatePanel(QWidget):
     def start_translation(self):
         """Inicia el proceso de traducción"""
         if not self.main_window.current_directory:
-            self.main_window.statusBar().showMessage("Error: Seleccione un directorio primero")
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.error.no_directory"))
             return
 
         # Validar API key
         api_key = self.get_current_api_key()
         if not api_key:
-            self.main_window.statusBar().showMessage("Error: API key no configurada. Use el botón de configuración.")
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.error.no_api_key"))
             return
 
         # Obtener proveedor y modelo seleccionados
@@ -567,7 +588,8 @@ class TranslatePanel(QWidget):
             )
 
         if not provider:
-            self.main_window.statusBar().showMessage("Error: Debe seleccionar un proveedor válido")
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.error.no_provider"))
             return
 
         model = self.model_combo.currentData()
@@ -581,7 +603,8 @@ class TranslatePanel(QWidget):
             )
 
         if not model:
-            self.main_window.statusBar().showMessage("Error: Debe seleccionar un modelo válido")
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.error.no_model"))
             return
 
         # Obtener idiomas seleccionados (códigos)
@@ -589,7 +612,8 @@ class TranslatePanel(QWidget):
         target_lang = self.target_lang_combo.currentData()
 
         if not source_lang or not target_lang or source_lang == target_lang:
-            self.main_window.statusBar().showMessage("Error: Los idiomas de origen y destino deben ser diferentes y estar seleccionados")
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.error.same_languages"))
             return
 
         # Obtener rango de capítulos
@@ -597,7 +621,8 @@ class TranslatePanel(QWidget):
             start_chapter = int(self.start_chapter_spin.text())
             end_chapter = int(self.end_chapter_spin.text())
         except ValueError:
-            self.main_window.statusBar().showMessage("Error: Los valores de rango deben ser números")
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.error.invalid_range"))
             return
 
         # Obtener términos personalizados
@@ -611,7 +636,8 @@ class TranslatePanel(QWidget):
                 if segment_size <= 0:
                     segment_size = 5000  # Valor por defecto si es negativo
             except ValueError:
-                self.main_window.statusBar().showMessage("Error: El tamaño debe ser un número positivo")
+                self.main_window.statusBar().showMessage(
+                    self._get_string("translate_panel.error.invalid_segment_size"))
                 return
 
         # Obtener estado de la comprobación
@@ -622,9 +648,7 @@ class TranslatePanel(QWidget):
 
         # Confirmar la operación
         if not show_confirmation_dialog(
-            "Esta operación modificará los archivos originales.\n"
-            "¿Desea continuar con la traducción?"
-        ):
+                self._get_string("translate_panel.confirmation")):
             return
 
         # Preparar traducción
@@ -651,7 +675,8 @@ class TranslatePanel(QWidget):
         self.main_window.chapters_table.verticalScrollBar().setValue(scroll_position)
 
         if not files_to_translate:
-            self.main_window.statusBar().showMessage("Error: No hay archivos para traducir en el rango seleccionado")
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.error.no_files"))
             return
 
         # Configurar UI para traducción
@@ -675,7 +700,8 @@ class TranslatePanel(QWidget):
         """Detiene el proceso de traducción"""
         self.translation_manager.stop_translation()
         self.stop_button.setEnabled(False)
-        self.main_window.statusBar().showMessage("Deteniendo traducción...")
+        self.main_window.statusBar().showMessage(
+            self._get_string("translate_panel.translation_stopping"))
 
     def update_progress(self, message):
         """Actualiza la barra de estado con el progreso"""
@@ -684,19 +710,23 @@ class TranslatePanel(QWidget):
     def handle_translation_completed(self, filename, success):
         """Maneja la finalización de la traducción de un archivo"""
         if success:
-            self.update_file_status(filename, "Traducido")
+            status_text = get_status_text(STATUS_TRANSLATED, self.main_window.lang_manager)
+            self.update_file_status(filename, status_text)
         else:
-            self.update_file_status(filename, "Error")
+            status_text = get_status_text(STATUS_ERROR, self.main_window.lang_manager)
+            self.update_file_status(filename, status_text)
 
     def handle_all_completed(self):
         """Maneja la finalización de todas las traducciones"""
         self.translate_button.setEnabled(True)
         self.stop_button.setEnabled(False)
-        self.main_window.statusBar().showMessage("Traducción completada", 5000)
+        self.main_window.statusBar().showMessage(
+            self._get_string("translate_panel.translation_completed"), 5000)
 
     def handle_error(self, error_message):
         """Maneja los errores durante la traducción"""
-        self.main_window.statusBar().showMessage(f"Error: {error_message}")
+        self.main_window.statusBar().showMessage(
+            self._get_string("error_dialog.title") + ": " + error_message)
 
     def update_file_status(self, filename, status):
         """Actualiza el estado de un archivo en la tabla"""
@@ -722,9 +752,11 @@ class TranslatePanel(QWidget):
         clipboard = QApplication.clipboard()
         if clipboard:
             clipboard.setText("→")
-            self.main_window.statusBar().showMessage("Símbolo → copiado al portapapeles", 2000)
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.copy_arrow_button.tooltip").replace("Copiar ", "").replace(" al portapapeles", ""), 2000)
         else:
-            self.main_window.statusBar().showMessage("Error: No se pudo acceder al portapapeles", 3000)
+            self.main_window.statusBar().showMessage(
+                self._get_string("main_window.log_file_open_error").format(error="No se pudo acceder al portapapeles"), 3000)
 
     def show_preset_terms(self):
         """Muestra el diálogo con términos predefinidos"""
@@ -732,7 +764,8 @@ class TranslatePanel(QWidget):
         target_lang = self.target_lang_combo.currentData()
 
         if not source_lang or not target_lang:
-            QMessageBox.warning(self, "Error", "Seleccione los idiomas de origen y destino.")
+            QMessageBox.warning(self, self._get_string("warning_dialog.title"), 
+                              self._get_string("translate_panel.preset_terms.no_language_selected"))
             return
 
         dialog = PresetTermsDialog(source_lang, target_lang, self)

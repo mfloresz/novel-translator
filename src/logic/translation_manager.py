@@ -5,6 +5,7 @@ import time
 from .database import TranslationDatabase
 from .translator import TranslatorLogic
 from .session_logger import session_logger
+from src.logic.status_manager import STATUS_PROCESSING, STATUS_TRANSLATED, STATUS_ERROR, get_status_text
 
 class TranslationWorker(QObject):
     progress_updated = pyqtSignal(str)
@@ -19,7 +20,9 @@ class TranslationWorker(QObject):
                  model: str, custom_terms: str = "",
                  segment_size: Optional[int] = None,
                  enable_check: bool = True,
-                 enable_refine: bool = False):
+                 enable_refine: bool = False,
+                 status_callback: Optional[Callable[[str, str], None]] = None,
+                 lang_manager = None):
         super().__init__()
         self.files_to_translate = files_to_translate
         self.working_directory = working_directory
@@ -34,6 +37,8 @@ class TranslationWorker(QObject):
         self.segment_size = segment_size
         self.enable_check = enable_check
         self.enable_refine = enable_refine
+        self.status_callback = status_callback
+        self.lang_manager = lang_manager
         self._stop_requested = False
         self.translator.segment_size = segment_size
 
@@ -55,6 +60,11 @@ class TranslationWorker(QObject):
 
                 filename = file_info['name']
                 self.progress_updated.emit(f"Traduciendo capítulo {i} de {total_files}: {filename}")
+
+                # Actualizar estado a "Procesando"
+                if self.status_callback:
+                    status_text = get_status_text(STATUS_PROCESSING, self.lang_manager)
+                    self.status_callback(filename, status_text)
 
                 # Verificar si ya está traducido
                 if self.db.is_file_translated(filename):
@@ -146,7 +156,7 @@ class TranslationManager(QObject):
     all_translations_completed = pyqtSignal()
     error_occurred = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, lang_manager=None):
         super().__init__()
         self.translator = TranslatorLogic(segment_size=None)
         self.db: Optional[TranslationDatabase] = None
@@ -155,6 +165,11 @@ class TranslationManager(QObject):
         self.current_model = None
         self.worker = None
         self.thread = None
+        self.lang_manager = lang_manager
+
+    def set_language_manager(self, lang_manager):
+        """Set the language manager for status translations."""
+        self.lang_manager = lang_manager
 
     def initialize(self, directory: str, provider: str = None, model: str = None) -> None:
         """
@@ -212,7 +227,9 @@ class TranslationManager(QObject):
             custom_terms,
             segment_size,
             enable_check,  # Opción para habilitar/deshabilitar la comprobación
-            enable_refine  # Opción para habilitar/deshabilitar el refinamiento
+            enable_refine,  # Opción para habilitar/deshabilitar el refinamiento
+            status_callback,  # Pasar el callback de estado
+            self.lang_manager  # Pasar el administrador de idioma
         )
 
         # Mover el worker al thread
@@ -228,7 +245,10 @@ class TranslationManager(QObject):
         # Conectar el callback de estado si existe
         if status_callback:
             self.worker.translation_completed.connect(
-                lambda filename, success: status_callback(filename, "Traducido" if success else "Error")
+                lambda filename, success: status_callback(
+                    filename, 
+                    get_status_text(STATUS_TRANSLATED if success else STATUS_ERROR, self.lang_manager)
+                )
             )
 
         # Limpieza cuando termine

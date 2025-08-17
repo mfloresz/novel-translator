@@ -163,22 +163,6 @@ pip install -r requirements.txt
 
 ### API Key Configuration
 Create a `.env` file in the project root with your API keys:
-`env
-# Google Gemini
-GEMINI_API_KEY=your_google_gemini_key
-
-# Chutes AI
-CHUTES_API_KEY=your_chutes_ai_key
-
-# Together AI
-TOGETHER_API_KEY=your_together_ai_key
-
-# DeepInfra
-DEEPINFRA_API_KEY=your_deepinfra_key
-
-# OpenAI
-OPENAI_API_KEY=your_openai_key
-`
 
 ### Application Configuration
 The application uses JSON configuration files to customize its behavior:
@@ -410,4 +394,50 @@ novel-manager/
 - **Hybrid database:** SQLite + automatic JSON backup.
 - **Recovery points:** Checkpoint system for long operations.
 - **Failure recovery:** Automatic recovery mechanisms for errors.
+-- **Data integrity:** Automatic verification and repair of corrupt data.#### 🛡️ Backup and Recovery System
+- **Hybrid database:** SQLite + automatic JSON backup.
+- **Recovery points:** Checkpoint system for long operations.
+- **Failure recovery:** Automatic recovery mechanisms for errors.
 -- **Data integrity:** Automatic verification and repair of corrupt data.
+
+## Multilingual Support
+
+Novel Manager now supports multiple interface languages. The application currently includes:
+
+- **Spanish (Mexico)** - Default language
+- **English (United States)** - Full translation of all interface elements
+
+### Language Selection
+
+To change the interface language:
+
+1. Open the application
+2. Click on the "Settings" button (gear icon) in the main toolbar
+3. In the configuration dialog, select "Interface Language" 
+4. Choose your preferred language from the dropdown menu
+5. Click "Save" to apply the changes
+6. Restart the application for the language change to take effect
+
+### Adding New Languages
+
+To add support for a new language:
+
+1. Create a new JSON file in `src/config/i18n/` with the language code as the filename (e.g., `fr_FR.json` for French)
+2. Follow the structure of existing language files, using the same key format
+3. Translate all interface strings to the new language
+4. The new language will automatically appear in the language selection dropdown
+
+### Language File Structure
+
+Language files follow a simple key-value structure:
+```json
+{
+  "language_name": "English (US)",
+  "main_window.title": "Novel Translator",
+  "settings_dialog.title": "Settings",
+  "clean_panel.text_label": "Text:",
+  ...
+}
+```
+
+Each key represents a specific UI element, and the value is the translated text for that element.

@@ -9,21 +9,22 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices
 from typing import Dict, Any, Optional
+from src.logic.language_manager import LanguageManager
 
 class AddLanguageDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Añadir Idioma")
+        self.setWindowTitle(parent._get_string("add_language_dialog.title") if hasattr(parent, '_get_string') else "Add Language")
         self.setModal(True)
         layout = QFormLayout()
         self.name_input = QLineEdit()
         self.code_input = QLineEdit()
-        layout.addRow("Nombre:", self.name_input)
-        layout.addRow("Código:", self.code_input)
+        layout.addRow(parent._get_string("add_language_dialog.name") if hasattr(parent, '_get_string') else "Name:", self.name_input)
+        layout.addRow(parent._get_string("add_language_dialog.code") if hasattr(parent, '_get_string') else "Code:", self.code_input)
         
         buttons_layout = QHBoxLayout()
-        self.save_button = QPushButton("Guardar")
-        self.cancel_button = QPushButton("Cancelar")
+        self.save_button = QPushButton(parent._get_string("add_language_dialog.save_button") if hasattr(parent, '_get_string') else "Save")
+        self.cancel_button = QPushButton(parent._get_string("add_language_dialog.cancel_button") if hasattr(parent, '_get_string') else "Cancel")
         buttons_layout.addWidget(self.save_button)
         buttons_layout.addWidget(self.cancel_button)
         
@@ -41,7 +42,7 @@ class AddLanguageDialog(QDialog):
 class NewPromptDialog(QDialog):
     def __init__(self, languages, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Nuevo Prompt")
+        self.setWindowTitle(parent._get_string("new_prompt_dialog.title") if hasattr(parent, '_get_string') else "New Prompt")
         self.setModal(True)
         layout = QFormLayout()
         self.source_lang_combo = QComboBox()
@@ -51,12 +52,12 @@ class NewPromptDialog(QDialog):
             self.source_lang_combo.addItem(name, code)
             self.target_lang_combo.addItem(name, code)
             
-        layout.addRow("Idioma Origen:", self.source_lang_combo)
-        layout.addRow("Idioma Destino:", self.target_lang_combo)
+        layout.addRow(parent._get_string("new_prompt_dialog.source_language") if hasattr(parent, '_get_string') else "Source Language:", self.source_lang_combo)
+        layout.addRow(parent._get_string("new_prompt_dialog.target_language") if hasattr(parent, '_get_string') else "Target Language:", self.target_lang_combo)
         
         buttons_layout = QHBoxLayout()
-        self.create_button = QPushButton("Crear")
-        self.cancel_button = QPushButton("Cancelar")
+        self.create_button = QPushButton(parent._get_string("new_prompt_dialog.create_button") if hasattr(parent, '_get_string') else "Create")
+        self.cancel_button = QPushButton(parent._get_string("new_prompt_dialog.cancel_button") if hasattr(parent, '_get_string') else "Cancel")
         buttons_layout.addWidget(self.create_button)
         buttons_layout.addWidget(self.cancel_button)
         
@@ -79,6 +80,7 @@ class SettingsDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.main_window = parent
         self.config_file = Path(__file__).parent.parent / 'config' / 'config.json'
         self.models_file = Path(__file__).parent.parent / 'config' / 'models' / 'translation_models.json'
         self.languages_file = Path(__file__).parent.parent / 'config' / 'languages.json'
@@ -91,35 +93,49 @@ class SettingsDialog(QDialog):
         self.load_settings()
         self.connect_settings_signals()
         
+    def _get_string(self, key, default_text=""):
+        """Get a localized string from the language manager."""
+        if hasattr(self.main_window, 'lang_manager'):
+            return self.main_window.lang_manager.get_string(key, default_text)
+        return default_text or key
+        
     def init_ui(self):
-        self.setWindowTitle("Configuración")
+        self.setWindowTitle(self._get_string("settings_dialog.title"))
         self.setModal(True)
         self.resize(600, 700)
         
         main_layout = QVBoxLayout()
         
-        translation_group = QGroupBox("Configuración de Traducción")
+        # Add UI Language selection
+        ui_language_group = QGroupBox(self._get_string("settings_dialog.ui_language_group"))
+        ui_language_layout = QFormLayout()
+        self.ui_language_combo = QComboBox()
+        ui_language_layout.addRow(self._get_string("settings_dialog.ui_language_label"), self.ui_language_combo)
+        ui_language_group.setLayout(ui_language_layout)
+        main_layout.addWidget(ui_language_group)
+        
+        translation_group = QGroupBox(self._get_string("settings_dialog.translation_group"))
         main_translation_layout = QHBoxLayout()
 
         # Columna izquierda
         left_layout = QFormLayout()
         self.provider_combo = QComboBox()
-        self.provider_combo.setToolTip("Selecciona el proveedor de traducción")
-        left_layout.addRow("Proveedor:", self.provider_combo)
+        self.provider_combo.setToolTip(self._get_string("settings_dialog.provider_tooltip"))
+        left_layout.addRow(self._get_string("settings_dialog.provider_label"), self.provider_combo)
         
         self.model_combo = QComboBox()
-        self.model_combo.setToolTip("Selecciona el modelo de traducción")
-        left_layout.addRow("Modelo:", self.model_combo)
+        self.model_combo.setToolTip(self._get_string("settings_dialog.model_tooltip"))
+        left_layout.addRow(self._get_string("settings_dialog.model_label"), self.model_combo)
 
         # Columna derecha
         right_layout = QFormLayout()
         self.source_lang_combo = QComboBox()
-        self.source_lang_combo.setToolTip("Selecciona el idioma de origen")
-        right_layout.addRow("Idioma Origen:", self.source_lang_combo)
+        self.source_lang_combo.setToolTip(self._get_string("settings_dialog.source_language_tooltip"))
+        right_layout.addRow(self._get_string("settings_dialog.source_language_label"), self.source_lang_combo)
         
         self.target_lang_combo = QComboBox()
-        self.target_lang_combo.setToolTip("Selecciona el idioma de destino")
-        right_layout.addRow("Idioma Destino:", self.target_lang_combo)
+        self.target_lang_combo.setToolTip(self._get_string("settings_dialog.target_language_tooltip"))
+        right_layout.addRow(self._get_string("settings_dialog.target_language_label"), self.target_lang_combo)
 
         main_translation_layout.addLayout(left_layout)
         main_translation_layout.addLayout(right_layout)
@@ -127,34 +143,40 @@ class SettingsDialog(QDialog):
         translation_group.setLayout(main_translation_layout)
         main_layout.addWidget(translation_group)
 
-        languages_group = QGroupBox("Gestión de Idiomas")
+        languages_group = QGroupBox(self._get_string("settings_dialog.languages_group"))
         languages_layout = QVBoxLayout()
         self.languages_table = QTableWidget()
         self.languages_table.setColumnCount(2)
-        self.languages_table.setHorizontalHeaderLabels(["Nombre", "Código"])
+        self.languages_table.setHorizontalHeaderLabels([
+            self._get_string("settings_dialog.languages_table.name"),
+            self._get_string("settings_dialog.languages_table.code")
+        ])
         self.languages_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         languages_layout.addWidget(self.languages_table)
 
         lang_buttons_layout = QHBoxLayout()
-        self.add_lang_button = QPushButton("Añadir Idioma")
-        self.remove_lang_button = QPushButton("Eliminar Idioma")
+        self.add_lang_button = QPushButton(self._get_string("settings_dialog.add_language_button"))
+        self.remove_lang_button = QPushButton(self._get_string("settings_dialog.remove_language_button"))
         lang_buttons_layout.addWidget(self.add_lang_button)
         lang_buttons_layout.addWidget(self.remove_lang_button)
         languages_layout.addLayout(lang_buttons_layout)
         languages_group.setLayout(languages_layout)
         main_layout.addWidget(languages_group)
 
-        prompts_group = QGroupBox("Gestión de Prompts")
+        prompts_group = QGroupBox(self._get_string("settings_dialog.prompts_group"))
         prompts_layout = QVBoxLayout()
         self.prompts_table = QTableWidget()
         self.prompts_table.setColumnCount(2)
-        self.prompts_table.setHorizontalHeaderLabels(["Nombre", "Términos Predefinidos"])
+        self.prompts_table.setHorizontalHeaderLabels([
+            self._get_string("settings_dialog.prompts_table.name"),
+            self._get_string("settings_dialog.prompts_table.terms")
+        ])
         self.prompts_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         prompts_layout.addWidget(self.prompts_table)
 
         prompt_buttons_layout = QHBoxLayout()
-        self.new_prompt_button = QPushButton("Nuevo Prompt")
-        self.remove_prompt_button = QPushButton("Eliminar Prompt")
+        self.new_prompt_button = QPushButton(self._get_string("settings_dialog.new_prompt_button"))
+        self.remove_prompt_button = QPushButton(self._get_string("settings_dialog.remove_prompt_button"))
         prompt_buttons_layout.addWidget(self.new_prompt_button)
         prompt_buttons_layout.addWidget(self.remove_prompt_button)
         prompts_layout.addLayout(prompt_buttons_layout)
@@ -207,6 +229,9 @@ class SettingsDialog(QDialog):
         return {}
     
     def load_settings(self):
+        # Load UI languages
+        self.load_ui_languages()
+        
         self.provider_combo.clear()
         if self.models_config:
             for provider_key, provider_data in self.models_config.items():
@@ -252,6 +277,20 @@ class SettingsDialog(QDialog):
                 self.source_lang_combo.addItem(lang_name, lang_key)
                 self.target_lang_combo.addItem(lang_name, lang_key)
 
+    def load_ui_languages(self):
+        """Load available UI languages into the combo box."""
+        self.ui_language_combo.clear()
+        available_languages = LanguageManager.get_available_languages()
+        current_ui_language = self.current_config.get('ui_language', 'es_MX')
+        
+        for lang_code, lang_name in available_languages.items():
+            self.ui_language_combo.addItem(lang_name, lang_code)
+            
+        # Set current selection
+        current_index = self.ui_language_combo.findData(current_ui_language)
+        if current_index >= 0:
+            self.ui_language_combo.setCurrentIndex(current_index)
+
     def load_languages_table(self):
         self.languages_table.setRowCount(0)
         for code, name in self.languages_config.items():
@@ -272,7 +311,7 @@ class SettingsDialog(QDialog):
                 self.prompts_table.insertRow(row_position)
                 self.prompts_table.setItem(row_position, 0, QTableWidgetItem(item.name))
                 
-                edit_button = QPushButton("Editar")
+                edit_button = QPushButton(self._get_string("settings_dialog.edit_button"))
                 edit_button.clicked.connect(lambda _, p=item: self.edit_preset_terms(p))
                 self.prompts_table.setCellWidget(row_position, 1, edit_button)
 
@@ -288,7 +327,7 @@ class SettingsDialog(QDialog):
             name, code = dialog.get_data()
             if name and code:
                 if name in self.languages_config.values() or code in self.languages_config:
-                    QMessageBox.warning(self, "Advertencia", "El nombre o código de idioma ya existe.")
+                    QMessageBox.warning(self, self._get_string("warning_dialog.title"), self._get_string("language_already_exists"))
                     return
                 self.languages_config[code] = name
                 self._save_languages_config()
@@ -300,10 +339,10 @@ class SettingsDialog(QDialog):
         if selected_row >= 0:
             code = self.languages_table.item(selected_row, 1).text()
             if code == 'auto':
-                QMessageBox.warning(self, "Advertencia", "No se puede eliminar el idioma 'auto'.")
+                QMessageBox.warning(self, self._get_string("warning_dialog.title"), self._get_string("cannot_remove_auto_language"))
                 return
-            reply = QMessageBox.question(self, 'Confirmación',
-                                       f"¿Está seguro de que desea eliminar el idioma '{code}'?",
+            reply = QMessageBox.question(self, self._get_string("confirmation_dialog.title"),
+                                       self._get_string("remove_language_confirmation").format(code=code),
                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                        QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.Yes:
@@ -318,13 +357,13 @@ class SettingsDialog(QDialog):
             source_code, target_code = dialog.get_data()
             if source_code and target_code:
                 if source_code == target_code:
-                    QMessageBox.warning(self, "Advertencia", "Los idiomas de origen y destino no pueden ser iguales.")
+                    QMessageBox.warning(self, self._get_string("warning_dialog.title"), self._get_string("same_languages_error"))
                     return
                 
                 prompt_dir_name = f"{source_code}_{target_code}"
                 prompt_path = Path(__file__).parent.parent / 'config' / 'prompts' / prompt_dir_name
                 if prompt_path.exists():
-                    QMessageBox.warning(self, "Advertencia", f"El conjunto de prompts '{prompt_dir_name}' ya existe.")
+                    QMessageBox.warning(self, self._get_string("warning_dialog.title"), self._get_string("prompt_already_exists").format(name=prompt_dir_name))
                     return
 
                 try:
@@ -333,15 +372,15 @@ class SettingsDialog(QDialog):
                     self.load_prompts_table()
                     QDesktopServices.openUrl(QUrl.fromLocalFile(str(prompt_path)))
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"No se pudo crear el conjunto de prompts: {e}")
+                    QMessageBox.critical(self, self._get_string("error_dialog.title"), self._get_string("create_prompt_error").format(error=str(e)))
 
     def remove_prompt(self):
         selected_row = self.prompts_table.currentRow()
         if selected_row >= 0:
             prompt_dir_name = self.prompts_table.item(selected_row, 0).text()
             
-            reply = QMessageBox.question(self, 'Confirmación',
-                                       f"¿Está seguro de que desea eliminar el conjunto de prompts '{prompt_dir_name}'?\nEsto borrará la carpeta y todo su contenido de forma permanente.",
+            reply = QMessageBox.question(self, self._get_string("confirmation_dialog.title"),
+                                       self._get_string("remove_prompt_confirmation").format(name=prompt_dir_name),
                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                        QMessageBox.StandardButton.No)
             
@@ -351,25 +390,25 @@ class SettingsDialog(QDialog):
                     if prompt_path.exists() and prompt_path.is_dir():
                         shutil.rmtree(prompt_path)
                         self.load_prompts_table()
-                        QMessageBox.information(self, "Éxito", f"Se eliminó el conjunto de prompts '{prompt_dir_name}'.")
+                        QMessageBox.information(self, self._get_string("success_dialog.title"), self._get_string("remove_prompt_success").format(name=prompt_dir_name))
                     else:
-                        QMessageBox.warning(self, "Error", f"No se encontró el directorio '{prompt_dir_name}'.")
+                        QMessageBox.warning(self, self._get_string("error_dialog.title"), self._get_string("prompt_folder_not_found").format(name=prompt_dir_name))
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"No se pudo eliminar el conjunto de prompts: {e}")
+                    QMessageBox.critical(self, self._get_string("error_dialog.title"), self._get_string("remove_prompt_error").format(error=str(e)))
 
     def edit_preset_terms(self, prompt_dir: Path):
         preset_terms_file = prompt_dir / 'preset_terms.json'
         if preset_terms_file.exists():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(preset_terms_file)))
         else:
-            QMessageBox.warning(self, "Advertencia", f"No se encontró el archivo preset_terms.json en {prompt_dir}")
+            QMessageBox.warning(self, self._get_string("warning_dialog.title"), self._get_string("prompt_file_not_found").format(path=prompt_dir))
 
     def _save_languages_config(self):
         try:
             with open(self.languages_file, 'w', encoding='utf-8') as f:
                 json.dump(self.languages_config, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo guardar la configuración de idiomas: {e}")
+            QMessageBox.critical(self, self._get_string("error_dialog.title"), self._get_string("settings_dialog.languages.save_error").format(error=str(e)))
 
     def update_models(self):
         self.model_combo.clear()
@@ -382,25 +421,29 @@ class SettingsDialog(QDialog):
     
     def save_settings(self):
         if not self.provider_combo.currentData():
-            QMessageBox.warning(self, "Advertencia", "Debe seleccionar un proveedor válido")
+            QMessageBox.warning(self, self._get_string("warning_dialog.title"), self._get_string("no_provider_selected"))
             return
         
         if not self.model_combo.currentData():
-            QMessageBox.warning(self, "Advertencia", "Debe seleccionar un modelo válido")
+            QMessageBox.warning(self, self._get_string("warning_dialog.title"), self._get_string("no_model_selected"))
             return
         
         source_lang = self.source_lang_combo.currentData()
         target_lang = self.target_lang_combo.currentData()
         
         if source_lang == target_lang:
-            QMessageBox.warning(self, "Advertencia", "El idioma de origen y destino no pueden ser el mismo")
+            QMessageBox.warning(self, self._get_string("warning_dialog.title"), self._get_string("settings_dialog.save_error.same_languages"))
             return
+        
+        # Get UI language
+        ui_language = self.ui_language_combo.currentData()
         
         new_config = {
             "provider": self.provider_combo.currentData(),
             "model": self.model_combo.currentData(),
             "source_language": source_lang,
             "target_language": target_lang,
+            "ui_language": ui_language
         }
         
         try:
@@ -408,7 +451,17 @@ class SettingsDialog(QDialog):
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(new_config, f, indent=2, ensure_ascii=False)
             self.current_config = new_config
-            QMessageBox.information(self, "Éxito", "Configuración guardada correctamente")
+            
+            # Show restart message if UI language changed
+            if ui_language != self.current_config.get('ui_language'):
+                QMessageBox.information(
+                    self,
+                    self._get_string("success_dialog.title"),
+                    self._get_string("settings_restart_required")
+                )
+            else:
+                QMessageBox.information(self, self._get_string("success_dialog.title"), self._get_string("settings_saved_success"))
+                
             self.accept()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo guardar la configuración: {str(e)}")
+            QMessageBox.critical(self, self._get_string("error_dialog.title"), self._get_string("settings_dialog.save_error").format(error=str(e)))

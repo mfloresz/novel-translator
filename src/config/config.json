@@ -2,5 +2,6 @@
   "provider": "chutes",
   "model": "mistral-3.2",
   "source_language": "en-US",
-  "target_language": "es-MX"
+  "target_language": "es-MX",
+  "ui_language": "en_US"
 }

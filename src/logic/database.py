@@ -27,6 +27,7 @@ class TranslationDatabase:
                         filename TEXT PRIMARY KEY,
                         source_lang TEXT,
                         target_lang TEXT,
+                        status INTEGER DEFAULT 1,  -- 1 para archivos ya traducidos
                         translated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
@@ -48,6 +49,21 @@ class TranslationDatabase:
                         created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
+                ''')
+
+                # Migración: agregar columna status si no existe
+                try:
+                    cursor.execute("ALTER TABLE translations ADD COLUMN status INTEGER DEFAULT 1")
+                except sqlite3.OperationalError:
+                    # La columna ya existe o hay otro error, continuar
+                    pass
+                
+                # Migración: actualizar registros existentes que no tienen status
+                # Si un registro existe en la tabla, asumimos que ya fue traducido (status = 1)
+                cursor.execute('''
+                    UPDATE translations 
+                    SET status = 1 
+                    WHERE status IS NULL OR status = 0
                 ''')
 
                 # Migración: agregar columna description si no existe
@@ -77,11 +93,12 @@ class TranslationDatabase:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT COUNT(*) FROM translations WHERE filename = ?",
+                    "SELECT status FROM translations WHERE filename = ?",
                     (filename,)
                 )
-                count = cursor.fetchone()[0]
-                return count > 0
+                result = cursor.fetchone()
+                # 1 es el código para "Traducido"
+                return result[0] == 1 if result else False
         except sqlite3.Error:
             return self._check_json_record(filename)
 
@@ -114,8 +131,8 @@ class TranslationDatabase:
                 cursor = conn.cursor()
                 cursor.execute('''
                     INSERT OR REPLACE INTO translations
-                    (filename, source_lang, target_lang)
-                    VALUES (?, ?, ?)
+                    (filename, source_lang, target_lang, status)
+                    VALUES (?, ?, ?, 1)
                 ''', (filename, source_lang, target_lang))
                 conn.commit()
                 return True
@@ -192,21 +209,6 @@ class TranslationDatabase:
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 
-    def clear_records(self) -> bool:
-        """
-        Limpia todos los registros de traducción.
-
-        Returns:
-            bool: True si se limpiaron los registros correctamente
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM translations")
-                conn.commit()
-                return True
-        except sqlite3.Error:
-            return False
 
     def save_custom_terms(self, terms: str) -> bool:
         """
