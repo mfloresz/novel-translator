@@ -58,6 +58,8 @@ python main.py
 - Recent folders history for quick access
 
 ### 🌐 Advanced Translation
+![Translation](assets/translate.webp)
+
 - **Multiple AI Providers**: Google Gemini, Chutes AI, Together AI, DeepInfra, OpenAI
 - **Smart Features**: Granular chapter control, automatic quality checks, refinement
 - **Custom Terms**: Project-specific terminology with persistence
@@ -65,11 +67,15 @@ python main.py
 - **Database Integration**: Avoids re-translations
 
 ### 🧹 Text Cleaning
+![Translation](assets/clean.webp)
+
 - **5 Cleaning Modes**: Delete content after text, remove duplicates, delete specific lines, normalize spacing, find & replace
 - **Range Control**: Process specific chapters or all files
 - **Preview & Backup**: Preview changes before applying and automatic backup
 
 ### 📚 EPUB Creation
+![Translation](assets/ebook.webp)
+
 - **Professional Conversion**: TXT to EPUB with literary structure
 - **Smart Metadata**: Automatic title, author, and description management
 - **Cover Detection**: Automatic cover image detection (cover.jpg, portada.png, etc.)

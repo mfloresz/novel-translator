@@ -58,6 +58,8 @@ python main.py
 - Historial de carpetas recientes para acceso rápido
 
 ### 🌐 Traducción Avanzada
+![Translation](assets/translate.webp)
+
 - **Múltiples Proveedores de IA**: Google Gemini, Chutes AI, Together AI, DeepInfra, OpenAI
 - **Funciones Inteligentes**: Control granular de capítulos, comprobación automática de calidad, refinamiento
 - **Términos Personalizados**: Terminología específica por proyecto con persistencia
@@ -65,11 +67,15 @@ python main.py
 - **Base de Datos**: Evita retraducciones
 
 ### 🧹 Limpieza de Texto
+![Translation](assets/clean.webp)
+
 - **5 Modos de Limpieza**: Eliminar contenido después de texto, remover duplicados, eliminar líneas específicas, normalizar espacios, buscar y reemplazar
 - **Control de Rango**: Procesar capítulos específicos o todos los archivos
 - **Vista Previa y Respaldo**: Previsualizar cambios antes de aplicar y respaldo automático
 
 ### 📚 Creación de EPUB
+![Translation](assets/ebook.webp)
+
 - **Conversión Profesional**: TXT a EPUB con estructura literaria
 - **Metadatos Inteligentes**: Gestión automática de título, autor y descripción
 - **Detección de Portadas**: Búsqueda automática de imágenes de portada (cover.jpg, portada.png, etc.)
