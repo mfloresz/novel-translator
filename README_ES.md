@@ -25,7 +25,7 @@ En sí lo hice porque tengo algunas novelas que aunque se tradujeron al español
 ### Instalación
 1. Clona el repositorio:
 ```bash
-git clone https://github.com/Misael-Ponce/novel-manager.git
+git clone https://github.com/mfloresz/novel-manager.git
 cd novel-manager
 ```
 
@@ -140,20 +140,6 @@ novel-manager/
 - **Idiomas de Interfaz**: Español (México), Inglés (EE.UU.)
 - **Idiomas de Traducción**: Español, Inglés, con detección automática
 - **Agregar Idiomas**: Crear archivos JSON en `src/config/i18n/`
-
-## Colaboración
-1. Haz fork del repositorio
-2. Crea una rama de características
-3. Realiza tus cambios
-4. Envía un pull request
-
-## Licencia
-[Agregar información de la licencia aquí]
-
-## Soporte
-Para problemas y preguntas:
-- Crea un issue en GitHub
-- Revisa los logs en el directorio de la aplicación
 
 ## Descargo de Responsabilidad
 Aunque este proyecto funciona, no puedo asegurar su funcionamiento ya que fue hecho con ayuda de la IA.
