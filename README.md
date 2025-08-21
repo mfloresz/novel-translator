@@ -19,6 +19,7 @@ I created this application because I have some novels that were translated to Sp
 
 ### Requirements
 - Python 3.8+
+- UV (Python package manager)
 - PyQt6>=6.0.0
 - See [Installation](#installation) for full dependencies
 
@@ -31,21 +32,21 @@ cd novel-manager
 
 2. Create virtual environment:
 ```bash
-python -m venv venv
+uv venv
 source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
 ```
 
 3. Install dependencies:
 ```bash
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 4. Configure API keys (create `.env` file from `.env.example`)
 
 5. Run the application:
 ```bash
-python main.py
+uv run python main.py
 ```
 
 ## Key Features

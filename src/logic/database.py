@@ -3,6 +3,7 @@ import os
 import json
 from typing import List, Dict, Union, Optional
 from datetime import datetime
+from pathlib import Path
 
 class TranslationDatabase:
     def __init__(self, directory: str):
@@ -12,8 +13,8 @@ class TranslationDatabase:
         Args:
             directory (str): Directorio de trabajo donde se creará la base de datos
         """
-        self.directory = directory
         self.db_path = os.path.join(directory, '.translation_records.db')
+        self.directory = Path(directory).as_posix()
         self.initialize_database()
 
     def initialize_database(self) -> None:

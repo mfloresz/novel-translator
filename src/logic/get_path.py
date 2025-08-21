@@ -102,14 +102,17 @@ def get_directory(initial_dir=None):
     if not directory:
         directory = get_directory_fallback(initial_dir)
 
-    # Validar que el directorio existe y normalizar la ruta
+    # Validar que el directorio existe y normalizar la ruta a formato POSIX
     if directory and os.path.isdir(directory):
-        return os.path.abspath(os.path.normpath(directory))
+        # os.path.abspath asegura que tenemos una ruta completa antes de la conversión
+        # .as_posix() garantiza el uso de '/' como separador en todos los SO
+        return Path(os.path.abspath(directory)).as_posix()
     elif directory:
         print(f"Error: El directorio '{directory}' no existe.", file=sys.stderr)
         return None
     else:
         return None
+
 
 
 def get_initial_directory():

@@ -19,6 +19,7 @@ En sí lo hice porque tengo algunas novelas que aunque se tradujeron al español
 
 ### Requisitos
 - Python 3.8+
+- UV (gestor de paquetes de Python)
 - PyQt6>=6.0.0
 - Ver [Instalación](#instalación) para dependencias completas
 
@@ -31,21 +32,21 @@ cd novel-manager
 
 2. Crea entorno virtual:
 ```bash
-python -m venv venv
+uv venv
 source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
 ```
 
 3. Instala dependencias:
 ```bash
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 4. Configura claves API (crea archivo `.env` desde `.env.example`)
 
 5. Ejecuta la aplicación:
 ```bash
-python main.py
+uv run python main.py
 ```
 
 ## Características Principales

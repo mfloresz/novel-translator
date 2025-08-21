@@ -28,9 +28,10 @@ class EpubImporter(QObject):
             options: Diccionario con opciones de importación
                 - add_numbering_to_content: Si True, añade numeración automática al contenido
                 - add_chapter_titles_to_content: Si True, inserta títulos de capítulos en el contenido
+                - replace_css_classes: Si True, procesa y reemplaza clases CSS por marcadores de formato
         """
         if options is None:
-            options = {'add_numbering_to_content': False, 'add_chapter_titles_to_content': True}
+            options = {'add_numbering_to_content': False, 'add_chapter_titles_to_content': True, 'replace_css_classes': False}
         try:
             # Validar archivo EPUB
             if not self._validate_epub(epub_path):
@@ -45,6 +46,10 @@ class EpubImporter(QObject):
                 if not metadata:
                     self.import_finished.emit(False, "No se pudieron extraer los metadatos del EPUB", "")
                     return
+
+                # Extraer estilos CSS
+                self.progress_updated.emit("Analizando estilos CSS...")
+                styles = self._extract_styles(epub_zip, metadata) if options.get('replace_css_classes', False) else {'italic_classes': [], 'bold_classes': []}
 
                 # Crear directorio de trabajo en la misma ubicación del EPUB
                 epub_dir = os.path.dirname(epub_path)
@@ -68,7 +73,7 @@ class EpubImporter(QObject):
                     return
 
                 # Convertir capítulos a TXT
-                self._convert_chapters_to_txt(chapters, output_dir, options)
+                self._convert_chapters_to_txt(chapters, output_dir, options, styles)
 
                 # Extraer portada
                 self._extract_cover(epub_zip, metadata, output_dir)
@@ -176,6 +181,36 @@ class EpubImporter(QObject):
             print(f"Error extrayendo metadatos: {e}")
             return None
 
+    def _extract_styles(self, epub_zip: zipfile.ZipFile, metadata: Dict) -> Dict[str, List[str]]:
+        """Extrae y parsea los estilos CSS para encontrar clases de formato."""
+        styles = {'italic_classes': [], 'bold_classes': []}
+        opf_dir = metadata.get('opf_dir', '')
+        manifest_map = metadata.get('manifest_map', {})
+
+        for item_id, item_info in manifest_map.items():
+            if item_info.get('media-type') == 'text/css':
+                css_path = item_info.get('href', '')
+                if not css_path:
+                    continue
+
+                if opf_dir:
+                    css_path = os.path.join(opf_dir, css_path)
+
+                try:
+                    css_content = epub_zip.read(css_path).decode('utf-8')
+                    
+                    # Expresiones regulares mejoradas para ser más flexibles
+                    italic_classes = re.findall(r'\.([a-zA-Z0-9_-]+)\s*\{[^}]*?font-style:\s*italic', css_content)
+                    styles['italic_classes'].extend(italic_classes)
+
+                    bold_classes = re.findall(r'\.([a-zA-Z0-9_-]+)\s*\{[^}]*?font-weight:\s*bold', css_content)
+                    styles['bold_classes'].extend(bold_classes)
+
+                except Exception as e:
+                    print(f"Error procesando CSS {css_path}: {e}")
+        
+        return styles
+
     def _extract_chapters(self, epub_zip: zipfile.ZipFile, metadata: Dict) -> List[Dict]:
         """Extrae los capítulos en orden del spine"""
         chapters = []
@@ -212,7 +247,7 @@ class EpubImporter(QObject):
 
         return chapters
 
-    def _convert_chapters_to_txt(self, chapters: List[Dict], output_dir: str, options: dict) -> None:
+    def _convert_chapters_to_txt(self, chapters: List[Dict], output_dir: str, options: dict, styles: Dict) -> None:
         """Convierte capítulos HTML a archivos TXT numerados"""
         for chapter in chapters:
             try:
@@ -224,7 +259,7 @@ class EpubImporter(QObject):
                     script.decompose()
 
                 # Extraer texto respetando la estructura de párrafos
-                text = self._extract_structured_text(soup)
+                text = self._extract_structured_text(soup, styles, options)
 
                 # Manejar contenido según opciones
                 chapter_title = chapter.get('title', '').strip()
@@ -305,7 +340,7 @@ class EpubImporter(QObject):
         except Exception as e:
             print(f"Error extrayendo portada: {e}")
 
-    def _extract_structured_text(self, soup: BeautifulSoup) -> str:
+    def _extract_structured_text(self, soup: BeautifulSoup, styles: Dict, options: dict = None) -> str:
         """Extrae texto respetando la estructura de párrafos y elementos de bloque"""
         # Remover elementos no deseados
         for element in soup(['script', 'style', 'nav', 'footer', 'header']):
@@ -323,21 +358,18 @@ class EpubImporter(QObject):
             for element in elements:
                 if hasattr(element, 'get_text') and hasattr(element, 'name'):
                     # Obtener el contenido HTML del elemento y convertirlo a markdown
-                    # Primero obtenemos el HTML del elemento
                     inner_html = ''.join([str(content) for content in element.contents])
-                    # Luego lo convertimos a markdown
-                    text = self._html_to_markdown(inner_html).strip()
-                    if text:
+                    text = self._html_to_markdown(inner_html, styles, options)
+                    if text.strip():
                         # Los encabezados y párrafos se separan con doble salto
                         if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'blockquote']:
                             result_parts.append(text)
                         elif element.name == 'div':
                             # Solo añadir divs si contienen texto directo
                             try:
-                                # Para divs, también convertimos el contenido a markdown
                                 direct_html = ''.join([str(t) for t in element.find_all(text=True, recursive=False)])
-                                direct_text = self._html_to_markdown(direct_html).strip()
-                                if direct_text:
+                                direct_text = self._html_to_markdown(direct_html, styles, options)
+                                if direct_text.strip():
                                     result_parts.append(text)
                             except:
                                 result_parts.append(text)
@@ -348,9 +380,8 @@ class EpubImporter(QObject):
 
         # Si no se encontró contenido estructurado, usar método de respaldo
         if not result_parts:
-            # Obtener el HTML completo del cuerpo y convertirlo a markdown
             body_content = ''.join([str(content) for content in main_content.contents])
-            text = self._html_to_markdown(body_content)
+            text = self._html_to_markdown(body_content, styles, options)
             # Limpiar espacios múltiples
             text = re.sub(r'[ \t]+', ' ', text)
             # Dividir por saltos de línea y limpiar
@@ -378,7 +409,7 @@ class EpubImporter(QObject):
     def _sanitize_filename(self, filename: str) -> str:
         """Sanitiza un nombre para usar como nombre de directorio"""
         # Remover caracteres no válidos
-        invalid_chars = '<>:"/\\|?*'
+        invalid_chars = '<>:\"/\\|?*'
         for char in invalid_chars:
             filename = filename.replace(char, '')
 
@@ -430,7 +461,7 @@ class EpubImporter(QObject):
     def _sanitize_filename_for_file(self, filename: str) -> str:
         """Sanitiza un nombre para usar como nombre de archivo"""
         # Remover caracteres no válidos
-        invalid_chars = '<>:"/\\|?*'
+        invalid_chars = '<>:\"/\\|?*'
         for char in invalid_chars:
             filename = filename.replace(char, '')
 
@@ -452,27 +483,39 @@ class EpubImporter(QObject):
             return element.text.strip()
         return default
 
-    def _html_to_markdown(self, html_content: str) -> str:
-        """Convierte etiquetas HTML simples a formato markdown"""
+    def _html_to_markdown(self, html_content: str, styles: Dict, options: dict = None) -> str:
+        """Convierte etiquetas HTML simples a formato markdown y limpia otras."""
         if not html_content:
-            return html_content
+            return ""
         
-        # Crear un elemento contenedor para parsear el HTML
         soup = BeautifulSoup(f"<div>{html_content}</div>", 'html.parser')
         container = soup.find('div')
+
+        # Aplicar estilos de clases para itálica
+        if options and options.get('replace_css_classes', False) and styles and styles.get('italic_classes'):
+            for italic_class in styles['italic_classes']:
+                for tag in container.find_all(class_=italic_class):
+                    tag.insert_before('*')
+                    tag.insert_after('*')
         
-        # Convertir <strong> y <b> a **texto**
+        # Aplicar estilos de clases para negrita
+        if options and options.get('replace_css_classes', False) and styles and styles.get('bold_classes'):
+            for bold_class in styles['bold_classes']:
+                for tag in container.find_all(class_=bold_class):
+                    tag.insert_before('**')
+                    tag.insert_after('**')
+
+        for br in container.find_all("br"):
+            br.replace_with("\n")
+
         for tag in container.find_all(['strong', 'b']):
             tag.insert_before('**')
             tag.insert_after('**')
             tag.unwrap()
 
-        
-        # Convertir <em> y <i> a *texto*
         for tag in container.find_all(['em', 'i']):
             tag.insert_before('*')
             tag.insert_after('*')
             tag.unwrap()
-        
-        # Obtener el texto resultante
-        return ''.join([str(content) for content in container.contents])
+            
+        return container.get_text()

@@ -211,7 +211,7 @@ class CreateEpubPanel(QWidget):
 
         # Emitir señal para solicitar confirmación antes de crear el EPUB
         from src.logic.functions import show_confirmation_dialog
-        if show_confirmation_dialog(self._get_string("create_panel.epub_creation.confirmation")):
+        if show_confirmation_dialog(self._get_string("create_panel.epub_creation.confirmation"), parent=self.main_window):
             self.epub_creation_requested.emit(data)
 
     def reset_form(self):

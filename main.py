@@ -852,7 +852,8 @@ class NovelManagerApp(QMainWindow):
             if recents_file.exists():
                 with open(recents_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    return data.get('recientes', [])
+                    # Asegurar que todas las rutas cargadas estén normalizadas
+                    return [Path(p).as_posix() for p in data.get('recientes', [])]
             return []
         except Exception as e:
             print(f"Error al cargar carpetas recientes: {e}")
@@ -862,6 +863,7 @@ class NovelManagerApp(QMainWindow):
         """Guarda las carpetas recientes en el archivo JSON"""
         try:
             recents_file = self.get_recents_file_path()
+            # Las rutas ya deberían estar normalizadas antes de llegar aquí
             data = {"recientes": recents_list}
             with open(recents_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
@@ -869,35 +871,41 @@ class NovelManagerApp(QMainWindow):
             print(f"Error al guardar carpetas recientes: {e}")
 
     def add_recent(self, directory_path):
-        """Agrega una carpeta al historial de recientes"""
+        """Agrega una carpeta al historial de recientes, normalizando la ruta"""
         if not directory_path:
             return
-        
-        # Cargar lista actual
+
+        # Normalizar la ruta entrante a formato POSIX para consistencia
+        normalized_path = Path(directory_path).as_posix()
+
+        # Cargar lista actual (ya viene normalizada desde load_recents)
         recents = self.load_recents()
-        
-        # Eliminar duplicados y la ruta actual si ya existe
-        recents = [path for path in recents if path != directory_path]
-        
-        # Agregar al principio
-        recents.insert(0, directory_path)
-        
+
+        # Eliminar la ruta si ya existe para moverla al principio
+        recents = [p for p in recents if p != normalized_path]
+
+        # Agregar la nueva ruta normalizada al principio
+        recents.insert(0, normalized_path)
+
         # Limitar a 10 elementos
         recents = recents[:10]
-        
+
         # Guardar actualizado
         self.save_recents(recents)
 
     def remove_recent(self, directory_path):
         """Elimina una carpeta específica del historial de recientes"""
+        # Normalizar la ruta a eliminar para asegurar la coincidencia
+        normalized_path_to_remove = Path(directory_path).as_posix()
+        
         recents = self.load_recents()
-        if directory_path in recents:
-            recents.remove(directory_path)
+        if normalized_path_to_remove in recents:
+            recents.remove(normalized_path_to_remove)
             self.save_recents(recents)
 
     def remove_recent_and_update_menu(self, directory_path):
         """Elimina una carpeta del historial y actualiza el menú"""
-        # Eliminar del historial
+        # La normalización se maneja dentro de remove_recent
         self.remove_recent(directory_path)
         
         # Obtener el nombre de la carpeta para el mensaje
@@ -908,101 +916,82 @@ class NovelManagerApp(QMainWindow):
         # Mostrar mensaje de confirmación
         self.statusBar().showMessage(f"Eliminado '{folder_name}' del historial de carpetas recientes", 3000)
         
-        # Volver a mostrar el menú actualizado
-        # Pequeña pausa para asegurar que el menú se cierre antes de volverlo a abrir
-        import time
-        time.sleep(0.1)
-        self.show_recents_menu()
+        # El menú se cerrará automáticamente, no es necesario reabrirlo aquí.
 
     def show_recents_menu(self):
         """Muestra el menú desplegable de carpetas recientes"""
         menu = QMenu(self)
         
-        # Cargar carpetas recientes
+        # Cargar carpetas recientes (ya vienen normalizadas)
         recents = self.load_recents()
         
         if not recents:
-            # No hay carpetas recientes
             action = QAction("No hay carpetas recientes", self)
             action.setEnabled(False)
             menu.addAction(action)
         else:
-            # Agregar cada carpeta al menú
-            for i, recent_path in enumerate(recents):
-                # Crear widget personalizado para cada elemento del menú
+            for recent_path in recents:
                 widget_item = QWidget()
                 layout = QHBoxLayout(widget_item)
                 layout.setContentsMargins(5, 2, 5, 2)
                 layout.setSpacing(5)
                 
-                # Obtener solo el nombre de la carpeta para mostrar
                 folder_name = os.path.basename(recent_path)
-                if not folder_name:  # En caso de que termine con /
+                if not folder_name:
                     folder_name = os.path.basename(os.path.dirname(recent_path))
                 
-                # Etiqueta con el nombre de la carpeta
                 label = QLabel(folder_name)
-                label.setToolTip(recent_path)  # Mostrar ruta completa en tooltip
+                label.setToolTip(recent_path)
                 
-                # Botón de eliminación
                 remove_button = QPushButton("×")
                 remove_button.setFixedSize(20, 20)
                 remove_button.setToolTip(f"Eliminar {folder_name} del historial")
                 remove_button.setStyleSheet("""
-                    QPushButton {
-                        border: 1px solid #ccc;
-                        border-radius: 3px;
-                        background-color: #f0f0f0;
-                        font-weight: bold;
-                    }
-                    QPushButton:hover {
-                        background-color: #ff6b6b;
-                        border-color: #ff5252;
-                    }
+                    QPushButton { border: 1px solid #ccc; border-radius: 3px; background-color: #f0f0f0; font-weight: bold; }
+                    QPushButton:hover { background-color: #ff6b6b; border-color: #ff5252; }
                 """)
                 
-                # Conectar el botón de eliminación
-                remove_button.clicked.connect(lambda checked, path=recent_path: self.remove_recent_and_update_menu(path))
+                remove_button.clicked.connect(lambda checked, path=recent_path, menu=menu: (menu.close(), self.remove_recent_and_update_menu(path)))
                 
-                # Conectar la acción para seleccionar la carpeta (haciendo clic en la etiqueta)
-                label.mouseReleaseEvent = lambda event, path=recent_path: self.select_recent_directory(path)
+                # Usar una clase o función para capturar la ruta correctamente en el lambda
+                def create_mouse_release_event(path):
+                    return lambda event: (menu.close(), self.select_recent_directory(path))
+                
+                label.mouseReleaseEvent = create_mouse_release_event(recent_path)
                 
                 layout.addWidget(label)
                 layout.addWidget(remove_button)
                 layout.addStretch()
                 
-                # Agregar el widget al menú
                 menu_action = QWidgetAction(self)
                 menu_action.setDefaultWidget(widget_item)
                 menu.addAction(menu_action)
         
-        # Mostrar el menú en la posición del botón
         button_rect = self.recents_button.rect()
         pos = self.recents_button.mapToGlobal(button_rect.bottomLeft())
         menu.exec(pos)
 
     def select_recent_directory(self, directory_path):
         """Establece una carpeta reciente como directorio de trabajo actual"""
-        if os.path.exists(directory_path) and os.path.isdir(directory_path):
-            # Agregar al historial de recientes para actualizar su posición
-            self.add_recent(directory_path)
-            self.current_directory = directory_path
+        # Normalizar la ruta por si acaso viene de una versión antigua del recents.json
+        normalized_path = Path(directory_path).as_posix()
+
+        if os.path.exists(normalized_path) and os.path.isdir(normalized_path):
+            self.add_recent(normalized_path)  # add_recent se encarga de la lógica de duplicados
+            self.current_directory = normalized_path
             self.statusBar().showMessage(f"Directorio de trabajo: {os.path.basename(self.current_directory)}")
-            # Configurar el directorio en el convertidor EPUB
-            self.epub_converter.set_directory(directory_path)
-            # Configurar directorio de trabajo en el panel de creación de EPUB
-            self.create_panel.set_working_directory(directory_path)
-            # Configurar directorio de trabajo en el panel de traducción
-            self.translate_panel.set_working_directory(directory_path)
-            # Habilitar botones
+            
+            self.epub_converter.set_directory(normalized_path)
+            self.create_panel.set_working_directory(normalized_path)
+            self.translate_panel.set_working_directory(normalized_path)
+            
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
-            # Actualizar título de la ventana
+            
             self.update_window_title()
             self.load_chapters()
         else:
             self.statusBar().showMessage(f"Error: La carpeta no existe: {directory_path}")
-            # Eliminar del historial si no existe
             self.remove_recent(directory_path)
 
     def select_directory(self):

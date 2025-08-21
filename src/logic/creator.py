@@ -135,7 +135,7 @@ class EpubConverterLogic(QObject):
             self.progress_updated.emit("Guardando archivo EPUB...")
             epub.create(output_path)
 
-            success_message = f"EPUB creado exitosamente: {output_filename}"
+            success_message = f"{output_filename}"
             self.conversion_finished.emit(True, success_message)
 
         except Exception as e:

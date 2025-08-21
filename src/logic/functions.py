@@ -6,11 +6,11 @@ import json
 from pathlib import Path
 
 # Funciones existentes
-def show_confirmation_dialog(message, title="Confirmación"):
+def show_confirmation_dialog(message, title="Confirmación", parent=None):
     """
     Muestra un diálogo de confirmación y retorna True si el usuario acepta.
     """
-    dialog = QMessageBox()
+    dialog = QMessageBox(parent)
     dialog.setIcon(QMessageBox.Icon.Warning)
     dialog.setText(message)
     dialog.setWindowTitle(title)
@@ -23,6 +23,13 @@ def get_file_range(table, start, end):
     Obtiene la lista de archivos en el rango especificado de la tabla.
     """
     files = []
+    
+    # Si no se especifica un inicio o fin, usar el rango completo
+    if start is None:
+        start = 1
+    if end is None:
+        end = table.rowCount()
+
     for row in range(start - 1, end):
         if row < table.rowCount():
             name_item = table.item(row, 0)
@@ -240,6 +247,7 @@ class EpubImportDialog(QDialog):
         self.output_dir = output_dir
         self.add_numbering = True
         self.add_chapter_titles = True
+        self.replace_css_classes = False  # Por defecto no reemplazar clases CSS
         self.init_ui()
 
     def init_ui(self):
@@ -285,6 +293,18 @@ class EpubImportDialog(QDialog):
         )
         layout.addWidget(self.titles_checkbox)
 
+        # Opción 3: Sustituir clases CSS
+        self.css_checkbox = QCheckBox(
+            "Sustituir clases CSS por marcadores de formato (itálica, negrita)"
+        )
+        self.css_checkbox.setChecked(False)  # Por defecto desactivado
+        self.css_checkbox.setToolTip(
+            "Si está marcado, se procesarán las clases CSS para aplicar formato itálica y negrita.\n"
+            "Si no está marcado, solo se procesarán las etiquetas HTML directas (em, strong, etc.).\n"
+            "Desactive esta opción si el texto ya tiene marcadores de formato para evitar duplicados."
+        )
+        layout.addWidget(self.css_checkbox)
+
         # Botones
         buttons_layout = QHBoxLayout()
 
@@ -310,7 +330,8 @@ class EpubImportDialog(QDialog):
         """
         return {
             'add_numbering_to_content': self.numbering_checkbox.isChecked(),
-            'add_chapter_titles_to_content': self.titles_checkbox.isChecked()
+            'add_chapter_titles_to_content': self.titles_checkbox.isChecked(),
+            'replace_css_classes': self.css_checkbox.isChecked()
         }
 
 def show_import_confirmation_dialog(epub_name, output_dir, parent=None):
