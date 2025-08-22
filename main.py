@@ -17,7 +17,7 @@ from src.logic.get_path import get_directory, get_initial_directory
 from src.logic.loader import FileLoader
 from src.logic.creator import EpubConverterLogic
 from src.logic.epub_importer import EpubImporter
-from src.logic.functions import show_confirmation_dialog, show_import_confirmation_dialog, get_file_range, show_error_dialog
+from src.logic.functions import show_confirmation_dialog, get_file_range, show_error_dialog
 from src.logic.database import TranslationDatabase
 from src.logic.session_logger import session_logger
 from src.logic.status_manager import get_status_color, get_status_code_from_text
@@ -593,8 +593,10 @@ class NovelManagerApp(QMainWindow):
         )
 
     def import_epub(self):
-        """Maneja la importación de archivos EPUB"""
+        """Maneja la importación de archivos EPUB usando la nueva ventana de vista previa"""
         from PyQt6.QtWidgets import QFileDialog
+        from src.gui.epub_preview import EpubPreviewWindow
+        
         # Abrir diálogo para seleccionar archivo EPUB
         # Usar el directorio home como directorio inicial, igual que en get_directory()
         initial_dir = os.path.expanduser('~')
@@ -606,21 +608,21 @@ class NovelManagerApp(QMainWindow):
         )
         if not file_path:
             return
-        # La carpeta se creará en la misma ubicación que el EPUB
-        epub_dir = os.path.dirname(file_path)
-        # Confirmar la importación con opciones
-        accepted, options = show_import_confirmation_dialog(
-            os.path.basename(file_path),
-            epub_dir,
-            self
-        )
-        if not accepted:
+            
+        # Mostrar ventana de vista previa
+        preview_dialog = EpubPreviewWindow(file_path, self)
+        if preview_dialog.exec() == QDialog.DialogCode.Accepted:
+            # Obtener datos de importación de la ventana de vista previa
+            book_title, author, chapters_data, cover_image = preview_dialog.get_import_data()
+            
+            # Iniciar la importación
+            self.statusBar().showMessage("Importando EPUB...")
+            self.import_epub_button.setEnabled(False)
+            self.nav_button.setEnabled(False)
+            self.epub_importer.import_epub(book_title, author, chapters_data, cover_image, file_path)
+        else:
+            # Usuario canceló la operación
             return
-        # Iniciar la importación
-        self.statusBar().showMessage("Importando EPUB...")
-        self.import_epub_button.setEnabled(False)
-        self.nav_button.setEnabled(False)
-        self.epub_importer.import_epub(file_path, options)
 
     def handle_epub_import_finished(self, success, message, directory_path):
         """Maneja la finalización de la importación de EPUB"""
