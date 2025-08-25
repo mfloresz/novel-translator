@@ -185,7 +185,7 @@ class NovelManagerApp(QMainWindow):
         # Conectar señal para actualizar título cuando se guardan metadatos
         self.create_panel.metadata_saved.connect(self.update_window_title)
         # Inicializar el importador EPUB
-        self.epub_importer = EpubImporter()
+        self.epub_importer = EpubImporter(self.lang_manager)
         self.epub_importer.progress_updated.connect(self.update_status_message)
         self.epub_importer.import_finished.connect(self.handle_epub_import_finished)
         # Configurar detección de cambios de tema
@@ -610,16 +610,16 @@ class NovelManagerApp(QMainWindow):
             return
             
         # Mostrar ventana de vista previa
-        preview_dialog = EpubPreviewWindow(file_path, self)
+        preview_dialog = EpubPreviewWindow(file_path, self.lang_manager, self)
         if preview_dialog.exec() == QDialog.DialogCode.Accepted:
             # Obtener datos de importación de la ventana de vista previa
-            book_title, author, chapters_data, cover_image = preview_dialog.get_import_data()
+            book_title, author, options = preview_dialog.get_import_options()
             
             # Iniciar la importación
             self.statusBar().showMessage("Importando EPUB...")
             self.import_epub_button.setEnabled(False)
             self.nav_button.setEnabled(False)
-            self.epub_importer.import_epub(book_title, author, chapters_data, cover_image, file_path)
+            self.epub_importer.start_import(book_title, author, file_path, options)
         else:
             # Usuario canceló la operación
             return

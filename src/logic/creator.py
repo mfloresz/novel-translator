@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from PyQt6.QtCore import QObject, pyqtSignal
 try:
     from bs4 import BeautifulSoup
@@ -225,16 +226,27 @@ class EpubConverterLogic(QObject):
         return title
 
     def _format_text(self, text):
-        """Convierte formato de texto simple a HTML sin solapamientos"""
-        def repl(m):
-            inner = m.group(2) or m.group(4) or m.group(6)
-            if m.group(1):          # dos asteriscos → negritas
-                return f'<strong>{inner}</strong>'
-            else:                   # un asterisco o guion bajo → cursivas
-                return f'<em>{inner}</em>'
-        
-        pattern = re.compile(r'(\*\*)([^*]+)\*\*|(\*)([^*]+)\*|(_)([^_]+)_')
-        return pattern.sub(repl, text)
+        """Convierte formato de texto simple a HTML usando reglas de un JSON."""
+        try:
+            # Construir la ruta al archivo de reglas JSON
+            rules_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'markdown_rules.json')
+
+            with open(rules_path, 'r', encoding='utf-8') as f:
+                rules = json.load(f)
+
+            # Aplicar cada regla en un orden específico si es necesario
+            # Por ejemplo, procesar negritas antes que cursivas para evitar conflictos
+            rule_order = ["bold", "italic", "italic_quotes", "line_break"]
+            for key in rule_order:
+                if key in rules:
+                    rule = rules[key]
+                    text = re.sub(rule['pattern'], rule['replacement'], text)
+
+            return text
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            # En caso de error, se puede registrar o simplemente devolver el texto original
+            print(f"Error al procesar las reglas de formato: {e}")
+            return text
 
     def _create_titlepage_html(self, title, author, description=""):
         """Crea HTML para la página de título"""

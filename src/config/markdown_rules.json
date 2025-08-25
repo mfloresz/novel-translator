@@ -1,0 +1,18 @@
+{
+  "bold": {
+    "pattern": "\\*\\*([^*]+)\\*\\*",
+    "replacement": "<b>\\1</b>"
+  },
+  "italic": {
+    "pattern": "\\*([^*]+)\\*",
+    "replacement": "<i>\\1</i>"
+  },
+  "italic_quotes": {
+    "pattern": "‘(.*?)’",
+    "replacement": "<i>\\1</i>"
+  },
+  "line_break": {
+    "pattern": "\\n",
+    "replacement": "<br/>"
+  }
+}

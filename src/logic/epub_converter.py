@@ -188,7 +188,7 @@ class EpubConverter:
         # Asegurar que los elementos de bloque estén separados por saltos de línea
         # Reemplazar cualquier texto que vaya seguido de un elemento de bloque (sin salto de línea)
         # con un salto de línea doble
-        result = re.sub(r'([^\n]+)(?=\n*[^\n])', r'\1\n\n', markdown_content)
+        result = re.sub(r'([^\n]+)(?=\n+[^\n])', r'\1\n\n', markdown_content)
         
         # Limpieza final
         result = re.sub(r'\n{3,}', '\n\n', result).strip()
