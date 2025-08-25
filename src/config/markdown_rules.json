@@ -8,11 +8,7 @@
     "replacement": "<i>\\1</i>"
   },
   "italic_quotes": {
-    "pattern": "‘(.*?)’",
+    "pattern": "‘([^’]+)’",
     "replacement": "<i>\\1</i>"
-  },
-  "line_break": {
-    "pattern": "\\n",
-    "replacement": "<br/>"
   }
 }
