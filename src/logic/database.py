@@ -14,36 +14,97 @@ class TranslationDatabase:
             directory (str): Directorio de trabajo donde se creará la base de datos
         """
         self.db_path = os.path.join(directory, '.translation_records.db')
-        self.directory = Path(directory).as_posix()
+        self.directory = directory # Guardar la ruta para los backups en JSON
         self.initialize_database()
+
+    def _migrate_database(self, cursor: sqlite3.Cursor) -> None:
+        """
+        Migra la estructura de la base de datos de la versión antigua (basada en directorios)
+        a la nueva (basada en un ID estático).
+        """
+        # Migración para book_metadata
+        cursor.execute("PRAGMA table_info(book_metadata)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'directory' in columns:
+            # Leer datos antiguos
+            cursor.execute("SELECT title, author, description FROM book_metadata LIMIT 1")
+            old_data = cursor.fetchone()
+
+            # Renombrar tabla antigua
+            cursor.execute("DROP TABLE book_metadata")
+
+            # Crear tabla nueva
+            cursor.execute('''
+                CREATE TABLE book_metadata (
+                    id TEXT PRIMARY KEY,
+                    title TEXT,
+                    author TEXT,
+                    description TEXT,
+                    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Insertar datos antiguos en la nueva tabla si existían
+            if old_data:
+                self.save_book_metadata(old_data[0], old_data[1], old_data[2] or "")
+
+        # Migración para custom_terms
+        cursor.execute("PRAGMA table_info(custom_terms)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'directory' in columns:
+            # Leer datos antiguos
+            cursor.execute("SELECT terms FROM custom_terms LIMIT 1")
+            old_data = cursor.fetchone()
+
+            # Renombrar tabla antigua
+            cursor.execute("DROP TABLE custom_terms")
+
+            # Crear tabla nueva
+            cursor.execute('''
+                CREATE TABLE custom_terms (
+                    id TEXT PRIMARY KEY,
+                    terms TEXT,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Insertar datos antiguos en la nueva tabla si existían
+            if old_data:
+                self.save_custom_terms(old_data[0])
 
     def initialize_database(self) -> None:
         """Crea la base de datos y las tablas si no existen"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                # Tabla de traducciones existente
+
+                # --- Migración de Esquema ---
+                self._migrate_database(cursor)
+
+                # --- Creación de Tablas (si no existen) ---
+                # Tabla de traducciones (sin cambios)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS translations (
                         filename TEXT PRIMARY KEY,
                         source_lang TEXT,
                         target_lang TEXT,
-                        status INTEGER DEFAULT 1,  -- 1 para archivos ya traducidos
+                        status INTEGER DEFAULT 1,
                         translated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
-                # Nueva tabla para términos personalizados
+                # Tabla para términos personalizados (nuevo esquema)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS custom_terms (
-                        directory TEXT PRIMARY KEY,
+                        id TEXT PRIMARY KEY,
                         terms TEXT,
                         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
-                # Nueva tabla para metadatos del libro (título, autor y descripción)
+                # Tabla para metadatos del libro (nuevo esquema)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS book_metadata (
-                        directory TEXT PRIMARY KEY,
+                        id TEXT PRIMARY KEY,
                         title TEXT,
                         author TEXT,
                         description TEXT,
@@ -52,26 +113,21 @@ class TranslationDatabase:
                     )
                 ''')
 
-                # Migración: agregar columna status si no existe
+                # --- Migraciones de Datos Antiguas (se mantienen por si acaso) ---
                 try:
                     cursor.execute("ALTER TABLE translations ADD COLUMN status INTEGER DEFAULT 1")
                 except sqlite3.OperationalError:
-                    # La columna ya existe o hay otro error, continuar
                     pass
                 
-                # Migración: actualizar registros existentes que no tienen status
-                # Si un registro existe en la tabla, asumimos que ya fue traducido (status = 1)
                 cursor.execute('''
                     UPDATE translations 
                     SET status = 1 
                     WHERE status IS NULL OR status = 0
                 ''')
 
-                # Migración: agregar columna description si no existe
                 try:
                     cursor.execute("ALTER TABLE book_metadata ADD COLUMN description TEXT")
                 except sqlite3.OperationalError:
-                    # La columna ya existe o hay otro error, continuar
                     pass
 
                 conn.commit()
@@ -87,9 +143,7 @@ class TranslationDatabase:
                 json.dump({"translations": [], "custom_terms": "", "book_metadata": {}}, f)
 
     def is_file_translated(self, filename: str) -> bool:
-        """
-        Verifica si un archivo ya ha sido traducido.
-        """
+        """Verifica si un archivo ya ha sido traducido."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -98,7 +152,6 @@ class TranslationDatabase:
                     (filename,)
                 )
                 result = cursor.fetchone()
-                # 1 es el código para "Traducido"
                 return result[0] == 1 if result else False
         except sqlite3.Error:
             return self._check_json_record(filename)
@@ -116,17 +169,7 @@ class TranslationDatabase:
 
     def add_translation_record(self, filename: str, source_lang: str,
                              target_lang: str) -> bool:
-        """
-        Registra una traducción exitosa.
-
-        Args:
-            filename (str): Nombre del archivo traducido
-            source_lang (str): Idioma de origen
-            target_lang (str): Idioma de destino
-
-        Returns:
-            bool: True si se registró correctamente, False en caso contrario
-        """
+        """Registra una traducción exitosa."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -159,12 +202,7 @@ class TranslationDatabase:
             }
 
             translations = records.get('translations', [])
-            for i, existing in enumerate(translations):
-                if existing['filename'] == filename:
-                    translations[i] = record
-                    break
-            else:
-                translations.append(record)
+            translations.append(record)
             records['translations'] = translations
 
             with open(json_path, 'w', encoding='utf-8') as f:
@@ -175,12 +213,7 @@ class TranslationDatabase:
             return False
 
     def get_all_translated_files(self) -> List[Dict[str, str]]:
-        """
-        Obtiene la lista de todos los archivos traducidos.
-
-        Returns:
-            List[Dict[str, str]]: Lista de diccionarios con información de traducciones
-        """
+        """Obtiene la lista de todos los archivos traducidos."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -210,42 +243,28 @@ class TranslationDatabase:
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 
-
     def save_custom_terms(self, terms: str) -> bool:
-        """
-        Guarda los términos personalizados para el directorio actual.
-
-        Args:
-            terms (str): Términos personalizados a guardar
-
-        Returns:
-            bool: True si se guardaron correctamente, False en caso contrario
-        """
+        """Guarda los términos personalizados para el proyecto actual."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    INSERT OR REPLACE INTO custom_terms (directory, terms, last_updated)
+                    INSERT OR REPLACE INTO custom_terms (id, terms, last_updated)
                     VALUES (?, ?, CURRENT_TIMESTAMP)
-                ''', (self.directory, terms))
+                ''', ('project_settings', terms))
                 conn.commit()
                 return True
         except sqlite3.Error:
             return self._save_terms_to_json(terms)
 
     def get_custom_terms(self) -> str:
-        """
-        Recupera los términos personalizados para el directorio actual.
-
-        Returns:
-            str: Términos personalizados guardados o cadena vacía si no hay
-        """
+        """Recupera los términos personalizados para el proyecto actual."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT terms FROM custom_terms WHERE directory = ?",
-                    (self.directory,)
+                    "SELECT terms FROM custom_terms WHERE id = ?",
+                    ('project_settings',)
                 )
                 result = cursor.fetchone()
                 return result[0] if result else ""
@@ -282,42 +301,27 @@ class TranslationDatabase:
             return ""
 
     def save_book_metadata(self, title: str, author: str, description: str = "") -> bool:
-        """
-        Guarda los metadatos del libro (título, autor y descripción) para el directorio actual.
-
-        Args:
-            title (str): Título del libro
-            author (str): Autor del libro
-            description (str): Descripción del libro
-
-        Returns:
-            bool: True si se guardaron correctamente, False en caso contrario
-        """
+        """Guarda los metadatos del libro para el proyecto actual."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    INSERT OR REPLACE INTO book_metadata (directory, title, author, description, last_updated)
+                    INSERT OR REPLACE INTO book_metadata (id, title, author, description, last_updated)
                     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ''', (self.directory, title, author, description))
+                ''', ('project_settings', title, author, description))
                 conn.commit()
                 return True
         except sqlite3.Error:
             return self._save_metadata_to_json(title, author, description)
 
     def get_book_metadata(self) -> Dict[str, str]:
-        """
-        Recupera los metadatos del libro para el directorio actual.
-
-        Returns:
-            Dict[str, str]: Diccionario con 'title', 'author' y 'description' o vacío si no hay datos
-        """
+        """Recupera los metadatos del libro para el proyecto actual."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT title, author, description FROM book_metadata WHERE directory = ?",
-                    (self.directory,)
+                    "SELECT title, author, description FROM book_metadata WHERE id = ?",
+                    ('project_settings',)
                 )
                 result = cursor.fetchone()
                 if result:

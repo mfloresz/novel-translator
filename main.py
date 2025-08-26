@@ -1021,11 +1021,11 @@ class NovelManagerApp(QMainWindow):
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
-        import qdarktheme
+        #import qdarktheme
         from PyQt6.QtGui import QPalette
 
-        accent_color = app.palette().color(QPalette.ColorRole.Highlight).name()
-        qdarktheme.setup_theme(theme="auto",custom_colors={"primary": accent_color})
+        #accent_color = app.palette().color(QPalette.ColorRole.Highlight).name()
+        #qdarktheme.setup_theme(theme="auto", custom_colors={"primary": accent_color},)
         window = NovelManagerApp()
         window.show()
         sys.exit(app.exec())
