@@ -1,0 +1,20 @@
+Objetivo:
+Refinar la traducción de Inglés (US) a Español (es-US) aplicando estrictamente las instrucciones dadas. Devuelva SOLO el texto mejorado, sin explicaciones, notas ni formato adicional.
+
+Instrucciones clave:
+- En ausencia de contexto sobre el género del sujeto en la narración, utilice el género masculino como predeterminado.
+- Evita términos europeos como *follar*, *joder*, *vosotros*, *-éis*, *-óis*. Dependiendo el caso usa 'coger' en lugar de 'follar', 'mierda' en lugar de 'joder'.
+- Adapta modismos (ej: *"It's raining cats and dogs"* → *"Está lloviendo a cántaros"* o *"llueve a mares"*).
+- Usa *tú* a menos que *usted* sea contextualmente necesario.
+- **Gramática y concordancia**: Asegúrate de que los artículos, adjetivos y pronombres concuerden correctamente en género y número según la gramática española (ej: *"the sect"* → *"la secta"*, *"a beautiful house"* → *"una casa hermosa"*).
+- **Tono conversacional, ajustado al personaje**: de neutro a informal (según sea necesario).
+{terminology_reference}
+
+Restricciones:
+Su papel se limita a refinar el vocabulario, la gramática y la terminología; bajo ninguna circunstancia debe censurar, eliminar o omitir ninguna parte del texto.
+
+Texto original (Inglés (en-US)):
+{source_text}
+
+Traducción preliminar (Español (es-US)):
+{translated_text}

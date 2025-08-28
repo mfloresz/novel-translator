@@ -5,7 +5,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                             QComboBox, QPushButton, QGroupBox, QMessageBox,
                             QFormLayout, QLineEdit, QTableWidget, QTableWidgetItem,
-                            QHeaderView)
+                            QHeaderView, QRadioButton)
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices
 from typing import Dict, Any, Optional
@@ -143,6 +143,30 @@ class SettingsDialog(QDialog):
         translation_group.setLayout(main_translation_layout)
         main_layout.addWidget(translation_group)
 
+        # Check and Refine Settings Group
+        check_refine_group = QGroupBox(self._get_string("settings_dialog.check_refine_group"))
+        check_refine_layout = QHBoxLayout()
+
+        radio_button_layout = QVBoxLayout()
+        self.check_refine_use_same_model_radio = QRadioButton(self._get_string("check_refine_settings_dialog.use_same_model"))
+        self.check_refine_use_separate_model_radio = QRadioButton(self._get_string("check_refine_settings_dialog.use_separate_model"))
+        radio_button_layout.addWidget(self.check_refine_use_same_model_radio)
+        radio_button_layout.addWidget(self.check_refine_use_separate_model_radio)
+        radio_button_layout.addStretch()
+
+        self.check_refine_model_group = QGroupBox()
+        check_refine_model_layout = QFormLayout()
+        self.check_refine_provider_combo = QComboBox()
+        self.check_refine_model_combo = QComboBox()
+        check_refine_model_layout.addRow(self._get_string("check_refine_settings_dialog.provider_label"), self.check_refine_provider_combo)
+        check_refine_model_layout.addRow(self._get_string("check_refine_settings_dialog.model_label"), self.check_refine_model_combo)
+        self.check_refine_model_group.setLayout(check_refine_model_layout)
+
+        check_refine_layout.addLayout(radio_button_layout)
+        check_refine_layout.addWidget(self.check_refine_model_group)
+        check_refine_group.setLayout(check_refine_layout)
+        main_layout.addWidget(check_refine_group)
+
         languages_group = QGroupBox(self._get_string("settings_dialog.languages_group"))
         languages_layout = QVBoxLayout()
         self.languages_table = QTableWidget()
@@ -184,17 +208,19 @@ class SettingsDialog(QDialog):
         main_layout.addWidget(prompts_group)
         
         buttons_layout = QHBoxLayout()
-        self.save_button = QPushButton("Guardar")
+        self.save_button = QPushButton(self._get_string("settings_dialog.save_button"))
         self.save_button.clicked.connect(self.save_settings)
-        self.cancel_button = QPushButton("Cancelar")
+        self.cancel_button = QPushButton(self._get_string("settings_dialog.cancel_button"))
         self.cancel_button.clicked.connect(self.reject)
         buttons_layout.addStretch()
-        buttons_layout.addWidget(self.save_button)
         buttons_layout.addWidget(self.cancel_button)
+        buttons_layout.addWidget(self.save_button)
         main_layout.addLayout(buttons_layout)
         self.setLayout(main_layout)
         
         self.provider_combo.currentTextChanged.connect(self.update_models)
+        self.check_refine_provider_combo.currentTextChanged.connect(self.update_check_refine_models)
+        self.check_refine_use_same_model_radio.toggled.connect(self.toggle_check_refine_model_selection)
         
     def _load_config(self) -> Dict[str, Any]:
         try:
@@ -267,6 +293,32 @@ class SettingsDialog(QDialog):
 
         self.load_languages_table()
         self.load_prompts_table()
+
+        # Load check and refine settings
+        check_refine_settings = self.current_config.get("check_refine_settings", {})
+        use_separate = check_refine_settings.get("use_separate_model", False)
+        if use_separate:
+            self.check_refine_use_separate_model_radio.setChecked(True)
+        else:
+            self.check_refine_use_same_model_radio.setChecked(True)
+
+        # Load providers for check/refine
+        self.check_refine_provider_combo.clear()
+        if self.models_config:
+            for provider_key, provider_data in self.models_config.items():
+                self.check_refine_provider_combo.addItem(provider_data['name'], provider_key)
+
+        provider_index = self.check_refine_provider_combo.findData(check_refine_settings.get('provider', ''))
+        if provider_index >= 0:
+            self.check_refine_provider_combo.setCurrentIndex(provider_index)
+
+        self.update_check_refine_models()
+
+        model_index = self.check_refine_model_combo.findData(check_refine_settings.get('model', ''))
+        if model_index >= 0:
+            self.check_refine_model_combo.setCurrentIndex(model_index)
+
+        self.toggle_check_refine_model_selection(self.check_refine_use_same_model_radio.isChecked())
 
     def load_languages_combos(self):
         self.source_lang_combo.clear()
@@ -418,6 +470,18 @@ class SettingsDialog(QDialog):
             if 'models' in provider_data:
                 for model_key, model_data in provider_data['models'].items():
                     self.model_combo.addItem(model_data['name'], model_key)
+
+    def update_check_refine_models(self):
+        self.check_refine_model_combo.clear()
+        provider_key = self.check_refine_provider_combo.currentData()
+        if provider_key and self.models_config and provider_key in self.models_config:
+            provider_data = self.models_config[provider_key]
+            if 'models' in provider_data:
+                for model_key, model_data in provider_data['models'].items():
+                    self.check_refine_model_combo.addItem(model_data['name'], model_key)
+
+    def toggle_check_refine_model_selection(self, checked):
+        self.check_refine_model_group.setEnabled(not checked)
     
     def save_settings(self):
         if not self.provider_combo.currentData():
@@ -437,13 +501,21 @@ class SettingsDialog(QDialog):
         
         # Get UI language
         ui_language = self.ui_language_combo.currentData()
+
+        # Get check and refine settings
+        check_refine_settings = {
+            "use_separate_model": self.check_refine_use_separate_model_radio.isChecked(),
+            "provider": self.check_refine_provider_combo.currentData(),
+            "model": self.check_refine_model_combo.currentData()
+        }
         
         new_config = {
             "provider": self.provider_combo.currentData(),
             "model": self.model_combo.currentData(),
             "source_language": source_lang,
             "target_language": target_lang,
-            "ui_language": ui_language
+            "ui_language": ui_language,
+            "check_refine_settings": check_refine_settings
         }
         
         try:

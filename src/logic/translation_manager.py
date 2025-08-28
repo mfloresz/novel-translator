@@ -21,6 +21,7 @@ class TranslationWorker(QObject):
                  segment_size: Optional[int] = None,
                  enable_check: bool = True,
                  enable_refine: bool = False,
+                 check_refine_settings: Optional[Dict] = None,
                  status_callback: Optional[Callable[[str, str], None]] = None,
                  lang_manager = None):
         super().__init__()
@@ -37,10 +38,17 @@ class TranslationWorker(QObject):
         self.segment_size = segment_size
         self.enable_check = enable_check
         self.enable_refine = enable_refine
+        self.check_refine_settings = check_refine_settings
         self.status_callback = status_callback
         self.lang_manager = lang_manager
         self._stop_requested = False
         self.translator.segment_size = segment_size
+
+    def _get_status_string(self, key, default_text=""):
+        """Get a localized status string from the language manager."""
+        if self.lang_manager:
+            return self.lang_manager.get_string(key, default_text)
+        return default_text if default_text else key
 
     def stop(self):
         self._stop_requested = True
@@ -59,7 +67,8 @@ class TranslationWorker(QObject):
                     break
 
                 filename = file_info['name']
-                self.progress_updated.emit(f"Traduciendo capítulo {i} de {total_files}: {filename}")
+                self.progress_updated.emit(self._get_status_string("translation_manager.progress.translating_chapter", "Traduciendo capítulo {index} de {total}: {filename}").format(
+                    index=i, total=total_files, filename=filename))
 
                 # Actualizar estado a "Procesando"
                 if self.status_callback:
@@ -91,13 +100,13 @@ class TranslationWorker(QObject):
                     time.sleep(5)
 
             if not self._stop_requested:
-                final_message = (f"Traducción completada. {successful_translations} "
-                               f"de {total_files} archivos traducidos exitosamente.")
+                final_message = self._get_status_string("translation_manager.progress.completed", "Traducción completada. {successful} de {total} archivos traducidos exitosamente.").format(
+                    successful=successful_translations, total=total_files)
                 self.progress_updated.emit(final_message)
                 self.all_translations_completed.emit()
 
         except Exception as e:
-            self.error_occurred.emit(f"Error en el proceso de traducción: {str(e)}")
+            self.error_occurred.emit(self._get_status_string("translation_manager.error.general", "Error en el proceso de traducción: {error}").format(error=str(e)))
         finally:
             self.all_translations_completed.emit()
 
@@ -120,7 +129,8 @@ class TranslationWorker(QObject):
                 self.model,
                 self.custom_terms,
                 enable_check=self.enable_check,
-                enable_refine=self.enable_refine
+                enable_refine=self.enable_refine,
+                check_refine_settings=self.check_refine_settings
             )
 
             if not translated_text:
@@ -171,6 +181,12 @@ class TranslationManager(QObject):
         """Set the language manager for status translations."""
         self.lang_manager = lang_manager
 
+    def _get_status_string(self, key, default_text=""):
+        """Get a localized status string from the language manager."""
+        if self.lang_manager:
+            return self.lang_manager.get_string(key, default_text)
+        return default_text if default_text else key
+
     def initialize(self, directory: str, provider: str = None, model: str = None) -> None:
         """
         Inicializa el administrador de traducción con un directorio de trabajo.
@@ -189,7 +205,8 @@ class TranslationManager(QObject):
                        source_lang: str, target_lang: str, api_key: str,
                        status_callback: Optional[Callable[[str, str], None]] = None,
                        custom_terms: str = "", segment_size: Optional[int] = None,
-                       enable_check: bool = True, enable_refine: bool = False) -> None:
+                       enable_check: bool = True, enable_refine: bool = False,
+                       check_refine_settings: Optional[Dict] = None) -> None:
         """
         Inicia la traducción de archivos.
 
@@ -205,8 +222,8 @@ class TranslationManager(QObject):
             enable_refine: Bool para habilitar o no el refinamiento de la traducción
         """
         if not self.working_directory or not self.db:
-            self.error_occurred.emit("No se ha inicializado el directorio de trabajo")
-            return
+                self.error_occurred.emit(self.lang_manager.get_string("translation_manager.error.no_working_directory", "No se ha inicializado el directorio de trabajo"))
+                return
 
         # Guardar términos personalizados
         if custom_terms.strip():
@@ -228,6 +245,7 @@ class TranslationManager(QObject):
             segment_size,
             enable_check,  # Opción para habilitar/deshabilitar la comprobación
             enable_refine,  # Opción para habilitar/deshabilitar el refinamiento
+            check_refine_settings, # Pasar la configuración de comprobación/refinado
             status_callback,  # Pasar el callback de estado
             self.lang_manager  # Pasar el administrador de idioma
         )
@@ -262,8 +280,8 @@ class TranslationManager(QObject):
     def stop_translation(self) -> None:
         """Detiene el proceso de traducción en curso"""
         if self.worker:
-            self.worker.stop()
-            self.progress_updated.emit("Deteniendo traducción...")
+                self.worker.stop()
+                self.progress_updated.emit(self._get_status_string("translation_manager.progress.stopping", "Deteniendo traducción..."))
 
     def get_supported_languages(self) -> Dict[str, str]:
         """Obtiene la lista de idiomas soportados"""

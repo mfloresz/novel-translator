@@ -62,7 +62,8 @@ uv run python main.py
 ![Translation](assets/translate.webp)
 
 - **Múltiples Proveedores de IA**: Google Gemini, Chutes AI, Together AI, DeepInfra, OpenAI
-- **Funciones Inteligentes**: Control granular de capítulos, comprobación automática de calidad, refinamiento
+- **Comprobación y Refinamiento**: Incluye opciones para verificar la calidad de la traducción contra el texto original y para mejorarla mediante un proceso adicional de refinamiento. Ambas opciones consumen una cantidad significativa de tokens adicionales.
+- **Configuración Avanzada de Comprobación y Refinamiento**: Permite configurar un proveedor y modelo diferente para los pasos de comprobación y refinamiento. Esto se puede configurar de forma global en los ajustes o para una sola sesión desde el panel de traducción.
 - **Términos Personalizados**: Terminología específica por proyecto con persistencia
 - **Segmentación Inteligente**: Respeta la estructura narrativa
 - **Base de Datos**: Evita retraducciones

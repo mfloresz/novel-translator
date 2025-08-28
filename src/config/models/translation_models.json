@@ -6,7 +6,8 @@
       "gemini-2.5-flash-lite": {
         "name": "Gemini Flash 2.5 Lite",
         "endpoint": "gemini-2.5-flash-lite:generateContent",
-        "temperature": 0.6
+        "temperature": 0.6,
+        "thinking": false
       }
     }
   },
@@ -18,13 +19,15 @@
         "name": "Mistral Small 3.2",
         "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
         "max_tokens": 40000,
-        "temperature": 0.6
+        "temperature": 0.6,
+        "thinking": false
       },
-      "mistral-3.1": {
-        "name": "Mistral Small 3.1",
-        "endpoint": "chutesai/Mistral-Small-3.1-24B-Instruct-2503",
-        "max_tokens": 40000,
-        "temperature": 0.6
+      "qwen3-a3b-think": {
+        "name": "Qwen3 30B A3B Thinking",
+        "endpoint": "Qwen/Qwen3-30B-A3B-Thinking-2507",
+        "max_tokens": 100000,
+        "temperature": 0.6,
+        "thinking": false
       }
     }
   }

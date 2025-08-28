@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
 from src.logic.functions import show_confirmation_dialog, load_preset_terms
 from src.logic.status_manager import STATUS_TRANSLATED, STATUS_ERROR, STATUS_PROCESSING, get_status_text
+from src.gui.check_refine_settings_gui import CheckRefineSettingsDialog
 
 class PresetTermsDialog(QDialog):
     def __init__(self, source_lang, target_lang, parent=None):
@@ -152,6 +153,7 @@ class TranslatePanel(QWidget):
         self.main_window = main_window
         self.translation_manager = TranslationManager(main_window.lang_manager)
         self.working_directory = None
+        self.session_check_refine_settings = None
 
         # Variable para almacenar API keys temporales
         self.temp_api_keys = {}
@@ -244,8 +246,13 @@ class TranslatePanel(QWidget):
         self.refine_translation_checkbox = QCheckBox(self._get_string("translate_panel.refine_translation_checkbox"))
         self.refine_translation_checkbox.setToolTip(self._get_string("translate_panel.refine_translation_checkbox.tooltip"))
 
+        self.check_refine_settings_button = QPushButton("⚙")
+        self.check_refine_settings_button.setToolTip(self._get_string("translate_panel.check_refine_settings_button.tooltip"))
+        self.check_refine_settings_button.setMaximumWidth(30)
+
         options_layout.addWidget(self.check_translation_checkbox)
         options_layout.addWidget(self.refine_translation_checkbox)
+        options_layout.addWidget(self.check_refine_settings_button)
         options_layout.addStretch()
 
         form_layout.addRow(options_layout)
@@ -524,6 +531,22 @@ class TranslatePanel(QWidget):
         # Conectar cambio de idioma a la actualización del botón de términos
         self.source_lang_combo.currentIndexChanged.connect(self.update_preset_terms_button_state)
         self.target_lang_combo.currentIndexChanged.connect(self.update_preset_terms_button_state)
+        self.check_refine_settings_button.clicked.connect(self.open_check_refine_settings)
+
+    def open_check_refine_settings(self):
+        """Abre el diálogo de configuración para comprobación y refinado."""
+        # Usar la configuración de la sesión si existe, si no, la de por defecto
+        current_settings = self.session_check_refine_settings or self.default_config.get("check_refine_settings")
+
+        dialog = CheckRefineSettingsDialog(
+            parent=self,
+            current_settings=current_settings,
+            models_config=self.models_config
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.session_check_refine_settings = dialog.get_settings()
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.check_refine_settings_saved_session"), 3000)
 
     def update_preset_terms_button_state(self):
         """
@@ -646,6 +669,9 @@ class TranslatePanel(QWidget):
         # Obtener estado del refinamiento
         enable_refine = self.refine_translation_checkbox.isChecked()
 
+        # Obtener la configuración de comprobación y refinado
+        check_refine_settings = self.session_check_refine_settings or self.default_config.get("check_refine_settings")
+
         # Confirmar la operación
         if not show_confirmation_dialog(
                 self._get_string("translate_panel.confirmation")):
@@ -693,7 +719,8 @@ class TranslatePanel(QWidget):
             custom_terms,
             segment_size,
             enable_check,   # <-- Pasar parámetro para habilitar comprobación
-            enable_refine   # <-- Pasar parámetro para habilitar refinamiento
+            enable_refine,  # <-- Pasar parámetro para habilitar refinamiento
+            check_refine_settings # <-- Pasar la configuración de comprobación/refinado
         )
 
     def stop_translation(self):
@@ -756,7 +783,7 @@ class TranslatePanel(QWidget):
                 self._get_string("translate_panel.copy_arrow_button.tooltip").replace("Copiar ", "").replace(" al portapapeles", ""), 2000)
         else:
             self.main_window.statusBar().showMessage(
-                self._get_string("main_window.log_file_open_error").format(error="No se pudo acceder al portapapeles"), 3000)
+                self._get_string("main_window.log_file_open_error").format(error=self._get_string("translate_panel.copy_arrow_button.clipboard_error")), 3000)
 
     def show_preset_terms(self):
         """Muestra el diálogo con términos predefinidos"""

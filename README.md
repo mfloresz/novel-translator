@@ -62,10 +62,8 @@ uv run python main.py
 ![Translation](assets/translate.webp)
 
 - **Multiple AI Providers**: Google Gemini, Chutes AI, Together AI, DeepInfra, OpenAI
-- **Smart Features**: Granular chapter control, automatic quality checks, refinement
-- **Custom Terms**: Project-specific terminology with persistence
-- **Intelligent Segmentation**: Respects narrative structure
-- **Database Integration**: Avoids re-translations
+- **Check and Refine**: Includes options to verify the quality of the translation against the original text and to improve it through an additional refinement process. Both options consume a significant amount of additional tokens.
+- **Advanced Check and Refine Configuration**: Allows configuring a different provider and model for the check and refine steps. This can be configured globally in the settings or for a single session from the translation panel.
 
 ### 🧹 Text Cleaning
 ![Translation](assets/clean.webp)

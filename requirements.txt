@@ -6,4 +6,3 @@ python-dotenv>=1.0.0
 Pillow>=10.0.0
 ebooklib>=0.18
 mistune>=3.0.0
-PyQtDarkTheme2

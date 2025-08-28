@@ -37,7 +37,7 @@ class EpubImporter(QObject):
             chapters = converter.get_chapters()
 
             if not chapters:
-                self.import_finished.emit(False, "No se encontraron capítulos para importar", "")
+                self.import_finished.emit(False, self.lang_manager.get_string("epub_importer.error.no_chapters", "No se encontraron capítulos para importar"), "")
                 return
 
             epub_dir = os.path.dirname(epub_path)
@@ -50,14 +50,14 @@ class EpubImporter(QObject):
                 output_dir = f"{output_dir}_{counter}"
 
             os.makedirs(output_dir, exist_ok=True)
-            self.progress_updated.emit(f"Creando directorio: {output_dir}")
+            self.progress_updated.emit(self.lang_manager.get_string("epub_importer.progress.creating_directory", "Creando directorio: {directory}").format(directory=output_dir))
 
             cover_image = converter.cover_image
             if cover_image:
                 cover_path = os.path.join(output_dir, cover_image['filename'])
                 with open(cover_path, 'wb') as f:
                     f.write(cover_image['content'])
-                self.progress_updated.emit(f"Portada guardada: {cover_image['filename']}")
+                self.progress_updated.emit(self.lang_manager.get_string("epub_importer.progress.cover_saved", "Portada guardada: {filename}").format(filename=cover_image['filename']))
 
             for i, chapter in enumerate(chapters, 1):
                 html_content = converter.get_chapter_html(chapter)
@@ -69,17 +69,17 @@ class EpubImporter(QObject):
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(markdown_content)
                     
-                self.progress_updated.emit(f"Capítulo {i} de {len(chapters)} guardado")
+                self.progress_updated.emit(self.lang_manager.get_string("epub_importer.progress.chapter_saved", "Capítulo {index} de {total} guardado").format(index=i, total=len(chapters)))
 
             self._save_book_metadata(output_dir, book_title, author)
 
-            success_msg = f"EPUB importado exitosamente. {len(chapters)} capítulos extraídos."
+            success_msg = self.lang_manager.get_string("epub_importer.success.base", "EPUB importado exitosamente. {chapters_count} capítulos extraídos.").format(chapters_count=len(chapters))
             if cover_image:
-                success_msg += " Portada incluida."
+                success_msg += self.lang_manager.get_string("epub_importer.success.cover_included", " Portada incluida.")
             self.import_finished.emit(True, success_msg, output_dir)
 
         except Exception as e:
-            self.import_finished.emit(False, f"Error al importar EPUB: {str(e)}", "")
+            self.import_finished.emit(False, self.lang_manager.get_string("epub_importer.error.general", "Error al importar EPUB: {error}").format(error=str(e)), "")
 
     def _save_book_metadata(self, output_dir: str, title: str, author: str) -> None:
         try:
@@ -87,12 +87,12 @@ class EpubImporter(QObject):
             if title or author:
                 success = db.save_book_metadata(title, author)
                 if success:
-                    self.progress_updated.emit("Metadatos del libro guardados")
+                    self.progress_updated.emit(self.lang_manager.get_string("epub_importer.progress.metadata_saved", "Metadatos del libro guardados"))
                 else:
-                    self.progress_updated.emit("Advertencia: No se pudieron guardar los metadatos")
+                    self.progress_updated.emit(self.lang_manager.get_string("epub_importer.warning.metadata_not_saved", "Advertencia: No se pudieron guardar los metadatos"))
         except Exception as e:
             print(f"Error guardando metadatos: {e}")
-            self.progress_updated.emit("Advertencia: Error al guardar metadatos")
+            self.progress_updated.emit(self.lang_manager.get_string("epub_importer.error.metadata_save", "Advertencia: Error al guardar metadatos"))
 
     def _sanitize_filename(self, filename: str) -> str:
         invalid_chars = '<>:\"/\\|?*'

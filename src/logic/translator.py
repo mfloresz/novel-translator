@@ -217,6 +217,7 @@ class TranslatorLogic:
         Returns:
             bool: Resultado de la comprobación
         """
+        session_logger.log_info(f"Iniciando comprobación con Proveedor: {provider}, Modelo: {model}")
         prompt = self._build_check_prompt(source_lang, target_lang, original_text, translated_text)
 
         provider_config = self.models_config.get(provider)
@@ -237,33 +238,59 @@ class TranslatorLogic:
                 prompt
             )
 
+        def _parse_check_response(response: str) -> (bool, Optional[str]):
+            response_lines = response.strip().split('\n')
+            check_result = None
+            cause = None
+
+            for line in response_lines:
+                if line.lower().startswith("check response:"):
+                    check_result = line.split(":", 1)[1].strip().lower()
+                elif line.lower().startswith("cause:"):
+                    cause = line.split(":", 1)[1].strip()
+
+            if check_result == "yes":
+                return True, None
+            elif check_result == "no":
+                return False, cause
+            else:
+                return False, f"Respuesta inesperada: {response}"
+
         try:
             response = query_model()
             if response is None:
-                print("Error en la comprobación de la traducción (respuesta nula)")
+                session_logger.log_error("Error en la comprobación de la traducción (respuesta nula)")
                 return False
 
-            cleaned_response = response.strip().lower()
-            if cleaned_response == "yes":
+            is_ok, cause = _parse_check_response(response)
+
+            if is_ok:
                 session_logger.log_info(f"Comprobación exitosa - Respuesta: {response}")
                 return True
-            elif cleaned_response == "no":
-                session_logger.log_warning(f"Comprobación falló - Respuesta: {response}. Reintentando...")
+            else:
+                log_message = f"Comprobación falló - Respuesta: {response}"
+                if cause:
+                    log_message += f" - Causa: {cause}"
+                session_logger.log_warning(f"{log_message}. Reintentando...")
+
                 # Reintentar una vez
                 time.sleep(5)
                 response_retry = query_model()
                 if response_retry is None:
                     session_logger.log_error("Error en la comprobación de la traducción (reintento respuesta nula)")
                     return False
-                if response_retry.strip().lower() == "yes":
+
+                is_ok_retry, cause_retry = _parse_check_response(response_retry)
+
+                if is_ok_retry:
                     session_logger.log_info(f"Comprobación exitosa en reintento - Respuesta: {response_retry}")
                     return True
                 else:
-                    session_logger.log_error(f"Comprobación falló en reintento - Respuesta: {response_retry}")
+                    log_message_retry = f"Comprobación falló en reintento - Respuesta: {response_retry}"
+                    if cause_retry:
+                        log_message_retry += f" - Causa: {cause_retry}"
+                    session_logger.log_error(log_message_retry)
                     return False
-            else:
-                session_logger.log_error(f"Respuesta inesperada en comprobación: '{response}'")
-                return False
         except Exception as e:
             session_logger.log_error(f"Error al hacer la comprobación: {str(e)}")
             return False
@@ -288,6 +315,7 @@ class TranslatorLogic:
         Returns:
             Optional[str]: Texto refinado si tiene éxito, None si falla o error
         """
+        session_logger.log_info(f"Iniciando refinamiento con Proveedor: {provider}, Modelo: {model}")
         prompt = self._build_refine_prompt(source_lang, target_lang, source_text, translated_text, custom_terms)
 
         provider_config = self.models_config.get(provider)
@@ -322,7 +350,8 @@ class TranslatorLogic:
     def translate_text(self, text: str, source_lang: str, target_lang: str,
                       api_key: str, provider: str, model: str,
                       custom_terms: str = "", enable_check: bool = True,
-                      enable_refine: bool = False) -> Optional[str]:
+                      enable_refine: bool = False,
+                      check_refine_settings: Optional[Dict] = None) -> Optional[str]:
         """
         Traduce el texto utilizando el proveedor y modelo especificados.
 
@@ -343,6 +372,18 @@ class TranslatorLogic:
         Returns:
             Optional[str]: Texto traducido si la comprobación pasa o no se realiza, None si falla o error
         """
+        # Determine provider and model for check/refine
+        if check_refine_settings and check_refine_settings.get('use_separate_model'):
+            check_provider = check_refine_settings.get('provider', provider)
+            check_model = check_refine_settings.get('model', model)
+            refine_provider = check_refine_settings.get('provider', provider)
+            refine_model = check_refine_settings.get('model', model)
+        else:
+            check_provider = provider
+            check_model = model
+            refine_provider = provider
+            refine_model = model
+
         try:
             provider_config = self.models_config.get(provider)
             if not provider_config:
@@ -358,7 +399,7 @@ class TranslatorLogic:
 
             # Traducir cada segmento
             for i, segment in enumerate(segments, 1):
-                session_logger.log_info(f"Traduciendo segmento {i} de {len(segments)}")
+                session_logger.log_info(f"Traduciendo segmento {i} de {len(segments)} con {provider}/{model}")
 
                 # Construir prompt base con reemplazo de etiquetas
                 prompt_template = self._load_prompt("translation.txt", source_lang, target_lang)
@@ -410,8 +451,8 @@ class TranslatorLogic:
                         source_lang=source_lang,
                         target_lang=target_lang,
                         api_key=api_key,
-                        provider=provider,
-                        model=model,
+                        provider=refine_provider,
+                        model=refine_model,
                         custom_terms=custom_terms
                     )
 
@@ -440,8 +481,8 @@ class TranslatorLogic:
                     source_lang=source_lang,
                     target_lang=target_lang,
                     api_key=api_key,
-                    provider=provider,
-                    model=model
+                    provider=check_provider,
+                    model=check_model
                 )
 
                 if not check_passed:

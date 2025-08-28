@@ -18,9 +18,10 @@ class EpubConverterLogic(QObject):
     progress_updated = pyqtSignal(str)  # Mensaje de progreso
     conversion_finished = pyqtSignal(bool, str)  # (éxito, mensaje)
 
-    def __init__(self):
+    def __init__(self, lang_manager=None):
         super().__init__()
         self.directory = None
+        self.lang_manager = lang_manager
         self.default_css = '''
             body {
                 font-family: "Libre Baskerville", Georgia, serif;
@@ -57,6 +58,12 @@ class EpubConverterLogic(QObject):
             }
         '''
 
+    def _get_string(self, key, default_text=""):
+        """Obtiene un texto localizado del LanguageManager o usa el texto por defecto."""
+        if self.lang_manager:
+            return self.lang_manager.get_string(key, default_text)
+        return default_text or key
+
     def set_directory(self, directory):
         """Establece el directorio de trabajo"""
         self.directory = directory
@@ -78,7 +85,7 @@ class EpubConverterLogic(QObject):
         try:
             # Verificar dependencias
             if not DEPENDENCIES_OK:
-                error_msg = "Error: Faltan dependencias. Instale: pip install beautifulsoup4 pypub3"
+                error_msg = self._get_string("create_panel.epub_creation.error.dependencies", "Error: Faltan dependencias. Instale: pip install beautifulsoup4 pypub3")
                 self.conversion_finished.emit(False, error_msg)
                 return
 
@@ -91,56 +98,58 @@ class EpubConverterLogic(QObject):
                 return
 
             # Crear instancia de Epub
-            self.progress_updated.emit("Inicializando libro EPUB...")
+            self.progress_updated.emit(self._get_string("create_panel.epub_creation.progress.initializing", "Inicializando libro EPUB..."))
 
             # Verificar si hay portada
             cover_path = None
             if data['cover_path'] and os.path.exists(data['cover_path']):
                 cover_path = data['cover_path']
-                self.progress_updated.emit("Procesando portada...")
+                self.progress_updated.emit(self._get_string("create_panel.epub_creation.progress.processing_cover", "Procesando portada..."))
 
             epub = pypub.Epub(data['title'], creator=data['author'], language='es', cover=cover_path)
 
             # Obtener archivos según rango
-            self.progress_updated.emit("Obteniendo lista de archivos...")
+            self.progress_updated.emit(self._get_string("create_panel.epub_creation.progress.getting_files", "Obteniendo lista de archivos..."))
             files = get_epub_files(table, data['start_chapter'], data['end_chapter'])
 
             if not files:
-                error_msg = "No se encontraron archivos para procesar"
+                error_msg = self._get_string("create_panel.epub_creation.error.no_files", "No se encontraron archivos para procesar")
                 self.conversion_finished.emit(False, error_msg)
                 return
 
             # Crear página de título como primer capítulo
-            self.progress_updated.emit("Creando página de título...")
+            self.progress_updated.emit(self._get_string("create_panel.epub_creation.progress.creating_titlepage", "Creando página de título..."))
             titlepage_html = self._create_titlepage_html(data['title'], data['author'], data.get('description', ''))
             title_chapter = pypub.create_chapter_from_html(titlepage_html.encode('utf-8'), title="Título")
             epub.add_chapter(title_chapter)
 
-            self.progress_updated.emit("Procesando capítulos...")
+            self.progress_updated.emit(self._get_string("create_panel.epub_creation.progress.processing_chapters", "Procesando capítulos..."))
 
             # Procesar capítulos
             for i, file_info in enumerate(files):
-                self.progress_updated.emit(f"Procesando capítulo {i+1} de {len(files)}: {file_info['name']}")
+                self.progress_updated.emit(self._get_string("create_panel.epub_creation.progress.processing_chapter", "Procesando capítulo {index} de {total}: {name}").format(
+                    index=i+1, total=len(files), name=file_info['name']))
                 chapter_html = self.process_chapter(file_info)
                 if chapter_html:
                     chapter_title = self._extract_chapter_title(file_info)
                     chapter = pypub.create_chapter_from_html(chapter_html.encode('utf-8'), title=chapter_title)
                     epub.add_chapter(chapter)
                 else:
-                    self.progress_updated.emit(f"Advertencia: No se pudo procesar el capítulo {file_info['name']}")
+                    self.progress_updated.emit(self._get_string("create_panel.epub_creation.warning.chapter_not_processed", "Advertencia: No se pudo procesar el capítulo {name}").format(
+                        name=file_info['name']))
 
             # Generar nombre y ruta de archivo EPUB
             output_filename = create_epub_filename(data['title'], data['author'])
             output_path = os.path.join(self.directory, output_filename)
 
-            self.progress_updated.emit("Guardando archivo EPUB...")
+            self.progress_updated.emit(self._get_string("create_panel.epub_creation.progress.saving", "Guardando archivo EPUB..."))
             epub.create(output_path)
 
             success_message = f"{output_filename}"
             self.conversion_finished.emit(True, success_message)
 
         except Exception as e:
-            error_message = f"Error al crear EPUB: {str(e)}"
+            error_message = self._get_string("create_panel.epub_creation.error.general", "Error al crear EPUB: {error}").format(error=str(e))
             self.conversion_finished.emit(False, error_message)
 
     def _extract_chapter_title(self, file_info):

@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
                            QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
                            QPushButton, QLabel, QHeaderView, QSplitter, QDialog,
                            QMenu, QStyle, QWidgetAction)
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QObject, QEvent
 from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon, QColor, QPalette, QAction
 from PyQt6.QtSvg import QSvgRenderer
 from src.gui.clean import CleanPanel
@@ -175,7 +175,7 @@ class NovelManagerApp(QMainWindow):
         self.file_loader.loading_error.connect(self._show_loading_error)
         self.file_loader.metadata_loaded.connect(self._load_book_metadata)
         # Inicializar el convertidor EPUB
-        self.epub_converter = EpubConverterLogic()
+        self.epub_converter = EpubConverterLogic(self.lang_manager)
         self.epub_converter.progress_updated.connect(self.update_status_message)
         self.epub_converter.conversion_finished.connect(self.handle_epub_conversion_finished)
         # Conectar la señal del panel de creación
@@ -339,9 +339,11 @@ class NovelManagerApp(QMainWindow):
     def refresh_files(self):
         """Actualiza la lista de archivos del directorio actual"""
         if not self.current_directory:
-            self.statusBar().showMessage("Error: No hay directorio seleccionado")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.chapters_table.no_directory"))
             return
-        self.statusBar().showMessage("Actualizando lista de archivos...")
+        self.statusBar().showMessage(
+            self.lang_manager.get_string("main_window.chapters_table.updating"))
         self.load_chapters()
 
     def load_chapters(self):
@@ -350,7 +352,8 @@ class NovelManagerApp(QMainWindow):
         # Clear current table
         self.chapters_table.setRowCount(0)
         # Update status
-        self.statusBar().showMessage("Cargando lista de archivos...")
+        self.statusBar().showMessage(
+            self.lang_manager.get_string("main_window.chapters_table.loading"))
         # Start loading files
         self.file_loader.load_files(self.current_directory)
 
@@ -363,7 +366,8 @@ class NovelManagerApp(QMainWindow):
             else:  # Linux
                 subprocess.run(['xdg-open', file_path])
         except Exception as e:
-            self.statusBar().showMessage(f"Error al abrir el archivo: {str(e)}")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.chapters_table.open_file_error").format(error=str(e)))
 
     def _add_files_to_table(self, files):
         # Preestablecer el número de filas total
@@ -513,14 +517,16 @@ class NovelManagerApp(QMainWindow):
         Esta función es llamada cuando se hace clic en el botón "Traducir" de la tabla de capítulos.
         """
         if not self.current_directory:
-            self.statusBar().showMessage("Error: Seleccione un directorio primero")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("translate_panel.error.no_directory"))
             return
         # Obtener configuración de la pestaña de traducción
         translate_panel = self.translate_panel
         # Obtener API key
         api_key = translate_panel.get_current_api_key()
         if not api_key:
-            self.statusBar().showMessage("Error: API key no configurada. Use el botón de configuración.")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("translate_panel.error.no_api_key"))
             return
         # Obtener proveedor y modelo
         provider = next(
@@ -538,7 +544,8 @@ class NovelManagerApp(QMainWindow):
         target_lang = translate_panel.target_lang_combo.currentData()
 
         if not source_lang or not target_lang or source_lang == target_lang:
-            self.statusBar().showMessage("Error: Los idiomas de origen y destino deben ser diferentes y estar seleccionados")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("translate_panel.error.same_languages"))
             return
         # Obtener términos personalizados
         custom_terms = translate_panel.terms_input.toPlainText().strip()
@@ -550,12 +557,17 @@ class NovelManagerApp(QMainWindow):
                 if segment_size <= 0:
                     segment_size = 5000
             except ValueError:
-                self.statusBar().showMessage("Error: El tamaño de segmentación debe ser un número")
+                self.statusBar().showMessage(
+                    self.lang_manager.get_string("translate_panel.error.invalid_segment_size"))
                 return
         # Obtener estado de la comprobación
         enable_check = translate_panel.check_translation_checkbox.isChecked()
         # Obtener estado del refinamiento
         enable_refine = translate_panel.refine_translation_checkbox.isChecked()
+        
+        # Obtener la configuración de comprobación y refinado
+        check_refine_settings = translate_panel.session_check_refine_settings or translate_panel.default_config.get("check_refine_settings")
+
         # Confirmar la operación
         
         if not show_confirmation_dialog(
@@ -589,7 +601,8 @@ class NovelManagerApp(QMainWindow):
             custom_terms,
             segment_size,
             enable_check,
-            enable_refine
+            enable_refine,
+            check_refine_settings
         )
 
     def import_epub(self):
@@ -685,7 +698,8 @@ class NovelManagerApp(QMainWindow):
     def open_working_directory(self):
         """Abre el directorio de trabajo actual en el explorador de archivos"""
         if not self.current_directory:
-            self.statusBar().showMessage("Error: No hay directorio de trabajo seleccionado")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.chapters_table.no_directory"))
             return
         try:
             import platform
@@ -696,15 +710,19 @@ class NovelManagerApp(QMainWindow):
                 subprocess.run(["open", self.current_directory])
             else:  # Linux y otros Unix
                 subprocess.run(["xdg-open", self.current_directory])
-            self.statusBar().showMessage(f"Abriendo directorio: {os.path.basename(self.current_directory)}", 3000)
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.working_directory_opened").format(
+                    directory=os.path.basename(self.current_directory)), 3000)
         except Exception as e:
-            self.statusBar().showMessage(f"Error al abrir directorio: {str(e)}")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.working_directory_open_error").format(error=str(e)))
 
     def open_log_file(self):
         """Abre el archivo de log de la sesión con el programa predeterminado"""
         log_path = session_logger.get_log_path()
         if not log_path or not os.path.exists(log_path):
-            self.statusBar().showMessage("No se encontró el archivo de registro de la sesión")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.log_file_not_found"))
             return
         try:
             import platform
@@ -717,7 +735,8 @@ class NovelManagerApp(QMainWindow):
                 subprocess.run(["xdg-open", log_path])
             #self.statusBar().showMessage("Abriendo archivo de registro...", 3000)
         except Exception as e:
-            self.statusBar().showMessage(f"Error al abrir archivo de registro: {str(e)}")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.log_file_open_error").format(error=str(e)))
 
     def open_settings(self):
         """Abre el diálogo de configuración"""
@@ -953,13 +972,35 @@ class NovelManagerApp(QMainWindow):
                     QPushButton:hover { background-color: #ff6b6b; border-color: #ff5252; }
                 """)
                 
-                remove_button.clicked.connect(lambda checked, path=recent_path, menu=menu: (menu.close(), self.remove_recent_and_update_menu(path)))
+                # Create a custom class to hold the path to avoid lambda closure issues
+                class PathHolder:
+                    def __init__(self, path):
+                        self.path = path
                 
-                # Usar una clase o función para capturar la ruta correctamente en el lambda
-                def create_mouse_release_event(path):
-                    return lambda event: (menu.close(), self.select_recent_directory(path))
+                path_holder = PathHolder(recent_path)
                 
-                label.mouseReleaseEvent = create_mouse_release_event(recent_path)
+                remove_button.clicked.connect(lambda checked, path_holder=path_holder, menu=menu: (menu.close(), self.remove_recent_and_update_menu(path_holder.path)))
+                
+                # Create a custom event handler class to properly capture the path
+                class LabelClickHandler(QObject):
+                    def __init__(self, main_window, path, menu):
+                        super().__init__()
+                        self.main_window = main_window
+                        self.path = path
+                        self.menu = menu
+                    
+                    def eventFilter(self, obj, event):
+                        if event.type() == QEvent.Type.MouseButtonRelease:
+                            self.menu.close()
+                            self.main_window.select_recent_directory(self.path)
+                            return True
+                        return False
+                
+                # Install event filter instead of overriding mouseReleaseEvent
+                click_handler = LabelClickHandler(self, recent_path, menu)
+                label.installEventFilter(click_handler)
+                # Store reference to prevent garbage collection
+                label._click_handler = click_handler
                 
                 layout.addWidget(label)
                 layout.addWidget(remove_button)
@@ -981,7 +1022,9 @@ class NovelManagerApp(QMainWindow):
         if os.path.exists(normalized_path) and os.path.isdir(normalized_path):
             self.add_recent(normalized_path)  # add_recent se encarga de la lógica de duplicados
             self.current_directory = normalized_path
-            self.statusBar().showMessage(f"Directorio de trabajo: {os.path.basename(self.current_directory)}")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.directory_selected").format(
+                    directory=os.path.basename(self.current_directory)))
             
             self.epub_converter.set_directory(normalized_path)
             self.create_panel.set_working_directory(normalized_path)
@@ -993,7 +1036,9 @@ class NovelManagerApp(QMainWindow):
             self.update_window_title()
             self.load_chapters()
         else:
-            self.statusBar().showMessage(f"Error: La carpeta no existe: {directory_path}")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.working_directory_not_found").format(
+                    directory=directory_path))
             self.remove_recent(directory_path)
 
     def select_directory(self):
@@ -1004,7 +1049,9 @@ class NovelManagerApp(QMainWindow):
             # Agregar al historial de recientes
             self.add_recent(directory)
             self.current_directory = directory
-            self.statusBar().showMessage(f"Directorio de trabajo: {os.path.basename(self.current_directory)}")
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.directory_selected").format(
+                    directory=os.path.basename(self.current_directory)))
             # Configurar el directorio en el convertidor EPUB
             self.epub_converter.set_directory(directory)
             # Configurar directorio de trabajo en el panel de creación de EPUB
