@@ -1,17 +1,18 @@
 import os
 import re
 import json
+import html
 from PyQt6.QtCore import QObject, pyqtSignal
 try:
     from bs4 import BeautifulSoup
     import pypub
     DEPENDENCIES_OK = True
-except ImportError as e:
+except ImportError:
     DEPENDENCIES_OK = False
     BeautifulSoup = None
     pypub = None
 from src.logic.functions import (validate_epub_input, get_epub_files,
-                               create_epub_filename, show_error_dialog)
+                               create_epub_filename)
 
 class EpubConverterLogic(QObject):
     # Señales para comunicar el progreso
@@ -162,7 +163,7 @@ class EpubConverterLogic(QObject):
             # Limpiar el título
             title = self._clean_chapter_title(first_line)
             return title if title else f"Capítulo {file_info['chapter']}"
-        except Exception as e:
+        except Exception:
             return f"Capítulo {file_info['chapter']}"
 
     def process_chapter(self, file_info):
@@ -221,7 +222,7 @@ class EpubConverterLogic(QObject):
 
             return str(soup)
 
-        except Exception as e:
+        except Exception:
             return None
 
     def _clean_chapter_title(self, title):
@@ -234,8 +235,47 @@ class EpubConverterLogic(QObject):
                 title = title[:-len(marker)].strip()
         return title
 
-    def _format_text(self, text):
-        """Convierte formato de texto simple a HTML usando reglas de un JSON."""
+    def _escape_html_content(self, text):
+        """
+        Escapa caracteres HTML especiales que podrían ser interpretados incorrectamente
+        por BeautifulSoup como etiquetas HTML cuando no deberían serlo.
+        """
+        # Primero, aplicar formato de texto para generar HTML válido
+        formatted_text = self._apply_text_formatting(text)
+
+        # Patrón para detectar etiquetas HTML válidas comunes
+        html_tag_pattern = r'<(/?)([biu]|strong|em|br|p|h[1-6])\b[^>]*>'
+
+        # Encontrar todas las etiquetas HTML válidas
+        valid_tags = list(re.finditer(html_tag_pattern, formatted_text, re.IGNORECASE))
+
+        if not valid_tags:
+            # Si no hay etiquetas HTML válidas, escapar todos los < y >
+            return html.escape(formatted_text)
+
+        # Si hay etiquetas válidas, solo escapar < y > que no sean parte de ellas
+        result = ""
+        last_end = 0
+
+        for match in valid_tags:
+            start, end = match.span()
+            # Escapar el texto antes de la etiqueta válida
+            before_tag = formatted_text[last_end:start]
+            if before_tag:
+                result += html.escape(before_tag)
+            # Agregar la etiqueta válida sin escapar
+            result += match.group()
+            last_end = end
+
+        # Escapar el texto después de la última etiqueta válida
+        after_last_tag = formatted_text[last_end:]
+        if after_last_tag:
+            result += html.escape(after_last_tag)
+
+        return result
+
+    def _apply_text_formatting(self, text):
+        """Aplica solo las reglas de formato de texto sin escapar HTML."""
         try:
             # Construir la ruta al archivo de reglas JSON
             rules_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'markdown_rules.json')
@@ -244,7 +284,6 @@ class EpubConverterLogic(QObject):
                 rules = json.load(f)
 
             # Aplicar cada regla en un orden específico si es necesario
-            # Por ejemplo, procesar negritas antes que cursivas para evitar conflictos
             rule_order = ["bold", "italic", "italic_quotes", "line_break"]
             for key in rule_order:
                 if key in rules:
@@ -252,10 +291,15 @@ class EpubConverterLogic(QObject):
                     text = re.sub(rule['pattern'], rule['replacement'], text)
 
             return text
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            # En caso de error, se puede registrar o simplemente devolver el texto original
-            print(f"Error al procesar las reglas de formato: {e}")
+        except (FileNotFoundError, json.JSONDecodeError):
             return text
+
+    def _format_text(self, text):
+        """
+        Convierte formato de texto simple a HTML usando reglas de un JSON,
+        escapando adecuadamente los caracteres HTML especiales.
+        """
+        return self._escape_html_content(text)
 
     def _create_titlepage_html(self, title, author, description=""):
         """Crea HTML para la página de título"""
