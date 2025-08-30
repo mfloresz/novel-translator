@@ -26,7 +26,28 @@
         "name": "Qwen3 30B A3B Thinking",
         "endpoint": "Qwen/Qwen3-30B-A3B-Thinking-2507",
         "max_tokens": 100000,
-        "temperature": 0.6,
+        "temperature": 0.7,
+        "thinking": false
+      },
+        "qwen3-a22b-think": {
+        "name": "Qwen3 235B A22B Thinking",
+        "endpoint": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+        "max_tokens": 100000,
+        "temperature": 0.7,
+        "thinking": false
+      },
+        "gpt-oss-20b": {
+        "name": "GPT OSS 20B",
+        "endpoint": "openai/gpt-oss-20b",
+        "max_tokens": 100000,
+        "temperature": 0.7,
+        "thinking": false
+      },
+        "gpt-oss-120b": {
+        "name": "GPT OSS 120B",
+        "endpoint": "openai/gpt-oss-120b",
+        "max_tokens": 100000,
+        "temperature": 0.7,
         "thinking": false
       }
     }

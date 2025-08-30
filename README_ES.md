@@ -39,7 +39,7 @@ venv\Scripts\activate     # Windows
 
 3. Instala dependencias:
 ```bash
-uv pip install -r requirements.txt
+uv pip install .
 ```
 
 4. Configura claves API (crea archivo `.env` desde `.env.example`)
@@ -48,6 +48,13 @@ uv pip install -r requirements.txt
 ```bash
 uv run python main.py
 ```
+
+### Instalación en Windows
+
+Para usuarios de Windows, puedes usar el script de instalación proporcionado:
+
+1. Ejecuta `install.bat` para instalar la aplicación en tu directorio de usuario
+2. Ejecuta `run_nt.bat` para iniciar la aplicación sin mostrar la terminal
 
 ## Características Principales
 
@@ -134,7 +141,7 @@ novel-manager/
 │   ├── logic/         # Lógica de Negocio
 │   └── config/        # Archivos de Configuración
 ├── main.py            # Punto de Entrada
-├── requirements.txt   # Dependencias
+├── pyproject.toml     # Dependencias y Metadatos del Proyecto
 └── README.md          # Este Archivo
 ```
 

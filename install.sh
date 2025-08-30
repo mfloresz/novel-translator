@@ -20,6 +20,24 @@ cp -r "$SOURCE_DIR/src" "$INSTALL_DIR/"
 echo "Copiando run_nt.sh..."
 cp "$SOURCE_DIR/run_nt.sh" "$INSTALL_DIR/"
 
+echo "Copiando pyproject.toml..."
+cp "$SOURCE_DIR/pyproject.toml" "$INSTALL_DIR/"
+
+# Crear entorno virtual con uv
+echo "Creando entorno virtual con uv..."
+cd "$INSTALL_DIR"
+uv venv
+
+# Activar entorno virtual
+source .venv/bin/activate
+
+# Sincronizar dependencias usando pyproject.toml
+echo "Instalando dependencias con uv sync..."
+uv sync
+
+# Volver al directorio original
+cd "$SOURCE_DIR"
+
 # Dar permisos de ejecución a run_nt.sh
 echo "Dando permisos de ejecución a run_nt.sh..."
 chmod +x "$INSTALL_DIR/run_nt.sh"
