@@ -12,7 +12,8 @@ except ImportError:
     BeautifulSoup = None
     pypub = None
 from src.logic.functions import (validate_epub_input, get_epub_files,
-                               create_epub_filename)
+                                create_epub_filename)
+from .folder_structure import NovelFolderStructure
 
 class EpubConverterLogic(QObject):
     # Señales para comunicar el progreso
@@ -104,8 +105,20 @@ class EpubConverterLogic(QObject):
             # Verificar si hay portada
             cover_path = None
             if data['cover_path'] and os.path.exists(data['cover_path']):
-                cover_path = data['cover_path']
-                self.progress_updated.emit(self._get_string("create_panel.epub_creation.progress.processing_cover", "Procesando portada..."))
+                # Si la portada no está en el directorio de la novela, copiarla
+                novel_cover_path = NovelFolderStructure.copy_cover_to_root(self.directory, data['cover_path'])
+                if novel_cover_path:
+                    # Usar la ruta absoluta de la portada copiada
+                    cover_path = NovelFolderStructure.to_absolute_path(self.directory, novel_cover_path)
+                    self.progress_updated.emit(self._get_string("create_panel.epub_creation.progress.processing_cover", "Procesando portada..."))
+                else:
+                    # Si no se pudo copiar, usar la original
+                    cover_path = data['cover_path']
+            else:
+                # Buscar portada en el directorio de la novela
+                novel_cover = NovelFolderStructure.find_cover_in_novel(self.directory)
+                if novel_cover:
+                    cover_path = NovelFolderStructure.to_absolute_path(self.directory, novel_cover)
 
             epub = pypub.Epub(data['title'], creator=data['author'], language='es', cover=cover_path)
 
@@ -156,7 +169,13 @@ class EpubConverterLogic(QObject):
     def _extract_chapter_title(self, file_info):
         """Extrae el título del capítulo del archivo"""
         try:
-            file_path = os.path.join(self.directory, file_info['name'])
+            # Leer desde la carpeta 'translated'
+            translated_path = NovelFolderStructure.get_translated_path(self.directory)
+            file_path = translated_path / file_info['name']
+
+            if not file_path.exists():
+                return f"Capítulo {file_info['chapter']}"
+
             with open(file_path, 'r', encoding='utf-8') as f:
                 first_line = f.readline().strip()
 
@@ -169,7 +188,14 @@ class EpubConverterLogic(QObject):
     def process_chapter(self, file_info):
         """Procesa un capítulo individual y retorna HTML"""
         try:
-            file_path = os.path.join(self.directory, file_info['name'])
+            # Leer desde la carpeta 'translated'
+            translated_path = NovelFolderStructure.get_translated_path(self.directory)
+            file_path = translated_path / file_info['name']
+
+            if not file_path.exists():
+                print(f"Archivo traducido no encontrado: {file_path}")
+                return None
+
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
 

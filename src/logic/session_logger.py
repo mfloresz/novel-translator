@@ -19,7 +19,7 @@ class SessionLogger:
     def _load_models_config(self) -> dict:
         """Carga la configuración de modelos desde el archivo JSON"""
         try:
-            models_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'models', 'translation_models.json')
+            models_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'translation_models.json')
             with open(models_path, 'r') as f:
                 return json.load(f)
         except Exception as e:

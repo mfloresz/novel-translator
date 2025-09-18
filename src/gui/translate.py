@@ -2,6 +2,7 @@ import requests
 import time
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Optional, Dict
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -13,7 +14,7 @@ from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
 from src.logic.functions import show_confirmation_dialog, load_preset_terms
 from src.logic.status_manager import STATUS_TRANSLATED, STATUS_ERROR, STATUS_PROCESSING, get_status_text
-from src.gui.check_refine_settings_gui import CheckRefineSettingsDialog
+from src.gui.prompt_refine_settings import PromptRefineSettingsDialog
 
 class PresetTermsDialog(QDialog):
     def __init__(self, source_lang, target_lang, parent=None):
@@ -157,6 +158,11 @@ class TranslatePanel(QWidget):
 
         # Variable para almacenar API keys temporales
         self.temp_api_keys = {}
+
+        # Crear directorio temporal para prompts de la sesión
+        self._temp_dir_obj = tempfile.TemporaryDirectory()
+        self.temp_prompts_path = Path(self._temp_dir_obj.name)
+        self.translation_manager.update_temp_prompts_path(self.temp_prompts_path)
 
         # Cargar variables de entorno desde .env en la carpeta padre
         env_path = Path(__file__).parent.parent.parent / '.env'
@@ -366,7 +372,7 @@ class TranslatePanel(QWidget):
     def load_translation_models(self):
         """Carga los proveedores y modelos desde el JSON"""
         try:
-            models_path = Path(__file__).parent.parent / 'config' / 'models' / 'translation_models.json'
+            models_path = Path(__file__).parent.parent / 'config' / 'translation_models.json'
             with open(models_path, 'r') as f:
                 self.models_config = json.load(f)
 
@@ -534,19 +540,23 @@ class TranslatePanel(QWidget):
         self.check_refine_settings_button.clicked.connect(self.open_check_refine_settings)
 
     def open_check_refine_settings(self):
-        """Abre el diálogo de configuración para comprobación y refinado."""
-        # Usar la configuración de la sesión si existe, si no, la de por defecto
+        """Abre el diálogo de configuración para prompts, comprobación y refinado."""
         current_settings = self.session_check_refine_settings or self.default_config.get("check_refine_settings")
+        source_lang = self.source_lang_combo.currentData()
+        target_lang = self.target_lang_combo.currentData()
 
-        dialog = CheckRefineSettingsDialog(
+        dialog = PromptRefineSettingsDialog(
             parent=self,
             current_settings=current_settings,
-            models_config=self.models_config
+            models_config=self.models_config,
+            source_lang=source_lang,
+            target_lang=target_lang,
+            temp_prompts_path=self.temp_prompts_path  # Pasar la ruta temporal
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.session_check_refine_settings = dialog.get_settings()
             self.main_window.statusBar().showMessage(
-                self._get_string("translate_panel.check_refine_settings_saved_session"), 3000)
+                self._get_string("translate_panel.check_refine_settings_saved_session", "Configuración guardada"), 3000)
 
     def update_preset_terms_button_state(self):
         """
@@ -720,7 +730,8 @@ class TranslatePanel(QWidget):
             segment_size,
             enable_check,   # <-- Pasar parámetro para habilitar comprobación
             enable_refine,  # <-- Pasar parámetro para habilitar refinamiento
-            check_refine_settings # <-- Pasar la configuración de comprobación/refinado
+            check_refine_settings, # <-- Pasar la configuración de comprobación/refinado
+            temp_api_keys=self.temp_api_keys  # <-- Pasar las API keys temporales
         )
 
     def stop_translation(self):

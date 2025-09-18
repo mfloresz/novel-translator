@@ -3,10 +3,10 @@ import os
 import json
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
-                           QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-                           QPushButton, QLabel, QHeaderView, QSplitter, QDialog,
-                           QMenu, QStyle, QWidgetAction)
-from PyQt6.QtCore import Qt, QTimer, QObject, QEvent
+    QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
+    QPushButton, QLabel, QHeaderView, QSplitter, QDialog,
+    QMenu, QStyle, QWidgetAction, QComboBox, QFileDialog)
+from PyQt6.QtCore import Qt, QTimer, QObject, QEvent, pyqtSignal, QThread
 from PyQt6.QtGui import QFontMetrics, QPixmap, QIcon, QColor, QPalette, QAction
 from PyQt6.QtSvg import QSvgRenderer
 from src.gui.clean import CleanPanel
@@ -22,6 +22,7 @@ from src.logic.database import TranslationDatabase
 from src.logic.session_logger import session_logger
 from src.logic.status_manager import get_status_color, get_status_code_from_text
 from src.logic.language_manager import LanguageManager
+from src.logic.folder_structure import NovelFolderStructure
 import subprocess
 
 class ElidedLabel(QLabel):
@@ -55,6 +56,50 @@ class ElidedLabel(QLabel):
         super().resizeEvent(event)
         self.update_display_text()
 
+class ImportChaptersThread(QThread):
+    status_message = pyqtSignal(str)
+    finished = pyqtSignal(bool, str, int)
+    
+    def __init__(self, source_dir, target_dir, lang_manager):
+        super().__init__()
+        self.source_dir = source_dir
+        self.target_dir = target_dir
+        self.lang_manager = lang_manager
+    
+    def run(self):
+        import shutil
+        try:
+            self.status_message.emit(self.lang_manager.get_string("main_window.import_chapters.copying"))
+            
+            txt_files = [f for f in os.listdir(self.source_dir)
+                        if f.lower().endswith('.txt') and os.path.isfile(os.path.join(self.source_dir, f))]
+            
+            if not txt_files:
+                self.finished.emit(False, self.lang_manager.get_string("main_window.import_chapters.error.no_txt_files"), 0)
+                return
+            
+            copied_count = 0
+            for filename in txt_files:
+                source_path = os.path.join(self.source_dir, filename)
+                target_path = os.path.join(self.target_dir, filename)
+                
+                try:
+                    shutil.copy2(source_path, target_path)
+                    copied_count += 1
+                except Exception as e:
+                    print(f"Error copying {filename}: {e}")
+                    continue
+            
+            if copied_count > 0:
+                success_msg = self.lang_manager.get_string("main_window.import_chapters.success").format(files_copied=copied_count)
+                self.finished.emit(True, success_msg, copied_count)
+            else:
+                self.finished.emit(False, self.lang_manager.get_string("main_window.import_chapters.error.copy_failed").format(error="No files were copied"), 0)
+                
+        except Exception as e:
+            error_msg = self.lang_manager.get_string("main_window.import_chapters.error.copy_failed").format(error=str(e))
+            self.finished.emit(False, error_msg, 0)
+
 class NovelManagerApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -84,16 +129,29 @@ class NovelManagerApp(QMainWindow):
         left_panel.setMinimumWidth(550)
         # Directory section - Solo botones, sin mostrar la ruta
         dir_layout = QHBoxLayout()
+        # Library ComboBox
+        self.library_combobox = QComboBox()
+        self.library_combobox.setMinimumWidth(150)
+        self.library_combobox.currentTextChanged.connect(self.on_library_selected)
         # Botón Abrir
         self.nav_button = QPushButton(self.lang_manager.get_string("main_window.nav_button"))
         self.nav_button.clicked.connect(self.select_directory)
-        # Botón Importar EPUB
-        self.import_epub_button = QPushButton(self.lang_manager.get_string("main_window.import_epub_button"))
+        self.nav_button.setVisible(False)  # Ocultar el botón de Abrir según feedback
+        # Botón Importar EPUB (con ícono)
+        self.import_epub_button = QPushButton()
         self.import_epub_button.clicked.connect(self.import_epub)
-        # Botón Abrir Directorio
-        self.open_dir_button = QPushButton(self.lang_manager.get_string("main_window.open_dir_button"))
+        self.import_epub_button.setToolTip(self.lang_manager.get_string("main_window.import_epub_button"))
+
+        # Botón Importar Capítulos (con ícono)
+        self.import_chapters_button = QPushButton()
+        self.import_chapters_button.clicked.connect(self.import_txt_chapters)
+        self.import_chapters_button.setToolTip(self.lang_manager.get_string("main_window.import_chapters_button"))
+        # Botón Abrir Directorio (con ícono)
+        self.open_dir_button = QPushButton()
+        self.open_dir_button.setText("")
         self.open_dir_button.clicked.connect(self.open_working_directory)
         self.open_dir_button.setEnabled(False)  # Deshabilitado hasta seleccionar directorio
+        self.open_dir_button.setToolTip(self.lang_manager.get_string("main_window.open_dir_button.tooltip", "Abrir el directorio de trabajo actual en el explorador de archivos del sistema"))
         # Botón Actualizar (con ícono)
         self.refresh_button = QPushButton()
         self.refresh_button.clicked.connect(self.refresh_files)
@@ -105,21 +163,23 @@ class NovelManagerApp(QMainWindow):
         self.recents_button.clicked.connect(self.show_recents_menu)
         # Botón Registro (con ícono)
         self.log_button = QPushButton()
-        self.log_button.clicked.connect(self.open_log_file)
+        self.log_button.clicked.connect(self.open_notes_dialog)
         self.log_button.setToolTip(self.lang_manager.get_string("main_window.log_button.tooltip"))
         # Botón Ajustes (con ícono)
         self.settings_button = QPushButton()
         self.settings_button.setToolTip(self.lang_manager.get_string("main_window.settings_button.tooltip"))
         self.settings_button.clicked.connect(self.open_settings)
-        # Agregar botones en el orden especificado
-        dir_layout.addWidget(self.nav_button)
+        # Agregar elementos en el orden especificado
+        dir_layout.addWidget(self.library_combobox)
+        # self.nav_button está oculto, no se agrega al layout para evitar espacio
         dir_layout.addWidget(self.import_epub_button)
+        dir_layout.addWidget(self.import_chapters_button)
         dir_layout.addWidget(self.open_dir_button)
         dir_layout.addWidget(self.refresh_button)
         dir_layout.addWidget(self.recents_button)
         dir_layout.addWidget(self.log_button)
         dir_layout.addWidget(self.settings_button)
-        dir_layout.addStretch()  # Empujar botones hacia la izquierda
+        dir_layout.addStretch()  # Empujar elementos hacia la izquierda
         # Chapters table
         self.chapters_table = QTableWidget()
         self.chapters_table.setColumnCount(4)
@@ -168,6 +228,12 @@ class NovelManagerApp(QMainWindow):
         splitter.setSizes([650, 350])
         # Status bar
         self.statusBar().showMessage(self.lang_manager.get_string("main_window.status.select_directory"))
+
+        # Add permanent widgets to status bar
+        self.status_log_button = QPushButton()
+        self.status_log_button.clicked.connect(self.open_log_file)
+        self.status_log_button.setToolTip(self.lang_manager.get_string("main_window.status_log_button.tooltip"))
+        self.statusBar().addPermanentWidget(self.status_log_button)
         # Initialize file loader
         self.file_loader = FileLoader(self.lang_manager)
         self.file_loader.files_loaded.connect(self._add_files_to_table)
@@ -196,6 +262,9 @@ class NovelManagerApp(QMainWindow):
         
         # Cargar configuración al iniciar
         self.apply_configuration()
+        
+        # Poblar el combobox de biblioteca al inicio
+        self.populate_library_combobox()
 
     def _init_language_manager(self):
         """Initialize the language manager with the configured UI language."""
@@ -243,7 +312,7 @@ class NovelManagerApp(QMainWindow):
         self.set_button_icons()
         # Actualizar colores de estado en la tabla
         self._update_all_status_colors()
-        self.statusBar().showMessage("Tema del sistema actualizado", 2000)
+        self.statusBar().showMessage(self.lang_manager.get_string("main_window.theme_updated"), 2000)
 
         # Actualizar color del texto del encabezado vertical
         text_color = palette.color(QPalette.ColorRole.WindowText)
@@ -325,13 +394,25 @@ class NovelManagerApp(QMainWindow):
             # Rutas de los iconos SVG base (sin sufijo de tema)
             refresh_icon_path = "src/gui/icons/refresh.svg"
             recents_icon_path = "src/gui/icons/recents.svg"
-            log_icon_path = "src/gui/icons/log.svg"
+            notes_icon_path = "src/gui/icons/notes.svg"
             settings_icon_path = "src/gui/icons/settings.svg"
+            import_epub_icon_path = "src/gui/icons/import_epub.svg"
+            open_directory_icon_path = "src/gui/icons/open_directory.svg"
             # Configurar iconos con coloración automática
             self.refresh_button.setIcon(self.create_themed_icon(refresh_icon_path))
             self.recents_button.setIcon(self.create_themed_icon(recents_icon_path))
-            self.log_button.setIcon(self.create_themed_icon(log_icon_path))
+            self.log_button.setIcon(self.create_themed_icon(notes_icon_path))
             self.settings_button.setIcon(self.create_themed_icon(settings_icon_path))
+            self.import_epub_button.setIcon(self.create_themed_icon(import_epub_icon_path))
+            self.open_dir_button.setIcon(self.create_themed_icon(open_directory_icon_path))
+    
+            # Configurar icono para el botón de importación de capítulos
+            import_chapters_icon_path = "src/gui/icons/import_chapters.svg"
+            self.import_chapters_button.setIcon(self.create_themed_icon(import_chapters_icon_path))
+
+            # Configurar icono para el botón de logs en la barra de estatus
+            status_log_icon_path = "src/gui/icons/log.svg"
+            self.status_log_button.setIcon(self.create_themed_icon(status_log_icon_path))
         except Exception as e:
             print(f"Error cargando iconos de botones: {e}")
 
@@ -386,8 +467,16 @@ class NovelManagerApp(QMainWindow):
             open_button = QPushButton(self.lang_manager.get_string("main_window.chapters_table.column.open"))
             # Botón para traducir solo este capítulo específico con la configuración actual
             translate_button = QPushButton(self.lang_manager.get_string("main_window.chapters_table.column.translate"))
-            file_path = os.path.join(self.current_directory, file_data['name'])
-            open_button.clicked.connect(lambda checked, path=file_path: self.open_file(path))
+
+            # Determinar la ruta del archivo para abrir (translated si existe, sino originals)
+            translated_path = NovelFolderStructure.get_translated_path(self.current_directory)
+            originals_path = NovelFolderStructure.get_originals_path(self.current_directory)
+
+            file_path = translated_path / file_data['name']
+            if not file_path.exists():
+                file_path = originals_path / file_data['name']
+
+            open_button.clicked.connect(lambda checked, path=str(file_path): self.open_file(path))
             translate_button.clicked.connect(lambda checked, filename=file_data['name']: self.translate_single_file(filename))
             self.chapters_table.setCellWidget(row, 2, open_button)
             self.chapters_table.setCellWidget(row, 3, translate_button)
@@ -400,7 +489,8 @@ class NovelManagerApp(QMainWindow):
     def _loading_finished(self):
         total_files = self.chapters_table.rowCount()
         self.statusBar().showMessage(
-            f"Cargados {total_files} archivos de {os.path.basename(self.current_directory)}"
+            self.lang_manager.get_string("main_window.files_loaded").format(
+                count=total_files, directory=os.path.basename(self.current_directory))
         )
         # Actualizar el rango máximo en el panel de traducción
         self.translate_panel.set_chapter_range(total_files)
@@ -485,7 +575,7 @@ class NovelManagerApp(QMainWindow):
         # Desconectar la señal para evitar múltiples conexiones
         self.translate_panel.translation_manager.all_translations_completed.disconnect(self.handle_single_translation_completed)
         # Actualizar mensaje de estado
-        self.statusBar().showMessage("Traducción completada", 5000)
+        self.statusBar().showMessage(self.lang_manager.get_string("main_window.translation_completed"), 5000)
 
     def _apply_status_color(self, status_item, status):
         """Aplica color al item de estado según su valor, usando la paleta del sistema."""
@@ -571,7 +661,7 @@ class NovelManagerApp(QMainWindow):
         # Confirmar la operación
         
         if not show_confirmation_dialog(
-            f"Se traducirá el archivo '{filename}'.\n¿Desea continuar?"
+            self.lang_manager.get_string("main_window.confirm_translate_single").format(filename=filename)
         ):
             return
         # Preparar el administrador de traducción
@@ -581,7 +671,7 @@ class NovelManagerApp(QMainWindow):
             model
         )
         # Configurar UI
-        self.statusBar().showMessage(f"Traduciendo {filename}...")
+        self.statusBar().showMessage(self.lang_manager.get_string("main_window.translating_file").format(filename=filename))
         translate_panel.translate_button.setEnabled(False)
         translate_panel.stop_button.setEnabled(True)
         # Crear la lista con un solo archivo
@@ -602,7 +692,8 @@ class NovelManagerApp(QMainWindow):
             segment_size,
             enable_check,
             enable_refine,
-            check_refine_settings
+            check_refine_settings,
+            temp_api_keys=translate_panel.temp_api_keys
         )
 
     def import_epub(self):
@@ -643,6 +734,12 @@ class NovelManagerApp(QMainWindow):
         self.import_epub_button.setEnabled(True)
         self.nav_button.setEnabled(True)
         if success:
+            # Crear estructura de carpetas para la novela importada
+            if NovelFolderStructure.ensure_structure(directory_path):
+                self.statusBar().showMessage(self.lang_manager.get_string("main_window.folder_structure.created"), 2000)
+            else:
+                self.statusBar().showMessage(self.lang_manager.get_string("main_window.folder_structure.error"), 3000)
+
             # Limpiar campos de descripción y términos personalizados antes de establecer el nuevo directorio
             self.create_panel.description_input.clear()
             self.translate_panel.terms_input.clear()
@@ -667,9 +764,73 @@ class NovelManagerApp(QMainWindow):
         else:
             # Mostrar mensaje de error
             self.statusBar().showMessage(f"Error: {message}")
-            
+
             show_error_dialog(message, "Error al importar EPUB")
 
+    def import_txt_chapters(self):
+        """Maneja la importación de archivos TXT de capítulos desde un directorio fuente"""
+        if not self.current_directory:
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.import_chapters.error.no_directory"))
+            return
+        
+        # Seleccionar directorio fuente usando get_directory
+        source_dir = get_directory()
+        
+        if not source_dir:
+            return
+        
+        # Validar que no sea el mismo directorio
+        if source_dir == self.current_directory:
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.import_chapters.error.source_same"))
+            return
+        
+        # Confirmar operación
+        if not show_confirmation_dialog(
+            self.lang_manager.get_string("main_window.confirm_import_chapters").format(
+                source=os.path.basename(source_dir))):
+            return
+        
+        # Deshabilitar botón durante la operación
+        self.import_chapters_button.setEnabled(False)
+        
+        # Crear y configurar el thread
+        self.import_thread = ImportChaptersThread(source_dir, self.current_directory, self.lang_manager)
+        self.import_thread.status_message.connect(self.update_status_message)
+        self.import_thread.finished.connect(self.handle_chapters_import_finished)
+        
+        # Iniciar thread en background
+        self.import_thread.start()
+
+    def handle_chapters_import_finished(self, success, message, copied_count):
+        """Maneja la finalización de la importación de capítulos TXT"""
+        # Restaurar botón
+        self.import_chapters_button.setEnabled(True)
+
+        if success:
+            # Mover archivos importados a la carpeta originals
+            if copied_count > 0:
+                # Los archivos se copiaron al directorio actual, ahora moverlos a originals
+                import shutil
+                for filename in os.listdir(self.current_directory):
+                    if filename.lower().endswith('.txt') and os.path.isfile(os.path.join(self.current_directory, filename)):
+                        source_path = os.path.join(self.current_directory, filename)
+                        NovelFolderStructure.copy_file_to_originals(self.current_directory, source_path)
+                        # Eliminar el archivo del directorio raíz
+                        try:
+                            os.remove(source_path)
+                        except:
+                            pass
+
+            self.statusBar().showMessage(message, 5000)
+            # Recargar directorio después de la importación exitosa
+            self.refresh_files()
+        else:
+            self.statusBar().showMessage(f"Error: {message}")
+            # Opcional: mostrar diálogo de error
+            show_error_dialog(message, "Error al importar capítulos")
+ 
     def show_status_message(self, message, timeout=0):
         """Muestra un mensaje en la barra de estado"""
         self.statusBar().showMessage(message, timeout)
@@ -738,14 +899,181 @@ class NovelManagerApp(QMainWindow):
             self.statusBar().showMessage(
                 self.lang_manager.get_string("main_window.log_file_open_error").format(error=str(e)))
 
+    def open_notes_dialog(self):
+        """Abre el diálogo para editar las notas de la novela"""
+        if not self.current_directory:
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.chapters_table.no_directory"))
+            return
+
+        try:
+            from src.gui.notes_dialog import NotesDialog
+            dialog = NotesDialog(self.current_directory, self.lang_manager, self)
+            dialog.exec()
+        except Exception as e:
+            self.statusBar().showMessage(
+                self.lang_manager.get_string("main_window.settings_open_error").format(error=str(e)))
+
+    def load_config(self):
+        """
+        Carga la configuración desde el archivo JSON.
+        """
+        # Como main.py está en la raíz, la ruta correcta es src/config/config.json
+        config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "config", "config.json")
+        print(f"DEBUG: Intentando cargar config desde: {config_file}")
+        config_dir = os.path.dirname(config_file)
+        os.makedirs(config_dir, exist_ok=True)
+        if not os.path.exists(config_file):
+            print(f"DEBUG: Archivo config.json no existe, creando con default_directory: {os.path.expanduser('~')}")
+            default_config = {
+                "default_directory": os.path.expanduser("~"),
+                "last_used_directories": [],
+                "provider": "chutes",
+                "model": "mistral-3.2",
+                "source_language": "en-US",
+                "target_language": "es-US",
+                "ui_language": "en_US",
+                "check_refine_settings": {
+                    "use_separate_model": True,
+                    "provider": "chutes",
+                    "model": "gpt-oss-20b"
+                }
+            }
+            with open(config_file, 'w') as f:
+                json.dump(default_config, f, indent=4)
+            return default_config
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+                print(f"DEBUG: Config cargada: {config}")
+                # Asegurar que default_directory existe
+                if "default_directory" not in config:
+                    config["default_directory"] = os.path.expanduser("~")
+                    self.save_config(config)
+                return config
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"DEBUG: Error cargando config: {e}")
+            return {
+                "default_directory": os.path.expanduser("~"),
+                "last_used_directories": [],
+                "provider": "chutes",
+                "model": "mistral-3.2",
+                "source_language": "en-US",
+                "target_language": "es-US",
+                "ui_language": "en_US",
+                "check_refine_settings": {
+                    "use_separate_model": True,
+                    "provider": "chutes",
+                    "model": "gpt-oss-20b"
+                }
+            }
+
+    def save_config(self, config):
+        """
+        Guarda la configuración en el archivo JSON.
+        """
+        # Como main.py está en la raíz, la ruta correcta es src/config/config.json
+        config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "config", "config.json")
+        config_dir = os.path.dirname(config_file)
+        os.makedirs(config_dir, exist_ok=True)
+        try:
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=4)
+            print(f"DEBUG: Config guardada en: {config_file}")
+        except IOError as e:
+            print(f"Error guardando configuración: {e}")
+
+    def populate_library_combobox(self):
+        """
+        Pobla el combobox con las novelas (subdirectorios) del directorio de biblioteca.
+        """
+        config = self.load_config()
+        library_path = config.get("default_directory", "")
+        print(f"DEBUG: populate_library_combobox - library_path: {library_path}")
+        if not library_path:
+            print("DEBUG: library_path está vacío")
+            self.library_combobox.clear()
+            self.library_combobox.addItem("No hay ruta de biblioteca configurada")
+            return
+        if not os.path.isdir(library_path):
+            print(f"DEBUG: library_path no es un directorio válido: {library_path}")
+            self.library_combobox.clear()
+            self.library_combobox.addItem(f"Ruta inválida: {os.path.basename(library_path)}")
+            return
+        
+        # Desconectar señal temporalmente para evitar loops
+        try:
+            self.library_combobox.currentTextChanged.disconnect()
+        except:
+            pass
+        
+        try:
+            # Obtener subdirectorios (novelas)
+            novel_folders = [d for d in os.listdir(library_path) if os.path.isdir(os.path.join(library_path, d))]
+            novel_folders.sort()
+            print(f"DEBUG: Encontrados {len(novel_folders)} subdirectorios en {library_path}")
+            
+            self.library_combobox.clear()
+            if novel_folders:
+                self.library_combobox.addItems(novel_folders)
+                self.library_combobox.setCurrentIndex(-1)  # Ninguno seleccionado inicialmente
+            else:
+                self.library_combobox.addItem("No se encontraron novelas")
+        except Exception as e:
+            print(f"DEBUG: Error poblando combobox de biblioteca: {e}")
+            self.library_combobox.clear()
+            self.library_combobox.addItem(f"Error al cargar novelas: {str(e)}")
+        finally:
+            # Reconectar señal
+            self.library_combobox.currentTextChanged.connect(self.on_library_selected)
+
+    def on_library_selected(self, novel_name):
+        """
+        Maneja la selección de una novela en el combobox.
+        """
+        if not novel_name or novel_name == "Error al cargar novelas":
+            self.current_directory = None
+            self.refresh_button.setEnabled(False)
+            self.open_dir_button.setEnabled(False)
+            self.chapters_table.setRowCount(0)
+            self.statusBar().showMessage("Seleccione una novela")
+            return
+
+        config = self.load_config()
+        library_path = config.get("default_directory", "")
+        selected_directory = os.path.join(library_path, novel_name)
+
+        if os.path.isdir(selected_directory):
+            # Verificar y crear estructura de carpetas si no existe
+            if NovelFolderStructure.ensure_structure(selected_directory):
+                self.statusBar().showMessage(self.lang_manager.get_string("main_window.folder_structure.verified"), 2000)
+            else:
+                self.statusBar().showMessage(self.lang_manager.get_string("main_window.folder_structure.create_error"), 3000)
+                return
+
+            self.current_directory = selected_directory
+            self.add_recent(selected_directory)
+            self.statusBar().showMessage(f"Novela seleccionada: {novel_name}")
+            self.epub_converter.set_directory(selected_directory)
+            self.create_panel.set_working_directory(selected_directory)
+            self.translate_panel.set_working_directory(selected_directory)
+            self.refresh_button.setEnabled(True)
+            self.open_dir_button.setEnabled(True)
+            self.update_window_title()
+            self.load_chapters()
+        else:
+            print(f"Directorio no encontrado: {selected_directory}")
+
     def open_settings(self):
         """Abre el diálogo de configuración"""
         try:
+            from src.gui.settings_gui import SettingsDialog
             dialog = SettingsDialog(self)
             dialog.finished.connect(self.translate_panel.update_preset_terms_button_state)
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 # La configuración se guardó, actualizar la aplicación
                 self.apply_configuration()
+                self.populate_library_combobox()
                 self.statusBar().showMessage(self.lang_manager.get_string("main_window.settings_updated"), 3000)
         except Exception as e:
             self.statusBar().showMessage(self.lang_manager.get_string("main_window.settings_open_error").format(error=str(e)))
@@ -1020,21 +1348,37 @@ class NovelManagerApp(QMainWindow):
         normalized_path = Path(directory_path).as_posix()
 
         if os.path.exists(normalized_path) and os.path.isdir(normalized_path):
+            # Verificar y crear estructura de carpetas
+            if NovelFolderStructure.ensure_structure(normalized_path):
+                self.statusBar().showMessage(self.lang_manager.get_string("main_window.folder_structure.verified"), 2000)
+            else:
+                self.statusBar().showMessage(self.lang_manager.get_string("main_window.folder_structure.create_error"), 3000)
+                return
+
             self.add_recent(normalized_path)  # add_recent se encarga de la lógica de duplicados
             self.current_directory = normalized_path
+
+            # Guardar en config como default_directory
+            config = self.load_config()
+            config["default_directory"] = normalized_path
+            self.save_config(config)
+
             self.statusBar().showMessage(
                 self.lang_manager.get_string("main_window.directory_selected").format(
                     directory=os.path.basename(self.current_directory)))
-            
+
             self.epub_converter.set_directory(normalized_path)
             self.create_panel.set_working_directory(normalized_path)
             self.translate_panel.set_working_directory(normalized_path)
-            
+
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
-            
+
             self.update_window_title()
             self.load_chapters()
+
+            # Actualizar combobox de biblioteca
+            self.populate_library_combobox()
         else:
             self.statusBar().showMessage(
                 self.lang_manager.get_string("main_window.working_directory_not_found").format(
@@ -1046,9 +1390,22 @@ class NovelManagerApp(QMainWindow):
         initial_dir = get_initial_directory()
         directory = get_directory(initial_dir)
         if directory:
+            # Verificar y crear estructura de carpetas
+            if NovelFolderStructure.ensure_structure(directory):
+                self.statusBar().showMessage(self.lang_manager.get_string("main_window.folder_structure.verified"), 2000)
+            else:
+                self.statusBar().showMessage(self.lang_manager.get_string("main_window.folder_structure.create_error"), 3000)
+                return
+
             # Agregar al historial de recientes
             self.add_recent(directory)
             self.current_directory = directory
+
+            # Guardar en config como default_directory
+            config = self.load_config()
+            config["default_directory"] = directory
+            self.save_config(config)
+
             self.statusBar().showMessage(
                 self.lang_manager.get_string("main_window.directory_selected").format(
                     directory=os.path.basename(self.current_directory)))
@@ -1064,6 +1421,9 @@ class NovelManagerApp(QMainWindow):
             # Actualizar título de la ventana
             self.update_window_title()
             self.load_chapters()
+
+            # Actualizar combobox de biblioteca
+            self.populate_library_combobox()
 
 if __name__ == "__main__":
     try:

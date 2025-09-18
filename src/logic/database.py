@@ -4,6 +4,7 @@ import json
 from typing import List, Dict, Union, Optional
 from datetime import datetime
 from pathlib import Path
+from .folder_structure import NovelFolderStructure
 
 class TranslationDatabase:
     def __init__(self, directory: str):
@@ -13,74 +14,20 @@ class TranslationDatabase:
         Args:
             directory (str): Directorio de trabajo donde se creará la base de datos
         """
-        self.db_path = os.path.join(directory, '.translation_records.db')
+        # Asegurar que la estructura de carpetas exista
+        NovelFolderStructure.ensure_structure(directory)
+
+        # La base de datos ahora está en la raíz del directorio de la novela
+        self.db_path = str(NovelFolderStructure.get_db_path(directory))
         self.directory = directory # Guardar la ruta para los backups en JSON
         self.initialize_database()
 
-    def _migrate_database(self, cursor: sqlite3.Cursor) -> None:
-        """
-        Migra la estructura de la base de datos de la versión antigua (basada en directorios)
-        a la nueva (basada en un ID estático).
-        """
-        # Migración para book_metadata
-        cursor.execute("PRAGMA table_info(book_metadata)")
-        columns = [col[1] for col in cursor.fetchall()]
-        if 'directory' in columns:
-            # Leer datos antiguos
-            cursor.execute("SELECT title, author, description FROM book_metadata LIMIT 1")
-            old_data = cursor.fetchone()
-
-            # Renombrar tabla antigua
-            cursor.execute("DROP TABLE book_metadata")
-
-            # Crear tabla nueva
-            cursor.execute('''
-                CREATE TABLE book_metadata (
-                    id TEXT PRIMARY KEY,
-                    title TEXT,
-                    author TEXT,
-                    description TEXT,
-                    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-
-            # Insertar datos antiguos en la nueva tabla si existían
-            if old_data:
-                self.save_book_metadata(old_data[0], old_data[1], old_data[2] or "")
-
-        # Migración para custom_terms
-        cursor.execute("PRAGMA table_info(custom_terms)")
-        columns = [col[1] for col in cursor.fetchall()]
-        if 'directory' in columns:
-            # Leer datos antiguos
-            cursor.execute("SELECT terms FROM custom_terms LIMIT 1")
-            old_data = cursor.fetchone()
-
-            # Renombrar tabla antigua
-            cursor.execute("DROP TABLE custom_terms")
-
-            # Crear tabla nueva
-            cursor.execute('''
-                CREATE TABLE custom_terms (
-                    id TEXT PRIMARY KEY,
-                    terms TEXT,
-                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-
-            # Insertar datos antiguos en la nueva tabla si existían
-            if old_data:
-                self.save_custom_terms(old_data[0])
 
     def initialize_database(self) -> None:
         """Crea la base de datos y las tablas si no existen"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-
-                # --- Migración de Esquema ---
-                self._migrate_database(cursor)
 
                 # --- Creación de Tablas (si no existen) ---
                 # Tabla de traducciones (sin cambios)
@@ -108,6 +55,7 @@ class TranslationDatabase:
                         title TEXT,
                         author TEXT,
                         description TEXT,
+                        notes TEXT,
                         created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
@@ -130,6 +78,11 @@ class TranslationDatabase:
                 except sqlite3.OperationalError:
                     pass
 
+                try:
+                    cursor.execute("ALTER TABLE book_metadata ADD COLUMN notes TEXT")
+                except sqlite3.OperationalError:
+                    pass
+
                 conn.commit()
         except sqlite3.Error as e:
             print(f"Error inicializando la base de datos: {e}")
@@ -137,8 +90,8 @@ class TranslationDatabase:
 
     def _create_json_backup(self) -> None:
         """Crea un archivo JSON como respaldo si SQLite falla"""
-        json_path = os.path.join(self.directory, '.translation_records.json')
-        if not os.path.exists(json_path):
+        json_path = NovelFolderStructure.get_db_path(self.directory).with_suffix('.json')
+        if not json_path.exists():
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump({"translations": [], "custom_terms": "", "book_metadata": {}}, f)
 
@@ -152,18 +105,23 @@ class TranslationDatabase:
                     (filename,)
                 )
                 result = cursor.fetchone()
-                return result[0] == 1 if result else False
+                if result and result[0] == 1:
+                    # Verificar que el archivo traducido realmente exista en la carpeta translated
+                    translated_path = NovelFolderStructure.get_translated_path(self.directory)
+                    translated_file = translated_path / filename
+                    return translated_file.exists()
+                return False
         except sqlite3.Error:
             return self._check_json_record(filename)
 
     def _check_json_record(self, filename: str) -> bool:
         """Verifica el registro en el archivo JSON de respaldo"""
-        json_path = os.path.join(self.directory, '.translation_records.json')
+        json_path = NovelFolderStructure.get_db_path(self.directory).with_suffix('.json')
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 records = json.load(f)
                 return any(record['filename'] == filename
-                         for record in records.get('translations', []))
+                          for record in records.get('translations', []))
         except (FileNotFoundError, json.JSONDecodeError):
             return False
 
@@ -184,11 +142,11 @@ class TranslationDatabase:
             return self._add_json_record(filename, source_lang, target_lang)
 
     def _add_json_record(self, filename: str, source_lang: str,
-                        target_lang: str) -> bool:
+                         target_lang: str) -> bool:
         """Añade un registro al archivo JSON de respaldo"""
-        json_path = os.path.join(self.directory, '.translation_records.json')
+        json_path = NovelFolderStructure.get_db_path(self.directory).with_suffix('.json')
         try:
-            if os.path.exists(json_path):
+            if json_path.exists():
                 with open(json_path, 'r', encoding='utf-8') as f:
                     records = json.load(f)
             else:
@@ -235,7 +193,7 @@ class TranslationDatabase:
 
     def _get_json_records(self) -> List[Dict[str, str]]:
         """Obtiene los registros del archivo JSON de respaldo"""
-        json_path = os.path.join(self.directory, '.translation_records.json')
+        json_path = NovelFolderStructure.get_db_path(self.directory).with_suffix('.json')
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 records = json.load(f)
@@ -273,9 +231,9 @@ class TranslationDatabase:
 
     def _save_terms_to_json(self, terms: str) -> bool:
         """Guarda los términos en el archivo JSON de respaldo"""
-        json_path = os.path.join(self.directory, '.translation_records.json')
+        json_path = NovelFolderStructure.get_db_path(self.directory).with_suffix('.json')
         try:
-            if os.path.exists(json_path):
+            if json_path.exists():
                 with open(json_path, 'r', encoding='utf-8') as f:
                     records = json.load(f)
             else:
@@ -292,7 +250,7 @@ class TranslationDatabase:
 
     def _get_terms_from_json(self) -> str:
         """Recupera los términos del archivo JSON de respaldo"""
-        json_path = os.path.join(self.directory, '.translation_records.json')
+        json_path = NovelFolderStructure.get_db_path(self.directory).with_suffix('.json')
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 records = json.load(f)
@@ -300,19 +258,19 @@ class TranslationDatabase:
         except (FileNotFoundError, json.JSONDecodeError):
             return ""
 
-    def save_book_metadata(self, title: str, author: str, description: str = "") -> bool:
+    def save_book_metadata(self, title: str, author: str, description: str = "", notes: str = "") -> bool:
         """Guarda los metadatos del libro para el proyecto actual."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    INSERT OR REPLACE INTO book_metadata (id, title, author, description, last_updated)
-                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ''', ('project_settings', title, author, description))
+                    INSERT OR REPLACE INTO book_metadata (id, title, author, description, notes, last_updated)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', ('project_settings', title, author, description, notes))
                 conn.commit()
                 return True
         except sqlite3.Error:
-            return self._save_metadata_to_json(title, author, description)
+            return self._save_metadata_to_json(title, author, description, notes)
 
     def get_book_metadata(self) -> Dict[str, str]:
         """Recupera los metadatos del libro para el proyecto actual."""
@@ -320,21 +278,21 @@ class TranslationDatabase:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT title, author, description FROM book_metadata WHERE id = ?",
+                    "SELECT title, author, description, notes FROM book_metadata WHERE id = ?",
                     ('project_settings',)
                 )
                 result = cursor.fetchone()
                 if result:
-                    return {"title": result[0] or "", "author": result[1] or "", "description": result[2] or ""}
-                return {"title": "", "author": "", "description": ""}
+                    return {"title": result[0] or "", "author": result[1] or "", "description": result[2] or "", "notes": result[3] or ""}
+                return {"title": "", "author": "", "description": "", "notes": ""}
         except sqlite3.Error:
             return self._get_metadata_from_json()
 
-    def _save_metadata_to_json(self, title: str, author: str, description: str = "") -> bool:
+    def _save_metadata_to_json(self, title: str, author: str, description: str = "", notes: str = "") -> bool:
         """Guarda los metadatos en el archivo JSON de respaldo"""
-        json_path = os.path.join(self.directory, '.translation_records.json')
+        json_path = NovelFolderStructure.get_db_path(self.directory).with_suffix('.json')
         try:
-            if os.path.exists(json_path):
+            if json_path.exists():
                 with open(json_path, 'r', encoding='utf-8') as f:
                     records = json.load(f)
             else:
@@ -344,6 +302,7 @@ class TranslationDatabase:
                 "title": title,
                 "author": author,
                 "description": description,
+                "notes": notes,
                 "last_updated": str(datetime.now())
             }
 
@@ -356,7 +315,7 @@ class TranslationDatabase:
 
     def _get_metadata_from_json(self) -> Dict[str, str]:
         """Recupera los metadatos del archivo JSON de respaldo"""
-        json_path = os.path.join(self.directory, '.translation_records.json')
+        json_path = NovelFolderStructure.get_db_path(self.directory).with_suffix('.json')
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 records = json.load(f)
@@ -364,7 +323,8 @@ class TranslationDatabase:
                 return {
                     "title": metadata.get('title', ''),
                     "author": metadata.get('author', ''),
-                    "description": metadata.get('description', '')
+                    "description": metadata.get('description', ''),
+                    "notes": metadata.get('notes', '')
                 }
         except (FileNotFoundError, json.JSONDecodeError):
-            return {"title": "", "author": "", "description": ""}
+            return {"title": "", "author": "", "description": "", "notes": ""}

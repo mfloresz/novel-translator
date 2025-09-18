@@ -1,4 +1,5 @@
 import requests
+import os
 from typing import Optional, Dict
 from src.logic.session_logger import session_logger
 
@@ -34,6 +35,8 @@ def translate_segment(provider: str,
             result = _translate_deepinfra(api_key, model_config, prompt)
         elif provider == 'openai':
             result = _translate_openai(api_key, model_config, prompt)
+        elif provider == 'openrouter':
+            result = _translate_openrouter(api_key, model_config, prompt)
         elif provider == 'hyperbolic':
             result = _translate_hyperbolic(api_key, model_config, prompt)
         elif provider == 'chutes':
@@ -217,6 +220,49 @@ def _process_deepinfra_response(response: Dict) -> Optional[str]:
         return _clean_translation(message['content'])
     except Exception as e:
         error_msg = f"Error procesando respuesta de DeepInfra: {str(e)}"
+        print(error_msg)
+        return None
+
+def _translate_openrouter(api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
+    try:
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        # Headers opcionales para OpenRouter
+        referer = os.getenv("OPENROUTER_REFERER")
+        if referer:
+            headers["HTTP-Referer"] = referer
+        title = os.getenv("OPENROUTER_TITLE")
+        if title:
+            headers["X-Title"] = title
+
+        data = {
+            "model": model_config['endpoint'],  # Usa el endpoint como model_id, ej: "openrouter/sonoma-dusk-alpha"
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": model_config.get('temperature', 0.6),
+            "max_tokens": model_config.get('max_tokens', 4096),
+            "top_p": 0.95,
+            "stream": False
+        }
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        json_response = response.json()
+        content = json_response['choices'][0]['message']['content']
+        return _clean_translation(content)
+    except requests.exceptions.RequestException as e:
+        error_msg = f"Error HTTP OpenRouter: {str(e)}"
+        response_text = None
+        if hasattr(e, 'response') and e.response is not None:
+            response_text = e.response.text
+            error_msg += f"\nRespuesta detallada: {response_text}"
+        session_logger.log_api_response('openrouter', False, response_text=response_text, error_message=error_msg)
+        print(error_msg)
+        return None
+    except Exception as e:
+        error_msg = f"Error procesando respuesta OpenRouter: {str(e)}"
+        session_logger.log_api_response('openrouter', False, error_message=error_msg)
         print(error_msg)
         return None
 

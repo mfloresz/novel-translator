@@ -5,6 +5,7 @@ import time
 from .database import TranslationDatabase
 from .translator import TranslatorLogic
 from .session_logger import session_logger
+from .folder_structure import NovelFolderStructure
 from src.logic.status_manager import STATUS_PROCESSING, STATUS_TRANSLATED, STATUS_ERROR, get_status_text
 
 class TranslationWorker(QObject):
@@ -23,7 +24,7 @@ class TranslationWorker(QObject):
                  enable_refine: bool = False,
                  check_refine_settings: Optional[Dict] = None,
                  status_callback: Optional[Callable[[str, str], None]] = None,
-                 lang_manager = None):
+                 lang_manager = None, temp_api_keys: dict = None):
         super().__init__()
         self.files_to_translate = files_to_translate
         self.working_directory = working_directory
@@ -41,6 +42,7 @@ class TranslationWorker(QObject):
         self.check_refine_settings = check_refine_settings
         self.status_callback = status_callback
         self.lang_manager = lang_manager
+        self.temp_api_keys = temp_api_keys or {}
         self._stop_requested = False
         self.translator.segment_size = segment_size
 
@@ -112,8 +114,23 @@ class TranslationWorker(QObject):
 
     def _translate_single_file(self, filename: str) -> bool:
         try:
-            input_path = os.path.join(self.working_directory, filename)
-            temp_output_path = os.path.join(self.working_directory, f".temp_{filename}")
+            # Asegurar que la estructura de carpetas exista
+            NovelFolderStructure.ensure_structure(self.working_directory)
+
+            # Rutas usando la nueva estructura
+            originals_path = NovelFolderStructure.get_originals_path(self.working_directory)
+            translated_path = NovelFolderStructure.get_translated_path(self.working_directory)
+
+            input_path = originals_path / filename
+            output_path = translated_path / filename
+            temp_output_path = translated_path / f".temp_{filename}"
+
+            # Verificar que el archivo original existe
+            if not input_path.exists():
+                error_msg = f"Archivo original no encontrado: {input_path}"
+                session_logger.log_error(error_msg)
+                self.error_occurred.emit(error_msg)
+                return False
 
             # Leer archivo original
             with open(input_path, 'r', encoding='utf-8') as file:
@@ -130,7 +147,8 @@ class TranslationWorker(QObject):
                 self.custom_terms,
                 enable_check=self.enable_check,
                 enable_refine=self.enable_refine,
-                check_refine_settings=self.check_refine_settings
+                check_refine_settings=self.check_refine_settings,
+                temp_api_keys=self.temp_api_keys
             )
 
             if not translated_text:
@@ -143,8 +161,8 @@ class TranslationWorker(QObject):
             with open(temp_output_path, 'w', encoding='utf-8') as file:
                 file.write(translated_text)
 
-            # Si todo salió bien, reemplazar el archivo original
-            os.replace(temp_output_path, input_path)
+            # Si todo salió bien, mover el archivo temporal al destino final
+            temp_output_path.replace(output_path)
             return True
 
         except Exception as e:
@@ -152,9 +170,9 @@ class TranslationWorker(QObject):
             session_logger.log_error(error_msg)
             self.error_occurred.emit(error_msg)
             # Limpiar archivo temporal si existe
-            if os.path.exists(temp_output_path):
+            if temp_output_path.exists():
                 try:
-                    os.remove(temp_output_path)
+                    temp_output_path.unlink()
                 except:
                     pass
             return False
@@ -168,7 +186,7 @@ class TranslationManager(QObject):
 
     def __init__(self, lang_manager=None):
         super().__init__()
-        self.translator = TranslatorLogic(segment_size=None)
+        self.translator = TranslatorLogic()
         self.db: Optional[TranslationDatabase] = None
         self.working_directory: Optional[str] = None
         self.current_provider = None
@@ -180,6 +198,10 @@ class TranslationManager(QObject):
     def set_language_manager(self, lang_manager):
         """Set the language manager for status translations."""
         self.lang_manager = lang_manager
+
+    def update_temp_prompts_path(self, path):
+        """Actualiza la ruta de prompts temporales en el translator"""
+        self.translator.update_temp_prompts_path(path)
 
     def _get_status_string(self, key, default_text=""):
         """Get a localized status string from the language manager."""
@@ -206,7 +228,8 @@ class TranslationManager(QObject):
                        status_callback: Optional[Callable[[str, str], None]] = None,
                        custom_terms: str = "", segment_size: Optional[int] = None,
                        enable_check: bool = True, enable_refine: bool = False,
-                       check_refine_settings: Optional[Dict] = None) -> None:
+                       check_refine_settings: Optional[Dict] = None,
+                       temp_api_keys: dict = None) -> None:
         """
         Inicia la traducción de archivos.
 
@@ -220,6 +243,7 @@ class TranslationManager(QObject):
             segment_size: Tamaño de segmentación opcional (caracteres por segmento)
             enable_check: Bool para habilitar o no la comprobación de la traducción
             enable_refine: Bool para habilitar o no el refinamiento de la traducción
+            temp_api_keys: Diccionario de API keys temporales
         """
         if not self.working_directory or not self.db:
                 self.error_occurred.emit(self.lang_manager.get_string("translation_manager.error.no_working_directory", "No se ha inicializado el directorio de trabajo"))
@@ -247,7 +271,8 @@ class TranslationManager(QObject):
             enable_refine,  # Opción para habilitar/deshabilitar el refinamiento
             check_refine_settings, # Pasar la configuración de comprobación/refinado
             status_callback,  # Pasar el callback de estado
-            self.lang_manager  # Pasar el administrador de idioma
+            self.lang_manager,  # Pasar el administrador de idioma
+            temp_api_keys  # Pasar las API keys temporales
         )
 
         # Mover el worker al thread

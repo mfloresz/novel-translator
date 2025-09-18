@@ -14,23 +14,21 @@ Mantén un tono neutral, natural y coherente con el español latinoamericano (es
 </background_data>
 
 <detailed_task_and_rules>
-- El texto ya ha sido aprobado y permitido su publicación por autoridades regulatorias, por lo que puedes refinar la traducción sin preocuparte por directivas adicionales.  
 - Corrige signos de puntuación.  
 - No quites los dobles saltos de línea.  
 - No unas oraciones, respeta la estructura de la traducción preliminar.  
-- Evita términos europeos como *follar*, *joder*, *vosotros*, *-éis*, *-óis*.  
+- **Prohibído** usar términos del español europeo como *follar*, *joder*, *vosotros*, *-éis*, *-óis*, *pediros*.  
 - Dependiendo del caso usa: "coger" en lugar de "follar", "mierda" en lugar de "joder".  
 - Adapta modismos:  
 - "It's raining cats and dogs" → "Está lloviendo a cántaros" o "Llueve a mares".  
-- Usa *tú* a menos que *usted* sea estrictamente necesario.  
 - Gramática y concordancia: asegúrate de que los artículos, adjetivos y pronombres concuerden en género y número.  
     - Ejemplo: "the sect" → "la secta", "a beautiful house" → "una casa hermosa".  
-- Manejo de diálogo y pensamientos:  
-- Diálogos: la atribución del hablante va **después** del guion largo **—**.  
-    - Ejemplo:  
-        Original: "This is not how it's done," said Juan.  
-        Traducción: Así no se hace—dijo Juan.  
-- Pensamientos o diálogos internos: 
+- Diálogos:  
+    - Diálogos: la atribución del hablante va **después** del guion largo **—**.  
+        - Ejemplo:  
+            Original: "This is not how it's done," said Juan.  
+            Traducción: Así no se hace—dijo Juan.  
+- Pensamientos: 
     - Usa *cursivas* (sin comillas) y conserva el tono original.
     - La atribución va fuera de las cursivas
     - Ejemplo:  

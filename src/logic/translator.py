@@ -1,5 +1,7 @@
 import time
 import json
+import os
+from dotenv import load_dotenv
 from typing import Optional, Dict, List
 from pathlib import Path
 from src.logic import translator_req
@@ -23,16 +25,28 @@ class TranslatorLogic:
             }
 
         # Cargar configuración de modelos
-        models_path = Path(__file__).parent.parent / 'config' / 'models' / 'translation_models.json'
+        models_path = Path(__file__).parent.parent / 'config' / 'translation_models.json'
         with open(models_path, 'r') as f:
             self.models_config = json.load(f)
 
         self.segment_size = segment_size  # Tamaño objetivo para cada segmento
+        self.temp_prompts_path = None  # Ruta al directorio de prompts temporales
+
+        # Cargar variables de entorno desde .env
+        env_path = Path(__file__).parent.parent.parent / '.env'
+        if env_path.exists():
+            load_dotenv(dotenv_path=env_path)
+
+    def update_temp_prompts_path(self, path: Path):
+        """Actualiza la ruta al directorio de prompts temporales"""
+        self.temp_prompts_path = path
 
     def _load_prompt(self, prompt_name: str, source_lang: str, target_lang: str) -> str:
         """
-        Carga una plantilla de prompt desde un archivo, buscando en el
-        directorio específico del par de idiomas.
+        Carga una plantilla de prompt desde un archivo, buscando en el siguiente orden:
+        1. Directorio de prompts temporales de la sesión.
+        2. Directorio específico del par de idiomas en la configuración.
+        3. Directorio de prompts base en la configuración.
 
         Args:
             prompt_name (str): Nombre del archivo de prompt (ej: "translation.txt").
@@ -41,22 +55,50 @@ class TranslatorLogic:
 
         Returns:
             str: Contenido del prompt.
-        
+
         Raises:
-            FileNotFoundError: Si no se encuentra la carpeta de prompts o el archivo de prompt.
+            FileNotFoundError: Si no se encuentra el archivo de prompt en ninguna de las ubicaciones.
         """
-        lang_pair_dir = f"{source_lang}_{target_lang}"
-        prompt_dir = Path(__file__).parent.parent / 'config' / 'prompts' / lang_pair_dir
+        lang_pair_dir_name = f"{source_lang}_{target_lang}"
 
-        if not prompt_dir.exists() or not prompt_dir.is_dir():
-            raise FileNotFoundError(f"El directorio de prompts para '{lang_pair_dir}' no existe.")
+        # 1. Buscar en el directorio de prompts temporales
+        if self.temp_prompts_path:
+            temp_prompt_path = self.temp_prompts_path / lang_pair_dir_name / prompt_name
+            if temp_prompt_path.exists():
+                with open(temp_prompt_path, 'r', encoding='utf-8') as file:
+                    return file.read()
 
+        # 2. Si no se encuentra, buscar en el directorio específico del par de idiomas
+        prompt_dir = Path(__file__).parent.parent / 'config' / 'prompts' / lang_pair_dir_name
         prompt_path = prompt_dir / prompt_name
-        if not prompt_path.exists():
-            raise FileNotFoundError(f"No se pudo encontrar el prompt '{prompt_name}' en {prompt_dir}")
+        if prompt_path.exists():
+            with open(prompt_path, 'r', encoding='utf-8') as file:
+                return file.read()
 
-        with open(prompt_path, 'r', encoding='utf-8') as file:
-            return file.read()
+        # 3. Si no existe, intentar en prompts-base
+        base_prompt_dir = Path(__file__).parent.parent / 'config' / 'prompts' / 'prompts-base'
+        base_prompt_path = base_prompt_dir / prompt_name
+        if base_prompt_path.exists():
+            with open(base_prompt_path, 'r', encoding='utf-8') as file:
+                return file.read()
+
+        # Si no se encuentra en ninguno de los dos lugares, lanzar error
+        raise FileNotFoundError(f"No se pudo encontrar el prompt '{prompt_name}'")
+
+    def _write_prompt_to_file(self, prompt: str, filename: str = "test_prompt.txt"):
+        """
+        Escribe el prompt en un archivo para fines de testing.
+
+        Args:
+            prompt (str): El prompt a escribir
+            filename (str): Nombre del archivo (por defecto test_prompt.txt)
+        """
+        try:
+            path = Path(__file__).parent.parent.parent / filename
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(prompt)
+        except Exception as e:
+            session_logger.log_error(f"Error escribiendo prompt a archivo: {e}")
 
     def _segment_text(self, text: str) -> List[str]:
         """
@@ -195,43 +237,71 @@ class TranslatorLogic:
 
         return prompt
 
+    def _get_api_key_for_provider(self, provider: str) -> str:
+        """
+        Obtiene la API key para un proveedor específico, priorizando temporales y luego .env.
+
+        Args:
+            provider (str): Identificador del proveedor
+
+        Returns:
+            str: API key correspondiente
+        """
+        # Primero intentar obtener de variables temporales (no implementadas aquí, fallback a env)
+        env_var_name = f"{provider.upper()}_API_KEY"
+        return os.getenv(env_var_name, "")
+
     def _check_translation(self, original_text: str, translated_text: str,
-                           source_lang: str, target_lang: str,
-                           api_key: str, provider: str, model: str) -> bool:
+                            source_lang: str, target_lang: str,
+                            main_api_key: str, check_provider: str, check_model: str,
+                            temp_api_keys: dict = None, retry_on_failure: bool = True) -> bool:
         """
         Comprueba la calidad de la traducción usando la API.
 
         Retorna True si el modelo responde "Yes", False si "No" o error.
-
-        Se hace un reintento una vez en caso de "No".
 
         Args:
             original_text (str): Texto original completo
             translated_text (str): Texto traducido completo
             source_lang (str): Idioma de origen
             target_lang (str): Idioma de destino
-            api_key (str): API key
-            provider (str): Proveedor
-            model (str): Modelo
+            main_api_key (str): API key principal (no usado si check_provider diferente)
+            check_provider (str): Proveedor para comprobación
+            check_model (str): Modelo para comprobación
+            temp_api_keys (dict): Diccionario de API keys temporales (opcional)
+            retry_on_failure (bool): Si True, reintenta una vez en caso de fallo
 
         Returns:
             bool: Resultado de la comprobación
         """
-        session_logger.log_info(f"Iniciando comprobación con Proveedor: {provider}, Modelo: {model}")
+        # Obtener API key específica para el proveedor de comprobación
+        if temp_api_keys and check_provider in temp_api_keys:
+            api_key = temp_api_keys[check_provider]
+        else:
+            api_key = self._get_api_key_for_provider(check_provider)
+
+        if not api_key:
+            session_logger.log_error(f"No se encontró API key para el proveedor de comprobación: {check_provider}")
+            return False
+
+        session_logger.log_info(f"Iniciando comprobación con Proveedor: {check_provider}, Modelo: {check_model}")
         prompt = self._build_check_prompt(source_lang, target_lang, original_text, translated_text)
 
-        provider_config = self.models_config.get(provider)
+        # Escribir prompt a archivo para testing
+        self._write_prompt_to_file(prompt, "test_check_prompt.txt")
+
+        provider_config = self.models_config.get(check_provider)
         if not provider_config:
-            print(f"Proveedor no soportado para comprobación: {provider}")
+            print(f"Proveedor no soportado para comprobación: {check_provider}")
             return False
-        model_config = provider_config['models'].get(model)
+        model_config = provider_config['models'].get(check_model)
         if not model_config:
-            print(f"Modelo no soportado para comprobación: {model}")
+            print(f"Modelo no soportado para comprobación: {check_model}")
             return False
 
         def query_model():
             return translator_req.translate_segment(
-                provider,
+                check_provider,
                 "",  # texto ya incluido en prompt, pasar vacío para evitar doble agregado
                 api_key,
                 model_config,
@@ -267,7 +337,7 @@ class TranslatorLogic:
             if is_ok:
                 session_logger.log_info(f"Comprobación exitosa - Respuesta: {response}")
                 return True
-            else:
+            elif retry_on_failure:
                 log_message = f"Comprobación falló - Respuesta: {response}"
                 if cause:
                     log_message += f" - Causa: {cause}"
@@ -291,14 +361,21 @@ class TranslatorLogic:
                         log_message_retry += f" - Causa: {cause_retry}"
                     session_logger.log_error(log_message_retry)
                     return False
+            else:
+                # No reintentar, retornar el resultado directamente
+                log_message = f"Comprobación falló - Respuesta: {response}"
+                if cause:
+                    log_message += f" - Causa: {cause}"
+                session_logger.log_error(log_message)
+                return False
         except Exception as e:
             session_logger.log_error(f"Error al hacer la comprobación: {str(e)}")
             return False
 
     def _refine_translation(self, source_text: str, translated_text: str,
                            source_lang: str, target_lang: str,
-                           api_key: str, provider: str, model: str,
-                           custom_terms: str = "") -> Optional[str]:
+                           main_api_key: str, refine_provider: str, refine_model: str,
+                           custom_terms: str = "", temp_api_keys: dict = None) -> Optional[str]:
         """
         Refina la traducción usando la API.
 
@@ -307,30 +384,44 @@ class TranslatorLogic:
             translated_text (str): Texto traducido a refinar
             source_lang (str): Idioma de origen
             target_lang (str): Idioma de destino
-            api_key (str): API key
-            provider (str): Proveedor
-            model (str): Modelo
+            main_api_key (str): API key principal (no usado si refine_provider diferente)
+            refine_provider (str): Proveedor para refinamiento
+            refine_model (str): Modelo para refinamiento
             custom_terms (str): Términos personalizados para la traducción
+            temp_api_keys (dict): Diccionario de API keys temporales (opcional)
 
         Returns:
             Optional[str]: Texto refinado si tiene éxito, None si falla o error
         """
-        session_logger.log_info(f"Iniciando refinamiento con Proveedor: {provider}, Modelo: {model}")
-        prompt = self._build_refine_prompt(source_lang, target_lang, source_text, translated_text, custom_terms)
+        # Obtener API key específica para el proveedor de refinamiento
+        if temp_api_keys and refine_provider in temp_api_keys:
+            api_key = temp_api_keys[refine_provider]
+        else:
+            api_key = self._get_api_key_for_provider(refine_provider)
 
-        provider_config = self.models_config.get(provider)
-        if not provider_config:
-            print(f"Proveedor no soportado para refinamiento: {provider}")
+        if not api_key:
+            session_logger.log_error(f"No se encontró API key para el proveedor de refinamiento: {refine_provider}")
             return None
 
-        model_config = provider_config['models'].get(model)
+        session_logger.log_info(f"Iniciando refinamiento con Proveedor: {refine_provider}, Modelo: {refine_model}")
+        prompt = self._build_refine_prompt(source_lang, target_lang, source_text, translated_text, custom_terms)
+
+        # Escribir prompt a archivo para testing
+        self._write_prompt_to_file(prompt, "test_refine_prompt.txt")
+
+        provider_config = self.models_config.get(refine_provider)
+        if not provider_config:
+            print(f"Proveedor no soportado para refinamiento: {refine_provider}")
+            return None
+
+        model_config = provider_config['models'].get(refine_model)
         if not model_config:
-            print(f"Modelo no soportado para refinamiento: {model}")
+            print(f"Modelo no soportado para refinamiento: {refine_model}")
             return None
 
         try:
             response = translator_req.translate_segment(
-                provider,
+                refine_provider,
                 "",  # texto ya incluido en prompt, pasar vacío para evitar doble agregado
                 api_key,
                 model_config,
@@ -347,16 +438,13 @@ class TranslatorLogic:
             session_logger.log_error(f"Error al hacer el refinamiento: {str(e)}")
             return None
 
-    def translate_text(self, text: str, source_lang: str, target_lang: str,
-                      api_key: str, provider: str, model: str,
-                      custom_terms: str = "", enable_check: bool = True,
-                      enable_refine: bool = False,
-                      check_refine_settings: Optional[Dict] = None) -> Optional[str]:
+    def _perform_translation(self, text: str, source_lang: str, target_lang: str,
+                            api_key: str, provider: str, model: str,
+                            custom_terms: str, enable_refine: bool,
+                            refine_provider: str, refine_model: str,
+                            temp_api_keys: dict) -> Optional[str]:
         """
-        Traduce el texto utilizando el proveedor y modelo especificados.
-
-        Agrega refinamiento de la traducción si enable_refine=True y
-        comprobación de la traducción tras completarla si enable_check=True.
+        Realiza la traducción completa del texto: segmentación, traducción y refinamiento opcional.
 
         Args:
             text (str): Texto a traducir
@@ -366,24 +454,14 @@ class TranslatorLogic:
             provider (str): Identificador del proveedor
             model (str): Identificador del modelo
             custom_terms (str): Términos personalizados para la traducción
-            enable_check (bool): Si True, realiza comprobación de traducción; si False, omite comprobación.
-            enable_refine (bool): Si True, realiza refinamiento de traducción; si False, omite refinamiento.
+            enable_refine (bool): Si True, realiza refinamiento de traducción
+            refine_provider (str): Proveedor para refinamiento
+            refine_model (str): Modelo para refinamiento
+            temp_api_keys (dict): Diccionario de API keys temporales
 
         Returns:
-            Optional[str]: Texto traducido si la comprobación pasa o no se realiza, None si falla o error
+            Optional[str]: Texto traducido completo, None si hay error
         """
-        # Determine provider and model for check/refine
-        if check_refine_settings and check_refine_settings.get('use_separate_model'):
-            check_provider = check_refine_settings.get('provider', provider)
-            check_model = check_refine_settings.get('model', model)
-            refine_provider = check_refine_settings.get('provider', provider)
-            refine_model = check_refine_settings.get('model', model)
-        else:
-            check_provider = provider
-            check_model = model
-            refine_provider = provider
-            refine_model = model
-
         try:
             provider_config = self.models_config.get(provider)
             if not provider_config:
@@ -429,6 +507,9 @@ class TranslatorLogic:
                 # Reemplazar la etiqueta {text_to_translate} con el segmento actual
                 prompt = prompt.replace("{text_to_translate}", segment)
 
+                # Escribir prompt a archivo para testing
+                self._write_prompt_to_file(prompt)
+
                 # Delegar la petición al módulo translator_req
                 translated_segment = translator_req.translate_segment(
                     provider,
@@ -450,10 +531,11 @@ class TranslatorLogic:
                         translated_text=translated_segment,
                         source_lang=source_lang,
                         target_lang=target_lang,
-                        api_key=api_key,
-                        provider=refine_provider,
-                        model=refine_model,
-                        custom_terms=custom_terms
+                        main_api_key=api_key,
+                        refine_provider=refine_provider,
+                        refine_model=refine_model,
+                        custom_terms=custom_terms,
+                        temp_api_keys=temp_api_keys
                     )
 
                     if refined_segment is not None:
@@ -472,29 +554,119 @@ class TranslatorLogic:
 
             # Unir todos los segmentos traducidos
             full_translation = '\n\n'.join(translated_segments)
-
-            # Si enable_check está habilitado, hacer comprobación
-            if enable_check:
-                check_passed = self._check_translation(
-                    original_text=text,
-                    translated_text=full_translation,
-                    source_lang=source_lang,
-                    target_lang=target_lang,
-                    api_key=api_key,
-                    provider=check_provider,
-                    model=check_model
-                )
-
-                if not check_passed:
-                    session_logger.log_error("La comprobación de la traducción NO pasó.")
-                    return None
-
-            # Si pasa la comprobación o no se realiza, devolver la traducción completa
             return full_translation
 
         except Exception as e:
             session_logger.log_error(f"Error en la traducción: {str(e)}")
             return None
+
+    def translate_text(self, text: str, source_lang: str, target_lang: str,
+                       api_key: str, provider: str, model: str,
+                       custom_terms: str = "", enable_check: bool = True,
+                       enable_refine: bool = False,
+                       check_refine_settings: Optional[Dict] = None,
+                       temp_api_keys: dict = None) -> Optional[str]:
+        """
+        Traduce el texto utilizando el proveedor y modelo especificados.
+
+        Incluye refinamiento opcional y verificación con reintento de traducción completa si falla.
+
+        Args:
+            text (str): Texto a traducir
+            source_lang (str): Idioma de origen
+            target_lang (str): Idioma de destino
+            api_key (str): API key del servicio
+            provider (str): Identificador del proveedor
+            model (str): Identificador del modelo
+            custom_terms (str): Términos personalizados para la traducción
+            enable_check (bool): Si True, realiza comprobación de traducción; si False, omite comprobación.
+            enable_refine (bool): Si True, realiza refinamiento de traducción; si False, omite refinamiento.
+            check_refine_settings (Optional[Dict]): Configuración para check/refine
+            temp_api_keys (dict): Diccionario de API keys temporales
+
+        Returns:
+            Optional[str]: Texto traducido si la comprobación pasa o no se realiza, None si falla definitivamente
+        """
+        # Determine provider and model for check/refine
+        if check_refine_settings and check_refine_settings.get('use_separate_model'):
+            check_provider = check_refine_settings.get('provider', provider)
+            check_model = check_refine_settings.get('model', model)
+            refine_provider = check_refine_settings.get('provider', provider)
+            refine_model = check_refine_settings.get('model', model)
+        else:
+            check_provider = provider
+            check_model = model
+            refine_provider = provider
+            refine_model = model
+
+        # Preparar temp_api_keys para asegurar que el api_key principal se use cuando sea necesario
+        temp_keys = temp_api_keys.copy() if temp_api_keys else {}
+        if check_provider == provider and api_key:
+            temp_keys[check_provider] = api_key
+        if refine_provider == provider and api_key:
+            temp_keys[refine_provider] = api_key
+
+        # Primera traducción
+        session_logger.log_info("Iniciando traducción inicial")
+        full_translation = self._perform_translation(
+            text, source_lang, target_lang, api_key, provider, model,
+            custom_terms, enable_refine, refine_provider, refine_model, temp_keys
+        )
+
+        if full_translation is None:
+            return None
+
+        # Si enable_check está habilitado, hacer comprobación
+        if enable_check:
+            check_passed = self._check_translation(
+                original_text=text,
+                translated_text=full_translation,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                main_api_key=api_key,
+                check_provider=check_provider,
+                check_model=check_model,
+                temp_api_keys=temp_keys,
+                retry_on_failure=False  # No reintentar verificación internamente
+            )
+
+            if not check_passed:
+                session_logger.log_warning("La comprobación inicial falló. Reintentando traducción completa...")
+
+                # Reintento de traducción completa
+                session_logger.log_info("Iniciando reintento de traducción")
+                retry_translation = self._perform_translation(
+                    text, source_lang, target_lang, api_key, provider, model,
+                    custom_terms, enable_refine, refine_provider, refine_model, temp_keys
+                )
+
+                if retry_translation is None:
+                    session_logger.log_error("El reintento de traducción también falló")
+                    return None
+
+                # Verificar el reintento
+                check_passed_retry = self._check_translation(
+                    original_text=text,
+                    translated_text=retry_translation,
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                    main_api_key=api_key,
+                    check_provider=check_provider,
+                    check_model=check_model,
+                    temp_api_keys=temp_keys,
+                    retry_on_failure=False  # No reintentar verificación internamente
+                )
+
+                if not check_passed_retry:
+                    session_logger.log_error("La comprobación del reintento también falló. Traducción marcada como fallida.")
+                    return None
+
+                # Si el reintento pasa la verificación, usar esa traducción
+                full_translation = retry_translation
+                session_logger.log_info("Reintento exitoso - traducción completada")
+
+        # Si pasa la comprobación o no se realiza, devolver la traducción completa
+        return full_translation
 
     def get_supported_languages(self) -> Dict[str, str]:
         """

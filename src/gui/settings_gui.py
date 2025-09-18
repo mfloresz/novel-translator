@@ -82,7 +82,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.main_window = parent
         self.config_file = Path(__file__).parent.parent / 'config' / 'config.json'
-        self.models_file = Path(__file__).parent.parent / 'config' / 'models' / 'translation_models.json'
+        self.models_file = Path(__file__).parent.parent / 'config' / 'translation_models.json'
         self.languages_file = Path(__file__).parent.parent / 'config' / 'languages.json'
         
         self.current_config = self._load_config()
@@ -102,9 +102,15 @@ class SettingsDialog(QDialog):
     def init_ui(self):
         self.setWindowTitle(self._get_string("settings_dialog.title"))
         self.setModal(True)
-        self.resize(600, 700)
+        self.resize(800, 700)
         
         main_layout = QVBoxLayout()
+        
+        # Create two columns layout
+        columns_layout = QHBoxLayout()
+        
+        # Left column
+        left_column = QVBoxLayout()
         
         # Add UI Language selection
         ui_language_group = QGroupBox(self._get_string("settings_dialog.ui_language_group"))
@@ -112,36 +118,42 @@ class SettingsDialog(QDialog):
         self.ui_language_combo = QComboBox()
         ui_language_layout.addRow(self._get_string("settings_dialog.ui_language_label"), self.ui_language_combo)
         ui_language_group.setLayout(ui_language_layout)
-        main_layout.addWidget(ui_language_group)
+        left_column.addWidget(ui_language_group)
         
+        # Library settings group
+        library_group = QGroupBox(self._get_string("settings_dialog.library_group", "Biblioteca"))
+        library_layout = QFormLayout()
+        self.library_path_label = QLabel()
+        self.library_path_label.setWordWrap(True)
+        self.library_path_label.setToolTip(self._get_string("settings_dialog.library_path_tooltip", "Ruta actual de la biblioteca"))
+        self.select_library_button = QPushButton(self._get_string("settings_dialog.select_library_button", "Seleccionar Biblioteca"))
+        self.select_library_button.clicked.connect(self.select_library_directory)
+        library_layout.addRow(self._get_string("settings_dialog.library_path_label", "Directorio de Biblioteca:"), self.library_path_label)
+        library_layout.addRow("", self.select_library_button)
+        library_group.setLayout(library_layout)
+        left_column.addWidget(library_group)
+        
+        # Translation settings group
         translation_group = QGroupBox(self._get_string("settings_dialog.translation_group"))
-        main_translation_layout = QHBoxLayout()
-
-        # Columna izquierda
-        left_layout = QFormLayout()
+        translation_layout = QFormLayout()
         self.provider_combo = QComboBox()
         self.provider_combo.setToolTip(self._get_string("settings_dialog.provider_tooltip"))
-        left_layout.addRow(self._get_string("settings_dialog.provider_label"), self.provider_combo)
+        translation_layout.addRow(self._get_string("settings_dialog.provider_label"), self.provider_combo)
         
         self.model_combo = QComboBox()
         self.model_combo.setToolTip(self._get_string("settings_dialog.model_tooltip"))
-        left_layout.addRow(self._get_string("settings_dialog.model_label"), self.model_combo)
+        translation_layout.addRow(self._get_string("settings_dialog.model_label"), self.model_combo)
 
-        # Columna derecha
-        right_layout = QFormLayout()
         self.source_lang_combo = QComboBox()
         self.source_lang_combo.setToolTip(self._get_string("settings_dialog.source_language_tooltip"))
-        right_layout.addRow(self._get_string("settings_dialog.source_language_label"), self.source_lang_combo)
+        translation_layout.addRow(self._get_string("settings_dialog.source_language_label"), self.source_lang_combo)
         
         self.target_lang_combo = QComboBox()
         self.target_lang_combo.setToolTip(self._get_string("settings_dialog.target_language_tooltip"))
-        right_layout.addRow(self._get_string("settings_dialog.target_language_label"), self.target_lang_combo)
-
-        main_translation_layout.addLayout(left_layout)
-        main_translation_layout.addLayout(right_layout)
-
-        translation_group.setLayout(main_translation_layout)
-        main_layout.addWidget(translation_group)
+        translation_layout.addRow(self._get_string("settings_dialog.target_language_label"), self.target_lang_combo)
+        
+        translation_group.setLayout(translation_layout)
+        left_column.addWidget(translation_group)
 
         # Check and Refine Settings Group
         check_refine_group = QGroupBox(self._get_string("settings_dialog.check_refine_group"))
@@ -165,8 +177,12 @@ class SettingsDialog(QDialog):
         check_refine_layout.addLayout(radio_button_layout)
         check_refine_layout.addWidget(self.check_refine_model_group)
         check_refine_group.setLayout(check_refine_layout)
-        main_layout.addWidget(check_refine_group)
-
+        left_column.addWidget(check_refine_group)
+        
+        # Right column
+        right_column = QVBoxLayout()
+        
+        # Languages management group
         languages_group = QGroupBox(self._get_string("settings_dialog.languages_group"))
         languages_layout = QVBoxLayout()
         self.languages_table = QTableWidget()
@@ -185,8 +201,9 @@ class SettingsDialog(QDialog):
         lang_buttons_layout.addWidget(self.remove_lang_button)
         languages_layout.addLayout(lang_buttons_layout)
         languages_group.setLayout(languages_layout)
-        main_layout.addWidget(languages_group)
+        right_column.addWidget(languages_group)
 
+        # Prompts management group
         prompts_group = QGroupBox(self._get_string("settings_dialog.prompts_group"))
         prompts_layout = QVBoxLayout()
         self.prompts_table = QTableWidget()
@@ -205,8 +222,14 @@ class SettingsDialog(QDialog):
         prompt_buttons_layout.addWidget(self.remove_prompt_button)
         prompts_layout.addLayout(prompt_buttons_layout)
         prompts_group.setLayout(prompts_layout)
-        main_layout.addWidget(prompts_group)
+        right_column.addWidget(prompts_group)
         
+        # Add columns to main layout
+        columns_layout.addLayout(left_column)
+        columns_layout.addLayout(right_column)
+        main_layout.addLayout(columns_layout)
+        
+        # Add buttons at the bottom
         buttons_layout = QHBoxLayout()
         self.save_button = QPushButton(self._get_string("settings_dialog.save_button"))
         self.save_button.clicked.connect(self.save_settings)
@@ -257,6 +280,10 @@ class SettingsDialog(QDialog):
     def load_settings(self):
         # Load UI languages
         self.load_ui_languages()
+        
+        # Load library path
+        library_path = self.current_config.get('default_directory', os.path.expanduser("~"))
+        self.library_path_label.setText(library_path)
         
         self.provider_combo.clear()
         if self.models_config:
@@ -372,6 +399,27 @@ class SettingsDialog(QDialog):
         self.remove_lang_button.clicked.connect(self.remove_language)
         self.new_prompt_button.clicked.connect(self.create_new_prompt)
         self.remove_prompt_button.clicked.connect(self.remove_prompt)
+        self.provider_combo.currentTextChanged.connect(self.update_models)
+        self.check_refine_provider_combo.currentTextChanged.connect(self.update_check_refine_models)
+        self.check_refine_use_same_model_radio.toggled.connect(self.toggle_check_refine_model_selection)
+        
+    def select_library_directory(self):
+        """Selecciona un nuevo directorio de biblioteca"""
+        from PyQt6.QtWidgets import QFileDialog
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            self._get_string("settings_dialog.select_library_title", "Seleccionar Directorio de Biblioteca"),
+            self.current_config.get('default_directory', os.path.expanduser("~"))
+        )
+        if directory:
+            self.current_config["default_directory"] = directory
+            self.library_path_label.setText(directory)
+            self._save_config()
+            QMessageBox.information(
+                self,
+                self._get_string("success_dialog.title"),
+                self._get_string("settings_dialog.library_updated", "Directorio de biblioteca actualizado")
+            )
 
     def add_language(self):
         dialog = AddLanguageDialog(self)
@@ -510,6 +558,8 @@ class SettingsDialog(QDialog):
         }
         
         new_config = {
+            "default_directory": self.current_config.get("default_directory", os.path.expanduser("~")),
+            "last_used_directories": self.current_config.get("last_used_directories", []),
             "provider": self.provider_combo.currentData(),
             "model": self.model_combo.currentData(),
             "source_language": source_lang,
@@ -537,3 +587,12 @@ class SettingsDialog(QDialog):
             self.accept()
         except Exception as e:
             QMessageBox.critical(self, self._get_string("error_dialog.title"), self._get_string("settings_dialog.save_error").format(error=str(e)))
+
+    def _save_config(self):
+        """Guarda solo la configuración actual sin validar otros campos"""
+        try:
+            self.config_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(self.current_config, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error guardando configuración: {e}")

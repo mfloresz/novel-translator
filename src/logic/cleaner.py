@@ -1,4 +1,5 @@
 import os
+from .folder_structure import NovelFolderStructure
 
 class CleanerLogic:
     def __init__(self):
@@ -11,14 +12,29 @@ class CleanerLogic:
         }
 
     def clean_files(self, directory, files, clean_mode, search_text, replace_text=""):
-        """Procesa una lista específica de archivos"""
+        """Procesa una lista específica de archivos aplicando limpieza a ambas carpetas"""
+        # Asegurar que la estructura de carpetas exista
+        NovelFolderStructure.ensure_structure(directory)
+
         files_processed = 0
         files_modified = 0
 
+        originals_path = NovelFolderStructure.get_originals_path(directory)
+        translated_path = NovelFolderStructure.get_translated_path(directory)
+
         for filename in files:
-            input_path = os.path.join(directory, filename)
-            if self.clean_file(input_path, input_path, clean_mode, search_text, replace_text):
-                files_modified += 1
+            # Limpiar en 'translated' si el archivo existe
+            translated_file = translated_path / filename
+            if translated_file.exists():
+                if self.clean_file(str(translated_file), str(translated_file), clean_mode, search_text, replace_text):
+                    files_modified += 1
+
+            # Limpiar en 'originals' si el archivo existe
+            originals_file = originals_path / filename
+            if originals_file.exists():
+                if self.clean_file(str(originals_file), str(originals_file), clean_mode, search_text, replace_text):
+                    files_modified += 1
+
             files_processed += 1
 
         return files_processed, files_modified

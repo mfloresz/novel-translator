@@ -3,7 +3,7 @@
 cd "$(dirname "$0")"
 
 # Activar entorno virtual
-source .venv/bin/activate
+#source .venv/bin/activate
 
 python main.py
 # Clean up pycache directories after the app closes

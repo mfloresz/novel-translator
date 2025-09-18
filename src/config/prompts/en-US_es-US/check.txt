@@ -21,6 +21,10 @@ Juzgue la traducción como adecuada si **todas** las siguientes afirmaciones son
   - Uso de sinónimos o reescritura
   - Reestructuración de oraciones para mayor fluidez
   - Diferencias en saltos de línea o formato
+  - Eliminaciones de referencias a cualquier contenido no narrativo, incluyendo:
+    - Promociones, invitaciones a suscripciones, anuncios o CTAs (call-to-action): ej. 'Seeking Subscriptions', 'please, suscribe'
+    - Referencias a plataformas de publicación (ej: webnovel, pawread, freeweb, oceanopdf, ko-fi, novelbin), a menos que estén integradas directamente en el diálogo o narrativa
+    - Metadatos, notas del autor, comentarios del editor, URLs, hashtags, o frases como "¡No olvides calificar!" o "Capítulo subido por X"
 - Enfocarse **solo** en el significado, la completitud y la coherencia.
 
 **Reglas de salida**
@@ -33,9 +37,10 @@ Cause: [Solo si la respuesta es "No", incluir una oración breve explicando la r
 - Si es adecuada: `Check response: Yes`
 - Si no es adecuada: `Check response: No` seguido de `Cause: [razón en una oración]`
 
----
-
+------
 **Texto 1 (Original – Inglés (en-US)):**
 {TEXT_1}
+------
 **Texto 2 (Traducción – Español(es-US)):**
 {TEXT_2}
+------
