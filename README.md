@@ -26,8 +26,8 @@ I created this application because I have some novels that were translated to Sp
 ### Installation
 1. Clone the repository:
 ```bash
-git clone https://github.com/mfloresz/novel-manager.git
-cd novel-manager
+git clone https://github.com/mfloresz/novel-translator.git
+cd novel-translator
 ```
 
 2. Create virtual environment:
@@ -60,17 +60,26 @@ For Windows users, you can use the provided installation script:
 
 ### 📁 File Management
 - Intuitive graphical interface for file navigation
-- **EPUB Import**: Convert existing EPUBs to text files
+- **Library Management**: Combobox to select novels from a configured library directory
+- **EPUB Import**: Convert existing EPUBs to text files with preview window
+- **TXT Chapters Import**: Import TXT files from a source directory into the project structure
 - Automatic file synchronization and preview
 - File status tracking with color indicators
 - Recent folders history for quick access
+- Automatic folder structure creation (originals/, translated/)
 
 ### 🌐 Advanced Translation
 ![Translation](assets/translate.webp)
 
-- **Multiple AI Providers**: Google Gemini, Chutes AI, Together AI, DeepInfra, OpenAI
+- **Multiple AI Providers**: Google Gemini, Hyperbolic, Chutes AI, Mistral
 - **Check and Refine**: Includes options to verify the quality of the translation against the original text and to improve it through an additional refinement process. Both options consume a significant amount of additional tokens.
 - **Advanced Check and Refine Configuration**: Allows configuring a different provider and model for the check and refine steps. This can be configured globally in the settings or for a single session from the translation panel.
+- **Custom Terms**: Project-specific terminology with persistence to maintain consistency across translations.
+- **Custom Prompts**: Project-specific prompts for translation, check, and refine operations per language pair.
+- **Book Metadata**: Management of title, author, description, and project notes.
+- **Smart Segmentation**: Respects narrative structure to preserve context.
+- **Database**: Avoids re-translations by storing completed work.
+- **Thinking Token Support**: Support for AI models that use thinking tokens in responses.
 
 ### 🧹 Text Cleaning
 ![Translation](assets/clean.webp)
@@ -113,16 +122,19 @@ CHUTES_API_KEY=your_key_here
 
 ### Application Settings
 - **Location**: `src/config/config.json`
-- **Customizable**: Default provider, model, languages, segmentation size
+- **Customizable**: Default provider, model, languages, segmentation size, library directory
 - **Persistence**: Settings saved automatically per project
 
 ## Advanced Features
 
 ### 🏗️ Architecture
-- **Hybrid Database**: SQLite with automatic JSON backup
+- **Hybrid Database**: SQLite with automatic JSON backup for data persistence
 - **Asynchronous Processing**: Background translations without UI blocking
 - **Smart State Management**: Real-time status tracking with persistence
 - **Modular Design**: Easy to extend with new providers and features
+- **Project Notes**: Dedicated notes system for each novel project
+- **Session Logging**: Detailed logging of translation sessions with export capabilities
+- **System Theme Detection**: Icons automatically adapt to light/dark system themes
 
 ### 🔧 Technical Details
 - **Performance**: Optimized for large files (100+ chapters)
@@ -132,7 +144,7 @@ CHUTES_API_KEY=your_key_here
 
 ## Project Structure
 ```
-novel-manager/
+novel-translator/
 ├── src/
 │   ├── gui/           # User Interface
 │   ├── logic/         # Business Logic

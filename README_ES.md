@@ -26,8 +26,8 @@ En sí lo hice porque tengo algunas novelas que aunque se tradujeron al español
 ### Instalación
 1. Clona el repositorio:
 ```bash
-git clone https://github.com/mfloresz/novel-manager.git
-cd novel-manager
+git clone https://github.com/mfloresz/novel-translator.git
+cd novel-translator
 ```
 
 2. Crea entorno virtual:
@@ -60,20 +60,26 @@ Para usuarios de Windows, puedes usar el script de instalación proporcionado:
 
 ### 📁 Gestión de Archivos
 - Interfaz gráfica intuitiva para navegación de archivos
-- **Importación EPUB**: Convierte EPUBs existentes a archivos de texto
+- **Gestión de Biblioteca**: Combobox para seleccionar novelas desde un directorio de biblioteca configurado
+- **Importación EPUB**: Convierte EPUBs existentes a archivos de texto con ventana de vista previa
+- **Importación de Capítulos TXT**: Importar archivos TXT desde un directorio fuente a la estructura del proyecto
 - Sincronización y vista previa automáticas de archivos
 - Seguimiento de estado con indicadores de color
 - Historial de carpetas recientes para acceso rápido
+- Creación automática de estructura de carpetas (originals/, translated/)
 
 ### 🌐 Traducción Avanzada
 ![Translation](assets/translate.webp)
 
-- **Múltiples Proveedores de IA**: Google Gemini, Chutes AI, Together AI, DeepInfra, OpenAI
+- **Múltiples Proveedores de IA**: Google Gemini, Hyperbolic, Chutes AI, Mistral
 - **Comprobación y Refinamiento**: Incluye opciones para verificar la calidad de la traducción contra el texto original y para mejorarla mediante un proceso adicional de refinamiento. Ambas opciones consumen una cantidad significativa de tokens adicionales.
 - **Configuración Avanzada de Comprobación y Refinamiento**: Permite configurar un proveedor y modelo diferente para los pasos de comprobación y refinamiento. Esto se puede configurar de forma global en los ajustes o para una sola sesión desde el panel de traducción.
-- **Términos Personalizados**: Terminología específica por proyecto con persistencia
-- **Segmentación Inteligente**: Respeta la estructura narrativa
-- **Base de Datos**: Evita retraducciones
+- **Términos Personalizados**: Terminología específica por proyecto con persistencia para mantener consistencia en las traducciones.
+- **Prompts Personalizados**: Prompts específicos por proyecto para operaciones de traducción, verificación y refinamiento por par de idiomas.
+- **Metadatos del Libro**: Gestión de título, autor, descripción y notas del proyecto.
+- **Segmentación Inteligente**: Respeta la estructura narrativa para preservar el contexto.
+- **Base de Datos**: Evita retraducciones almacenando el trabajo completado.
+- **Soporte para Thinking Tokens**: Soporte para modelos de IA que usan thinking tokens en las respuestas.
 
 ### 🧹 Limpieza de Texto
 ![Translation](assets/clean.webp)
@@ -116,16 +122,19 @@ CHUTES_API_KEY=tu_clave_aqui
 
 ### Ajustes de la Aplicación
 - **Ubicación**: `src/config/config.json`
-- **Personalizable**: Proveedor y modelo por defecto, idiomas, tamaño de segmentación
+- **Personalizable**: Proveedor y modelo por defecto, idiomas, tamaño de segmentación, directorio de biblioteca
 - **Persistencia**: Ajustes guardados automáticamente por proyecto
 
 ## Características Avanzadas
 
 ### 🏗️ Arquitectura
-- **Base de Datos Híbrida**: SQLite con respaldo JSON automático
+- **Base de Datos Híbrida**: SQLite con respaldo JSON automático para persistencia de datos
 - **Procesamiento Asíncrono**: Traducciones en segundo plano sin bloquear la interfaz
 - **Gestión Inteligente de Estados**: Seguimiento en tiempo real con persistencia
 - **Diseño Modular**: Fácil de extender con nuevos proveedores y características
+- **Notas por Proyecto**: Sistema dedicado de notas para cada proyecto de novela
+- **Registro de Sesiones**: Registro detallado de sesiones de traducción con capacidades de exportación
+- **Detección de Tema del Sistema**: Los iconos se adaptan automáticamente a los temas claro/oscuro del sistema
 
 ### 🔧 Detalles Técnicos
 - **Rendimiento**: Optimizado para archivos grandes (100+ capítulos)
@@ -135,7 +144,7 @@ CHUTES_API_KEY=tu_clave_aqui
 
 ## Estructura del Proyecto
 ```
-novel-manager/
+novel-translator/
 ├── src/
 │   ├── gui/           # Interfaz de Usuario
 │   ├── logic/         # Lógica de Negocio
