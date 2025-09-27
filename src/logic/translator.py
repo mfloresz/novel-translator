@@ -1,6 +1,7 @@
 import time
 import json
 import os
+import re
 from dotenv import load_dotenv
 from typing import Optional, Dict, List
 from pathlib import Path
@@ -40,6 +41,33 @@ class TranslatorLogic:
     def update_temp_prompts_path(self, path: Path):
         """Actualiza la ruta al directorio de prompts temporales"""
         self.temp_prompts_path = path
+    def _handle_terminology_section(self, prompt_template: str, custom_terms: str) -> str:
+        """
+        Maneja la sección de terminología en los prompts.
+        Si hay términos personalizados, los formatea y reemplaza {terminology_reference}.
+        Si no hay términos, elimina toda la sección <background_data>...</background_data>.
+
+        Args:
+            prompt_template (str): Template del prompt
+            custom_terms (str): Términos personalizados
+
+        Returns:
+            str: Prompt modificado
+        """
+        if custom_terms.strip():
+            # Formatear los términos personalizados
+            terms = custom_terms.strip().split('\n')
+            terms = [
+                line if line.strip().startswith('- ') else f'- {line.strip()}'
+                for line in terms
+                if line.strip()
+            ]
+            formatted_terms = '\n'.join(terms)
+            # Reemplazar la etiqueta {terminology_reference} con los términos formateados
+            return prompt_template.replace("{terminology_reference}", formatted_terms)
+        else:
+            # Si no hay términos personalizados, eliminar toda la sección <background_data>
+            return re.sub(r'<background_data>.*?</background_data>', '', prompt_template, flags=re.DOTALL)
 
     def _load_prompt(self, prompt_name: str, source_lang: str, target_lang: str) -> str:
         """
@@ -85,20 +113,6 @@ class TranslatorLogic:
         # Si no se encuentra en ninguno de los dos lugares, lanzar error
         raise FileNotFoundError(f"No se pudo encontrar el prompt '{prompt_name}'")
 
-    def _write_prompt_to_file(self, prompt: str, filename: str = "test_prompt.txt"):
-        """
-        Escribe el prompt en un archivo para fines de testing.
-
-        Args:
-            prompt (str): El prompt a escribir
-            filename (str): Nombre del archivo (por defecto test_prompt.txt)
-        """
-        try:
-            path = Path(__file__).parent.parent.parent / filename
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(prompt)
-        except Exception as e:
-            session_logger.log_error(f"Error escribiendo prompt a archivo: {e}")
 
     def _segment_text(self, text: str) -> List[str]:
         """
@@ -174,7 +188,8 @@ class TranslatorLogic:
         return segments
 
     def _build_check_prompt(self, source_lang: str, target_lang: str,
-                            original_text: str, translated_text: str) -> str:
+                            original_text: str, translated_text: str,
+                            custom_terms: str = "") -> str:
         """
         Construye el prompt para comprobar la calidad de la traducción.
 
@@ -183,16 +198,18 @@ class TranslatorLogic:
             target_lang (str): Idioma destino
             original_text (str): Texto original completo
             translated_text (str): Texto traducido completo
+            custom_terms (str): Términos personalizados para la traducción
 
         Returns:
             str: Prompt completo para la comprobación
         """
         check_prompt_template = self._load_prompt("check.txt", source_lang, target_lang)
-        prompt = check_prompt_template
+        prompt = self._handle_terminology_section(check_prompt_template, custom_terms)
         prompt = prompt.replace("{source_lang}", source_lang)
         prompt = prompt.replace("{target_lang}", target_lang)
         prompt = prompt.replace("{TEXT_1}", original_text.strip())
         prompt = prompt.replace("{TEXT_2}", translated_text.strip())
+
         return prompt
 
     def _build_refine_prompt(self, source_lang: str, target_lang: str,
@@ -212,28 +229,11 @@ class TranslatorLogic:
             str: Prompt completo para el refinamiento
         """
         refine_prompt_template = self._load_prompt("refine.txt", source_lang, target_lang)
-        prompt = refine_prompt_template
+        prompt = self._handle_terminology_section(refine_prompt_template, custom_terms)
         prompt = prompt.replace("{source_lang}", source_lang)
         prompt = prompt.replace("{target_lang}", target_lang)
         prompt = prompt.replace("{source_text}", source_text.strip())
         prompt = prompt.replace("{translated_text}", translated_text.strip())
-
-        # Reemplazar etiqueta de terminología si existen términos personalizados
-        if custom_terms:
-            # Formatear los términos personalizados
-            terms = custom_terms.strip().split('\n')
-            terms = [
-                line if line.strip().startswith('- ') else f'- {line.strip()}'
-                for line in terms
-                if line.strip()
-            ]
-            formatted_terms = '\n'.join(terms)
-
-            # Reemplazar la etiqueta {terminology_reference} con los términos formateados
-            prompt = prompt.replace("{terminology_reference}", formatted_terms)
-        else:
-            # Si no hay términos personalizados, eliminar la etiqueta
-            prompt = prompt.replace("{terminology_reference}", "")
 
         return prompt
 
@@ -254,7 +254,7 @@ class TranslatorLogic:
     def _check_translation(self, original_text: str, translated_text: str,
                             source_lang: str, target_lang: str,
                             main_api_key: str, check_provider: str, check_model: str,
-                            temp_api_keys: dict = None, retry_on_failure: bool = True) -> bool:
+                            custom_terms: str = "", temp_api_keys: dict = None, retry_on_failure: bool = True) -> bool:
         """
         Comprueba la calidad de la traducción usando la API.
 
@@ -285,10 +285,7 @@ class TranslatorLogic:
             return False
 
         session_logger.log_info(f"Iniciando comprobación con Proveedor: {check_provider}, Modelo: {check_model}")
-        prompt = self._build_check_prompt(source_lang, target_lang, original_text, translated_text)
-
-        # Escribir prompt a archivo para testing
-        self._write_prompt_to_file(prompt, "test_check_prompt.txt")
+        prompt = self._build_check_prompt(source_lang, target_lang, original_text, translated_text, custom_terms)
 
         provider_config = self.models_config.get(check_provider)
         if not provider_config:
@@ -305,7 +302,8 @@ class TranslatorLogic:
                 "",  # texto ya incluido en prompt, pasar vacío para evitar doble agregado
                 api_key,
                 model_config,
-                prompt
+                prompt,
+                self.models_config
             )
 
         def _parse_check_response(response: str) -> (bool, Optional[str]):
@@ -339,8 +337,6 @@ class TranslatorLogic:
                 return True
             elif retry_on_failure:
                 log_message = f"Comprobación falló - Respuesta: {response}"
-                if cause:
-                    log_message += f" - Causa: {cause}"
                 session_logger.log_warning(f"{log_message}. Reintentando...")
 
                 # Reintentar una vez
@@ -357,15 +353,11 @@ class TranslatorLogic:
                     return True
                 else:
                     log_message_retry = f"Comprobación falló en reintento - Respuesta: {response_retry}"
-                    if cause_retry:
-                        log_message_retry += f" - Causa: {cause_retry}"
                     session_logger.log_error(log_message_retry)
                     return False
             else:
                 # No reintentar, retornar el resultado directamente
                 log_message = f"Comprobación falló - Respuesta: {response}"
-                if cause:
-                    log_message += f" - Causa: {cause}"
                 session_logger.log_error(log_message)
                 return False
         except Exception as e:
@@ -406,9 +398,6 @@ class TranslatorLogic:
         session_logger.log_info(f"Iniciando refinamiento con Proveedor: {refine_provider}, Modelo: {refine_model}")
         prompt = self._build_refine_prompt(source_lang, target_lang, source_text, translated_text, custom_terms)
 
-        # Escribir prompt a archivo para testing
-        self._write_prompt_to_file(prompt, "test_refine_prompt.txt")
-
         provider_config = self.models_config.get(refine_provider)
         if not provider_config:
             print(f"Proveedor no soportado para refinamiento: {refine_provider}")
@@ -425,7 +414,8 @@ class TranslatorLogic:
                 "",  # texto ya incluido en prompt, pasar vacío para evitar doble agregado
                 api_key,
                 model_config,
-                prompt
+                prompt,
+                self.models_config
             )
 
             if response is None:
@@ -481,34 +471,11 @@ class TranslatorLogic:
 
                 # Construir prompt base con reemplazo de etiquetas
                 prompt_template = self._load_prompt("translation.txt", source_lang, target_lang)
-                prompt = prompt_template.replace(
-                    "{source_lang}", source_lang
-                ).replace(
-                    "{target_lang}", target_lang
-                )
-
-                # Reemplazar etiqueta de terminología si existen términos personalizados
-                if custom_terms:
-                    # Formatear los términos personalizados
-                    terms = custom_terms.strip().split('\n')
-                    terms = [
-                        line if line.strip().startswith('- ') else f'- {line.strip()}'
-                        for line in terms
-                        if line.strip()
-                    ]
-                    formatted_terms = '\n'.join(terms)
-
-                    # Reemplazar la etiqueta {terminology_reference} con los términos formateados
-                    prompt = prompt.replace("{terminology_reference}", formatted_terms)
-                else:
-                    # Si no hay términos personalizados, eliminar la etiqueta
-                    prompt = prompt.replace("{terminology_reference}", "")
+                prompt = self._handle_terminology_section(prompt_template, custom_terms)
+                prompt = prompt.replace("{source_lang}", source_lang).replace("{target_lang}", target_lang)
 
                 # Reemplazar la etiqueta {text_to_translate} con el segmento actual
                 prompt = prompt.replace("{text_to_translate}", segment)
-
-                # Escribir prompt a archivo para testing
-                self._write_prompt_to_file(prompt)
 
                 # Delegar la petición al módulo translator_req
                 translated_segment = translator_req.translate_segment(
@@ -516,7 +483,8 @@ class TranslatorLogic:
                     segment,
                     api_key,
                     model_config,
-                    prompt
+                    prompt,
+                    self.models_config
                 )
 
                 if translated_segment is None:
@@ -626,6 +594,7 @@ class TranslatorLogic:
                 main_api_key=api_key,
                 check_provider=check_provider,
                 check_model=check_model,
+                custom_terms=custom_terms,
                 temp_api_keys=temp_keys,
                 retry_on_failure=False  # No reintentar verificación internamente
             )
@@ -653,6 +622,7 @@ class TranslatorLogic:
                     main_api_key=api_key,
                     check_provider=check_provider,
                     check_model=check_model,
+                    custom_terms=custom_terms,
                     temp_api_keys=temp_keys,
                     retry_on_failure=False  # No reintentar verificación internamente
                 )

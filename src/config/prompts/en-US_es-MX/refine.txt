@@ -1,14 +1,74 @@
-Objetivo:
-Refinar la traducción de Inglés (US) a Español (MX) aplicando estrictamente las instrucciones dadas. Devuelva SOLO el texto mejorado, sin explicaciones, notas ni formato adicional.
+<task_context>
+Tu objetivo es refinar la traducción de Inglés (US) a Español Latinoamericano aplicando estrictamente las instrucciones dadas.
+Devuelve SOLO el texto mejorado, sin explicaciones, notas ni formato adicional.
+</task_context>
 
-Instrucciones clave:
+<tone_context>
+La fidelidad emocional y artística es más importante que la traducción literal. El texto debe leerse como si hubiera sido escrito originalmente en español, con ritmo natural y corrección gramatical.
+</tone_context>
+
+<background_data>
+<terminology_reference_guide>
+La siguiente lista define como deben traducirse algunas frases o palabras `[Palabra/Frase en Inglés] → [Palabra/Frase en Español]`
+</terminology_reference_guide>
+<terminology_reference>
 {terminology_reference}
+</terminology_reference>
+</background_data>
 
-Restricciones:
-Su papel se limita a refinar el vocabulario, la gramática y la terminología; bajo ninguna circunstancia debe eliminar o omitir ninguna parte del texto.
+<detailed_task_and_rules>
+- Corrige signos de puntuación.
+- Corrige errores de traducción.
+- No quites los dobles saltos de línea.  
+- No unas oraciones, respeta la estructura de la traducción preliminar.  
+- **Prohibído** usar términos del español europeo como *follar*, *joder*, *vosotros*, *-éis*, *-óis*, *pediros*.  
+- Dependiendo del caso usa: "coger" en lugar de "follar", "mierda" en lugar de "joder".  
+- Adapta modismos:  
+- "It's raining cats and dogs" → "Está lloviendo a cántaros" o "Llueve a mares".  
+- Gramática y concordancia: asegúrate de que los artículos, adjetivos y pronombres concuerden en género y número.  
+    - Ejemplo: "the sect" → "la secta", "a beautiful house" → "una casa hermosa".  
+- Diálogos:  
+    - Diálogos: la atribución del hablante va **después** del guion largo **—**.  
+        - Ejemplo:  
+            Original: "This is not how it's done," said Juan.  
+            Traducción: Así no se hace—dijo Juan.  
+- Pensamientos: 
+    - Usa *cursivas* (sin comillas) y conserva el tono original.
+    - La atribución va fuera de las cursivas
+    - Ejemplo1:  
+        Original: 'This is madness,' he thought  
+        Traducción: *Esto es una locura*, pensó.
+    - Ejemplo2(en esta caso se remplazan comillas dobles por * * porque la narrativa indica que 'pensó' `Lin Yuan thought to himself`):
+        Original:"As long as I can block or repel the Tianyu Clan, I can at least gain ten million merit points," Lin Yuan thought to himself.
+        Traducción: *Siempre y cuando pueda bloquear o repeler al Clan Tianyu, al menos ganaré diez millones de puntos de mérito*, pensó Lin Yuan.
+</detailed_task_and_rules>
 
-Texto original (Inglés (US)):
+<restrictions>
+Tu papel se limita a refinar vocabulario, gramática y terminología.
+Bajo ninguna circunstancia debes censurar, eliminar u omitir ninguna parte del texto.
+</restrictions>
+
+<examples>
+<example>
+Original: "This is madness," he thought  
+Traducción preliminar: "Esto es una locura," pensó.  
+Traducción refinada: *Esto es una locura*, pensó.  
+</example>
+</examples>
+
+<input_data>
+<source_text>
 {source_text}
-
-Traducción preliminar (Español (MX)):
+</source_text>
+<translated_text>
 {translated_text}
+</translated_text>
+</input_data>
+
+<immediate_request>
+Refina la traducción de *translated_text* aplicando todas las reglas anteriores.
+</immediate_request>
+
+<output_formatting>
+Devuelve SOLO el texto corregido, sin explicaciones ni notas adicionales.
+</output_formatting>

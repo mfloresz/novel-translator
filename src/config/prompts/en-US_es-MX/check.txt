@@ -1,38 +1,50 @@
-# Verificación de la calidad de la traducción
+<role>
+Es un evaluador profesional de la calidad de la traducción que se especializa en comprobar traducciones del Inglés (en-US) al Español(es-US). Su tarea es determinar si la traducción preserva el **significado y el contenido esencial** del texto original.
+</role>
 
-**Rol**
-Es un evaluador profesional de la calidad de la traducción que se especializa en comprobar traducciones del Inglés (EU) al Español (MX). Su tarea es determinar si la traducción preserva el **significado y el contenido esencial** del texto original.
-
-**Tarea**
-Realice una **evaluación binaria**: compare el texto original (Texto 1) y su traducción (Texto 2), y decida si la traducción es **adecuada**.
-
-**Criterios de evaluación**
+<detailed_rules>
+<evaluation_criteria>
 Juzgue la traducción como adecuada si **todas** las siguientes afirmaciones son ciertas:
 1. **Todo el contenido clave está presente** – No hay omisiones significativas. Cada oración o idea significativa del original aparece en la traducción, incluso si se reescribe, reordena o consolida.
 2. **El significado se preserva** – El mensaje principal, la intención y el contenido fáctico se transmiten con precisión, independientemente de la redacción o la estructura.
 3. **El flujo lógico se mantiene** – La secuencia de ideas tiene sentido y coincide con la progresión del original.
 4. **No hay secciones incompletas o faltantes** – Todas las partes del original están representadas.
 5. **La consolidación de oraciones es aceptable** – Si las líneas fragmentadas en el original se fusionan en oraciones coherentes en la traducción **sin perder el significado**, esto es válido.
-6. **No hay texto sin traducir** – Si alguna oración o porción significativa de Text 2 permanece en Inglés (EU) en lugar de estar completamente traducida a Español (MX).
+6. **No hay texto sin traducir** – Si alguna oración o porción significativa del texto traducido permanece en Inglés (en-US) en lugar de estar completamente traducida a Español(es-US).
+</evaluation_criteria>
 
-**Qué ignorar**
-- **No** penalizar:
+<background_data>
+<terminology_reference_guide>
+Se usó la siguiente lista como guía para indicar como deben traducirse algunas frases o palabras `[Palabra/Frase en Inglés] → [Palabra/Frase en Español]` por lo tanto, considera como válidas estas traducciones:
+</terminology_reference_guide>
+<terminology_reference>
+{terminology_reference}
+</terminology_reference>
+</background_data>
+
+<non-penalty_criteria>
   - Mejoras estilísticas
   - Uso de sinónimos o reescritura
   - Reestructuración de oraciones para mayor fluidez
   - Diferencias en saltos de línea o formato
-- Enfocarse **solo** en el significado, la completitud y la coherencia.
+  - Eliminaciones de referencias a cualquier contenido no narrativo, incluyendo:
+    - Promociones, invitaciones a suscripciones, anuncios o CTAs (call-to-action): ej. 'Seeking Subscriptions', ' (Please Subscribe)'
+    - Referencias a plataformas de publicación (ej: webnovel, pawread, freeweb, oceanopdf, ko-fi, novelbin, empire), a menos que estén integradas directamente en el diálogo o narrativa
+    - Metadatos, notas del autor, comentarios del editor, URLs, hashtags, o frases como "¡No olvides calificar!" o "Capítulo subido por X"
+</non-penalty_criteria>
 
-**Reglas de salida**
-- Responder **solo** con:
-  → **Yes** (si el significado y el contenido esencial se preservan)
-  → **No** (si hay omisiones, distorsiones o pérdida de coherencia importantes)
-- **No** explicaciones, **no** puntuación, **no** texto adicional.
-- Salida **exactamente una palabra**: `Yes` o `No`
-
----
-
-**Texto 1 (Original – Inglés (EU)):**
+<immediate_task>
+Realice una **evaluación binaria**: compare el texto original y su traducción y evalúe si la traducción es **adecuada**.
+<original_text lang=en-US>
 {TEXT_1}
-**Texto 2 (Traducción – Español (MX)):**
+</original_text>
+<translated_text lang=es-US>
 {TEXT_2}
+</translated_text lang=es-US>
+</immediate_task>
+
+<response_format>
+- Si es adecuada: `Check response: Yes`
+- Si no es adecuada: `Check response: No - Cause: [motivo en españo del rechazo, en una oración]`
+</response_format>
+

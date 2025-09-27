@@ -14,12 +14,15 @@ class EpubConverter:
     def __init__(self, epub_path: str):
         """
         Inicializa el convertidor con la ruta al archivo EPUB.
-        
+
         Args:
             epub_path (str): Ruta al archivo EPUB
         """
         self.epub_path = epub_path
-        self.book = epub.read_epub(epub_path)
+        try:
+            self.book = epub.read_epub(epub_path)
+        except Exception as e:
+            raise ValueError(f"Error al leer el archivo EPUB: {str(e)}. Verifique que el archivo no esté corrupto o en un formato incompatible.")
         self.chapters = self._get_chapters()
         self.metadata = self._get_metadata()
         self.cover_image = self._get_cover_image()
@@ -50,26 +53,31 @@ class EpubConverter:
     def _get_metadata(self) -> Dict:
         """
         Obtiene los metadatos del libro.
-        
+
         Returns:
             Dict: Diccionario con los metadatos del libro
         """
         metadata = {}
-        
-        # Obtener título
-        title = self.book.get_metadata('DC', 'title')
-        if title:
-            metadata['title'] = title[0][0]
-        else:
+
+        try:
+            # Obtener título
+            title = self.book.get_metadata('DC', 'title')
+            if title:
+                metadata['title'] = title[0][0]
+            else:
+                metadata['title'] = "Libro Sin Título"
+
+            # Obtener autor
+            creator = self.book.get_metadata('DC', 'creator')
+            if creator:
+                metadata['author'] = creator[0][0]
+            else:
+                metadata['author'] = "Autor Desconocido"
+        except Exception as e:
+            print(f"Error obteniendo metadatos: {e}")
             metadata['title'] = "Libro Sin Título"
-            
-        # Obtener autor
-        creator = self.book.get_metadata('DC', 'creator')
-        if creator:
-            metadata['author'] = creator[0][0]
-        else:
             metadata['author'] = "Autor Desconocido"
-            
+
         return metadata
     
     def _get_cover_image(self) -> Dict:
@@ -141,14 +149,19 @@ class EpubConverter:
     def get_chapter_html(self, chapter) -> str:
         """
         Obtiene el contenido HTML de un capítulo.
-        
+
         Args:
             chapter: Objeto capítulo de ebooklib
-            
+
         Returns:
             str: Contenido HTML del capítulo
         """
-        return chapter.get_content().decode('utf-8')
+        try:
+            content = chapter.get_content()
+            return content.decode('utf-8')
+        except Exception as e:
+            print(f"Error obteniendo contenido HTML del capítulo: {e}")
+            return "<html><body><p>Error al cargar el capítulo</p></body></html>"
     
     def convert_html_to_markdown(self, html_content: str, options: dict = None, chapter_title: str = None) -> str:
         """

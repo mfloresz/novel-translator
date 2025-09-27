@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple
 from PyQt6.QtCore import QObject, pyqtSignal, QRunnable, QThreadPool
 from .database import TranslationDatabase
 from .epub_converter import EpubConverter
+from .folder_structure import NovelFolderStructure
 from bs4 import BeautifulSoup
 
 class EpubImportWorker(QRunnable):
@@ -49,7 +50,9 @@ class EpubImporter(QObject):
                     counter += 1
                 output_dir = f"{output_dir}_{counter}"
 
-            os.makedirs(output_dir, exist_ok=True)
+            # Crear estructura de carpetas completa
+            NovelFolderStructure.ensure_structure(output_dir)
+            originals_dir = NovelFolderStructure.get_originals_path(output_dir)
             self.progress_updated.emit(self.lang_manager.get_string("epub_importer.progress.creating_directory", "Creando directorio: {directory}").format(directory=output_dir))
 
             cover_image = converter.cover_image
@@ -64,8 +67,8 @@ class EpubImporter(QObject):
                 chapter_title = self._extract_chapter_title(chapter, converter)
                 markdown_content = converter.convert_html_to_markdown(html_content, options, chapter_title)
                 filename = self.lang_manager.get_string("epub_preview_window.default_chapter_filename").format(i=i)
-                filepath = os.path.join(output_dir, filename)
-                
+                filepath = os.path.join(originals_dir, filename)
+
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(markdown_content)
                     

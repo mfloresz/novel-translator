@@ -24,7 +24,8 @@ class TranslationWorker(QObject):
                  enable_refine: bool = False,
                  check_refine_settings: Optional[Dict] = None,
                  status_callback: Optional[Callable[[str, str], None]] = None,
-                 lang_manager = None, temp_api_keys: dict = None):
+                 lang_manager = None, temp_api_keys: dict = None,
+                 allow_retranslation: bool = False):
         super().__init__()
         self.files_to_translate = files_to_translate
         self.working_directory = working_directory
@@ -43,6 +44,7 @@ class TranslationWorker(QObject):
         self.status_callback = status_callback
         self.lang_manager = lang_manager
         self.temp_api_keys = temp_api_keys or {}
+        self.allow_retranslation = allow_retranslation
         self._stop_requested = False
         self.translator.segment_size = segment_size
 
@@ -78,7 +80,7 @@ class TranslationWorker(QObject):
                     self.status_callback(filename, status_text)
 
                 # Verificar si ya está traducido
-                if self.db.is_file_translated(filename):
+                if self.db.is_file_translated(filename) and not self.allow_retranslation:
                     session_logger.log_info(f"Archivo ya traducido, omitiendo: {filename}")
                     continue
 
@@ -229,7 +231,7 @@ class TranslationManager(QObject):
                        custom_terms: str = "", segment_size: Optional[int] = None,
                        enable_check: bool = True, enable_refine: bool = False,
                        check_refine_settings: Optional[Dict] = None,
-                       temp_api_keys: dict = None) -> None:
+                       temp_api_keys: dict = None, allow_retranslation: bool = False) -> None:
         """
         Inicia la traducción de archivos.
 
@@ -244,6 +246,7 @@ class TranslationManager(QObject):
             enable_check: Bool para habilitar o no la comprobación de la traducción
             enable_refine: Bool para habilitar o no el refinamiento de la traducción
             temp_api_keys: Diccionario de API keys temporales
+            allow_retranslation: Bool para permitir re-traducción de archivos ya traducidos
         """
         if not self.working_directory or not self.db:
                 self.error_occurred.emit(self.lang_manager.get_string("translation_manager.error.no_working_directory", "No se ha inicializado el directorio de trabajo"))
@@ -272,7 +275,8 @@ class TranslationManager(QObject):
             check_refine_settings, # Pasar la configuración de comprobación/refinado
             status_callback,  # Pasar el callback de estado
             self.lang_manager,  # Pasar el administrador de idioma
-            temp_api_keys  # Pasar las API keys temporales
+            temp_api_keys,  # Pasar las API keys temporales
+            allow_retranslation  # Pasar el flag de permitir re-traducción
         )
 
         # Mover el worker al thread

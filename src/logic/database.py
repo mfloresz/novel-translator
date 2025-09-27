@@ -60,6 +60,17 @@ class TranslationDatabase:
                         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
+                # Tabla para prompts personalizados
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS custom_prompts (
+                        id TEXT PRIMARY KEY,
+                        source_lang TEXT,
+                        target_lang TEXT,
+                        type TEXT,
+                        content TEXT,
+                        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
 
                 # --- Migraciones de Datos Antiguas (se mantienen por si acaso) ---
                 try:
@@ -328,3 +339,35 @@ class TranslationDatabase:
                 }
         except (FileNotFoundError, json.JSONDecodeError):
             return {"title": "", "author": "", "description": "", "notes": ""}
+
+    def save_custom_prompt(self, source_lang: str, target_lang: str, prompt_type: str, content: str) -> bool:
+        """Guarda un prompt personalizado para el proyecto actual."""
+        prompt_id = f"{source_lang}_{target_lang}_{prompt_type}"
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO custom_prompts (id, source_lang, target_lang, type, content, last_updated)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (prompt_id, source_lang, target_lang, prompt_type, content))
+                conn.commit()
+                return True
+        except sqlite3.Error as e:
+            print(f"Error guardando prompt personalizado: {e}")
+            return False
+
+    def get_custom_prompt(self, source_lang: str, target_lang: str, prompt_type: str) -> str:
+        """Recupera un prompt personalizado para el proyecto actual."""
+        prompt_id = f"{source_lang}_{target_lang}_{prompt_type}"
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT content FROM custom_prompts WHERE id = ?",
+                    (prompt_id,)
+                )
+                result = cursor.fetchone()
+                return result[0] if result else ""
+        except sqlite3.Error as e:
+            print(f"Error recuperando prompt personalizado: {e}")
+            return ""
