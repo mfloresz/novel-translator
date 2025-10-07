@@ -26,12 +26,7 @@ La siguiente lista define como deben traducirse algunas frases o palabras `[Pala
 - Adapta modismos:  
 - "It's raining cats and dogs" → "Está lloviendo a cántaros" o "Llueve a mares".  
 - Gramática y concordancia: asegúrate de que los artículos, adjetivos y pronombres concuerden en género y número.  
-    - Ejemplo: "the sect" → "la secta", "a beautiful house" → "una casa hermosa".  
-- Diálogos:  
-    - Diálogos: la atribución del hablante va **después** del guion largo **—**.  
-        - Ejemplo:  
-            Original: "This is not how it's done," said Juan.  
-            Traducción: Así no se hace—dijo Juan.  
+    - Ejemplo: "the sect" → "la secta", "a beautiful house" → "una casa hermosa".   
 - Pensamientos: 
     - Usa *cursivas* (sin comillas) y conserva el tono original.
     - La atribución va fuera de las cursivas

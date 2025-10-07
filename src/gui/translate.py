@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt6.QtCore import Qt
 from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
+from src.logic.database import TranslationDatabase
 from src.logic.functions import show_confirmation_dialog, load_preset_terms
 from src.logic.status_manager import STATUS_TRANSLATED, STATUS_ERROR, STATUS_PROCESSING, get_status_text
 from src.gui.prompt_refine_settings import PromptRefineSettingsDialog
@@ -147,6 +148,70 @@ class ApiKeyConfigDialog(QDialog):
 
     def get_api_key(self):
         return self.api_input.text().strip()
+
+class RangeTranslationDialog(QDialog):
+    def __init__(self, translated_count, total_count, parent=None):
+        super().__init__(parent)
+        self.translated_count = translated_count
+        self.total_count = total_count
+        self.main_window = parent.main_window if parent else None
+        self.result_choice = False  # False = omitir, True = volver a traducir
+        self.init_ui()
+
+    def _get_string(self, key, default_text=""):
+        """Get a localized string from the language manager."""
+        if self.main_window and hasattr(self.main_window, 'lang_manager'):
+            return self.main_window.lang_manager.get_string(key, default_text)
+        return default_text or key
+
+    def init_ui(self):
+        self.setWindowTitle(self._get_string("translate_panel.range_translation_dialog.title", "Capítulos ya traducidos"))
+        self.setModal(True)
+        self.resize(450, 200)
+
+        layout = QVBoxLayout()
+
+        # Mensaje informativo
+        message = self._get_string(
+            "translate_panel.range_translation_dialog.message",
+            "Se encontraron {translated} capítulos ya traducidos de {total} en el rango seleccionado.\n\n¿Qué desea hacer?"
+        ).format(translated=self.translated_count, total=self.total_count)
+
+        info_label = QLabel(message)
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+
+        # Espacio
+        layout.addStretch()
+
+        # Botones
+        buttons_layout = QHBoxLayout()
+
+        self.omit_button = QPushButton(self._get_string("translate_panel.range_translation_dialog.omit_button", "Omitir"))
+        self.retranslate_button = QPushButton(self._get_string("translate_panel.range_translation_dialog.retranslate_button", "Volver a traducir"))
+
+        self.omit_button.clicked.connect(self.on_omit)
+        self.retranslate_button.clicked.connect(self.on_retranslate)
+
+        buttons_layout.addWidget(self.omit_button)
+        buttons_layout.addWidget(self.retranslate_button)
+
+        layout.addLayout(buttons_layout)
+        self.setLayout(layout)
+
+    def on_omit(self):
+        """El usuario elige omitir los capítulos ya traducidos"""
+        self.result_choice = False
+        self.accept()
+
+    def on_retranslate(self):
+        """El usuario elige volver a traducir todos los capítulos"""
+        self.result_choice = True
+        self.accept()
+
+    def get_result(self):
+        """Retorna True si elige volver a traducir, False si omite"""
+        return self.result_choice
 
 class TranslatePanel(QWidget):
     def __init__(self, main_window):
@@ -715,6 +780,33 @@ class TranslatePanel(QWidget):
                 self._get_string("translate_panel.error.no_files"))
             return
 
+        # Verificar si hay capítulos ya traducidos en el rango
+        db = TranslationDatabase(self.main_window.current_directory)
+        translated_count = 0
+        for file_info in files_to_translate:
+            if db.is_file_translated(file_info['name']):
+                translated_count += 1
+
+        allow_retranslation = False
+        if translated_count > 0:
+            # Mostrar diálogo para preguntar qué hacer con los capítulos ya traducidos
+            dialog = RangeTranslationDialog(translated_count, len(files_to_translate), self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                allow_retranslation = dialog.get_result()
+                if not allow_retranslation:
+                    # Filtrar la lista para omitir los ya traducidos
+                    files_to_translate = [
+                        file_info for file_info in files_to_translate
+                        if not db.is_file_translated(file_info['name'])
+                    ]
+                    if not files_to_translate:
+                        self.main_window.statusBar().showMessage(
+                            self._get_string("translate_panel.range_translation.all_already_translated", "Todos los capítulos en el rango ya están traducidos"))
+                        return
+            else:
+                # Usuario canceló la operación
+                return
+
         # Configurar UI para traducción
         self.translate_button.setEnabled(False)
         self.stop_button.setEnabled(True)
@@ -731,7 +823,8 @@ class TranslatePanel(QWidget):
             enable_check,   # <-- Pasar parámetro para habilitar comprobación
             enable_refine,  # <-- Pasar parámetro para habilitar refinamiento
             check_refine_settings, # <-- Pasar la configuración de comprobación/refinado
-            temp_api_keys=self.temp_api_keys  # <-- Pasar las API keys temporales
+            temp_api_keys=self.temp_api_keys,  # <-- Pasar las API keys temporales
+            allow_retranslation=allow_retranslation  # <-- Pasar el flag de permitir re-traducción
         )
 
     def stop_translation(self):

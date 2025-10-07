@@ -304,5 +304,10 @@
   "notes_dialog.save_success": "Notes saved successfully.",
   "notes_dialog.save_error": "Error saving notes.",
   "notes_dialog.save_error_general": "Error saving notes: {error}",
-  "notes_dialog.load_error": "Error loading notes: {error}"
+  "notes_dialog.load_error": "Error loading notes: {error}",
+  "translate_panel.range_translation_dialog.title": "Already Translated Chapters",
+  "translate_panel.range_translation_dialog.message": "Found {translated} already translated chapters out of {total} in the selected range.\n\nWhat would you like to do?",
+  "translate_panel.range_translation_dialog.omit_button": "Skip",
+  "translate_panel.range_translation_dialog.retranslate_button": "Re-translate",
+  "translate_panel.range_translation.all_already_translated": "All chapters in the range are already translated"
 }

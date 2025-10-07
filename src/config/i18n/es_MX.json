@@ -304,5 +304,10 @@
   "notes_dialog.save_success": "Notas guardadas exitosamente.",
   "notes_dialog.save_error": "Error al guardar las notas.",
   "notes_dialog.save_error_general": "Error al guardar las notas: {error}",
-  "notes_dialog.load_error": "Error al cargar las notas: {error}"
+  "notes_dialog.load_error": "Error al cargar las notas: {error}",
+  "translate_panel.range_translation_dialog.title": "Capítulos ya traducidos",
+  "translate_panel.range_translation_dialog.message": "Se encontraron {translated} capítulos ya traducidos de {total} en el rango seleccionado.\n\n¿Qué desea hacer?",
+  "translate_panel.range_translation_dialog.omit_button": "Omitir",
+  "translate_panel.range_translation_dialog.retranslate_button": "Volver a traducir",
+  "translate_panel.range_translation.all_already_translated": "Todos los capítulos en el rango ya están traducidos"
 }

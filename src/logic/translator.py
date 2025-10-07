@@ -117,13 +117,13 @@ class TranslatorLogic:
     def _segment_text(self, text: str) -> List[str]:
         """
         Segmenta el texto en partes manejables basadas en un tamaño objetivo,
-        respetando oraciones y párrafos.
+        respetando oraciones y párrafos usando búsqueda hacia atrás inteligente.
 
         Args:
             text (str): Texto completo a segmentar
 
         Returns:
-            List[str]: Lista de segmentos de texto
+            List[str]: Lista de segmentos de texto con cortes naturales
         """
         if self.segment_size is None:
             return [text]
@@ -134,58 +134,151 @@ class TranslatorLogic:
         # Normalizar saltos de línea
         text = text.replace('\r\n', '\n')
 
-        # Definir marcadores de fin de oración
-        sentence_endings = [
-            '. ', '? ', '! ',
-            '] ', '] \n', ']\n',
-            '..." ', '..." \n',
-            '…” ', '…” \n',
-            '" ', '" \n',
-            '."', '?"', '!"',
-            '." ', '?" ', '!" '
-        ]
-
         while current_position < len(text):
+            # Calcular posición objetivo (guía, no corte fijo)
             target_position = min(current_position + self.segment_size, len(text))
-            best_end_pos = -1
-            search_position = target_position
 
-            while search_position < len(text):
-                next_end = -1
-                for ending in sentence_endings:
-                    pos = text.find(ending, search_position)
-                    if pos != -1 and (next_end == -1 or pos < next_end):
-                        next_end = pos + len(ending)
+            # Buscar punto de corte óptimo hacia atrás desde el objetivo
+            cut_position = self._find_optimal_cut_point(text, target_position)
 
-                if next_end == -1:
-                    break
+            # Validar que el corte sea razonable
+            if cut_position <= current_position:
+                # Fallback: cortar por palabras completas si no hay corte natural
+                cut_position = self._find_word_boundary(text, target_position)
 
-                end_pos = next_end
-                while end_pos < len(text) and text[end_pos].isspace():
-                    if end_pos + 1 < len(text) and text[end_pos:end_pos+2] == '\n\n':
-                        best_end_pos = end_pos + 2
-                        break
-                    end_pos += 1
-
-                if best_end_pos != -1:
-                    break
-
-                search_position = next_end
-
-                if search_position > current_position + (self.segment_size * 1.5):
-                    best_end_pos = next_end
-                    break
-
-            if best_end_pos == -1:
-                best_end_pos = len(text)
-
-            segment_text = text[current_position:best_end_pos].strip()
+            segment_text = text[current_position:cut_position]
             if segment_text:
                 segments.append(segment_text)
 
-            current_position = best_end_pos
+            current_position = cut_position
 
         return segments
+
+    def _find_optimal_cut_point(self, text: str, target_position: int) -> int:
+        """
+        Busca hacia atrás desde la posición objetivo para encontrar
+        el mejor punto de corte natural respetando oraciones completas.
+
+        Args:
+            text (str): Texto completo
+            target_position (int): Posición objetivo desde donde buscar hacia atrás
+
+        Returns:
+            int: Posición del mejor punto de corte encontrado
+        """
+        # Si estamos cerca del final, devolver todo el texto restante
+        if target_position >= len(text) - 100:
+            return len(text)
+
+        # Definir jerarquía de puntos de corte naturales (ordenados por prioridad)
+        CUT_POINTS = [
+            ("\n\n", 10.0),      # Párrafo doble - corte ideal
+            (".\n", 9.5),        # Punto al final de línea
+            ("?\n", 9.5),        # Interrogación al final de línea
+            ("!\n", 9.5),        # Exclamación al final de línea
+            (". ", 9.0),         # Punto con espacio
+            ("? ", 9.0),         # Interrogación con espacio
+            ("! ", 9.0),         # Exclamación con espacio
+            ("\n", 7.0),         # Nueva línea simple
+            (".", 6.0),          # Punto sin espacio (menos ideal)
+            ("?", 6.0),          # Interrogación sin espacio
+            ("!", 6.0),          # Exclamación sin espacio
+            ("; ", 4.0),         # Punto y coma
+            (": ", 3.0),         # Dos puntos
+            (", ", 2.0),         # Coma
+        ]
+
+        best_position = target_position
+        best_score = 0
+        search_start = max(0, target_position - 500)  # Buscar hasta 500 chars atrás
+
+        # Buscar hacia atrás desde la posición objetivo
+        for pos in range(target_position, search_start, -1):
+            for cut_pattern, base_priority in CUT_POINTS:
+                if text[pos:pos + len(cut_pattern)] == cut_pattern:
+                    # Calcular puntuación basada en cercanía al objetivo
+                    distance = abs(target_position - pos)
+                    # Más cerca = mejor puntuación
+                    proximity_bonus = 1 - (distance / 500)
+                    score = base_priority * proximity_bonus
+
+                    if score > best_score:
+                        best_score = score
+                        best_position = pos + len(cut_pattern)
+
+        return best_position
+
+    def _find_word_boundary(self, text: str, target_position: int) -> int:
+        """
+        Busca el límite de palabra más cercano hacia atrás desde la posición objetivo.
+        Método fallback cuando no se encuentran puntos de corte naturales.
+
+        Args:
+            text (str): Texto completo
+            target_position (int): Posición objetivo
+
+        Returns:
+            int: Posición del límite de palabra encontrado
+        """
+        # Buscar hacia atrás hasta encontrar un espacio
+        pos = target_position
+        while pos > 0 and not text[pos].isspace():
+            pos -= 1
+
+        # Si encontramos un espacio, devolver esa posición
+        if pos > 0:
+            return pos
+
+        # Si no encontramos espacio (texto muy largo sin espacios), cortar en objetivo
+        return target_position
+
+    def _validate_segment_integrity(self, segments: List[str], original_text: str) -> Dict:
+        """
+        Valida la integridad de los segmentos creados.
+
+        Args:
+            segments (List[str]): Lista de segmentos creados
+            original_text (str): Texto original para comparación
+
+        Returns:
+            Dict: Reporte de validación con métricas y problemas encontrados
+        """
+        validation_report = {
+            'total_segments': len(segments),
+            'natural_cuts': 0,
+            'word_boundary_cuts': 0,
+            'forced_cuts': 0,
+            'issues': [],
+            'warnings': []
+        }
+
+        # Verificar cada segmento
+        for i, segment in enumerate(segments):
+            if not segment.strip():
+                validation_report['issues'].append(f"Segmento {i+1}: vacío")
+                continue
+
+            # Verificar tipo de corte (si termina naturalmente)
+            last_chars = segment[-10:] if len(segment) >= 10 else segment
+
+            if last_chars.endswith(('. ', '? ', '! ', '.\n', '?\n', '!\n', '\n\n')):
+                validation_report['natural_cuts'] += 1
+            elif last_chars.rstrip().endswith(('.', '?', '!')):
+                validation_report['word_boundary_cuts'] += 1
+            else:
+                validation_report['forced_cuts'] += 1
+                validation_report['warnings'].append(
+                    f"Segmento {i+1}: corte no natural en '{last_chars}'"
+                )
+
+        # Calcular estadísticas
+        total_cuts = validation_report['natural_cuts'] + validation_report['word_boundary_cuts'] + validation_report['forced_cuts']
+        if total_cuts > 0:
+            validation_report['natural_cut_percentage'] = (validation_report['natural_cuts'] / total_cuts) * 100
+        else:
+            validation_report['natural_cut_percentage'] = 0
+
+        return validation_report
 
     def _build_check_prompt(self, source_lang: str, target_lang: str,
                             original_text: str, translated_text: str,
@@ -461,8 +554,26 @@ class TranslatorLogic:
             if not model_config:
                 raise ValueError(f"Modelo no soportado: {model}")
 
-            # Segmentar el texto
+            # Segmentar el texto con validación
             segments = self._segment_text(text)
+
+            if self.segment_size is not None:
+                # Validar integridad de los segmentos creados
+                validation_report = self._validate_segment_integrity(segments, text)
+
+                # Log de métricas de segmentación
+                session_logger.log_info(
+                    f"Segmentación completada: {validation_report['total_segments']} segmentos, "
+                    f"{validation_report['natural_cut_percentage']:.1f}% cortes naturales"
+                )
+
+                # Log de advertencias si hay cortes no naturales
+                if validation_report['warnings']:
+                    for warning in validation_report['warnings'][:3]:  # Solo primeras 3
+                        session_logger.log_warning(f"Segmentación: {warning}")
+            else:
+                session_logger.log_info("Segmentación deshabilitada - traduciendo texto completo")
+
             translated_segments = []
 
             # Traducir cada segmento

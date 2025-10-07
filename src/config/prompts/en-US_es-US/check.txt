@@ -27,6 +27,7 @@ Se usó la siguiente lista como guía para indicar como deben traducirse algunas
   - Uso de sinónimos o reescritura
   - Reestructuración de oraciones para mayor fluidez
   - Diferencias en saltos de línea o formato
+  - Preservación de solo el título más descriptivo/completo cuando hay dos presentes
   - Eliminaciones de referencias a cualquier contenido no narrativo, incluyendo:
     - Promociones, invitaciones a suscripciones, anuncios o CTAs (call-to-action): ej. 'Seeking Subscriptions', ' (Please Subscribe)'
     - Referencias a plataformas de publicación (ej: webnovel, pawread, freeweb, oceanopdf, ko-fi, novelbin, empire), a menos que estén integradas directamente en el diálogo o narrativa

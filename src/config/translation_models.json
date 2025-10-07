@@ -4,9 +4,9 @@
     "type": "gemini",
     "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
     "models": {
-      "gemini-2.5-flash-lite": {
-        "name": "Gemini Flash 2.5 Lite",
-        "endpoint": "gemini-2.5-flash-lite:generateContent",
+      "gemini-flash-lite": {
+        "name": "Gemini Flash Lite",
+        "endpoint": "gemini-flash-lite-latest:generateContent",
         "temperature": 0.6,
         "thinking": false
       }
@@ -17,19 +17,21 @@
     "type": "openai",
     "base_url": "https://api.hyperbolic.xyz/v1/chat/completions",
     "models": {
-      "qwen3-next-instruct": {
-        "name": "Qwen3 80B A3B",
-        "endpoint": "Qwen/Qwen3-Next-80B-A3B-Instruct",
+      "gpt-oss-120b": {
+        "name": "GPT OSS 120B",
+        "endpoint": "openai/gpt-oss-120b",
         "temperature": 0.7,
+        "max_tokens": 100000,
         "top_p": 0.95,
-        "thinking": false
+        "thinking": true
       },
-      "gpt-oss-20b": {
-        "name": "GPT OSS 20B",
-        "endpoint": "openai/gpt-oss-20b",
+      "qwen3-next-thinking": {
+        "name": "Qwen3 80B A3B Tkinking",
+        "endpoint": "Qwen/Qwen3-Next-80B-A3B-Thinking",
         "temperature": 0.7,
-        "top_p": 0.95,
-        "thinking": false
+        "max_tokens": 200000,
+        "top_p": 0.85,
+        "thinking": true
       }
     }
   },
@@ -74,6 +76,14 @@
         "name": "Qwen3 80B A3B",
         "endpoint": "Qwen/Qwen3-Next-80B-A3B-Instruct",
         "max_tokens": 256000,
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "thinking": false
+      },
+        "long-cat-t": {
+        "name": "LongCat Flash",
+        "endpoint": "meituan-longcat/LongCat-Flash-Thinking-FP8",
+        "max_tokens": 128000,
         "temperature": 0.7,
         "top_p": 0.95,
         "thinking": false

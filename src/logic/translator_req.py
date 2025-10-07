@@ -161,6 +161,7 @@ def _process_response(provider_type: str, response: Dict, thinking: bool = False
 def _clean_translation(text: str) -> str:
     """
     Limpia el texto recibido del proveedor para eliminar encabezados o texto adicional no deseado.
+    Para modelos thinking, elimina el bloque de pensamiento entre <think> y </think>.
 
     Args:
         text (str): Texto sin procesar
@@ -168,6 +169,13 @@ def _clean_translation(text: str) -> str:
     Returns:
         str: Texto limpio y listo para usar
     """
+    # Remover bloque de pensamiento si existe (para modelos thinking)
+    import re
+    # Remover desde <think> hasta </think> si existe el bloque completo
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    # Si solo hay </think> al final, remover todo antes de él
+    text = re.sub(r'.*?</think>', '', text, flags=re.DOTALL)
+
     lines = text.split('\n')
     actual_translation = []
     translation_started = False
