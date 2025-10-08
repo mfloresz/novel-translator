@@ -50,6 +50,8 @@ class EpubImporter(QObject):
                     counter += 1
                 output_dir = f"{output_dir}_{counter}"
 
+            # Crear directorio raíz si no existe
+            os.makedirs(output_dir, exist_ok=True)
             # Crear estructura de carpetas completa
             NovelFolderStructure.ensure_structure(output_dir)
             originals_dir = NovelFolderStructure.get_originals_path(output_dir)

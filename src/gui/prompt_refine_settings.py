@@ -1,9 +1,9 @@
 import json
 from pathlib import Path
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QGroupBox, QRadioButton,
-                            QComboBox, QFormLayout, QHBoxLayout, QPushButton,
-                            QLabel, QPlainTextEdit, QSplitter, QScrollArea,
-                            QWidget, QMessageBox)
+    QComboBox, QFormLayout, QHBoxLayout, QPushButton,
+    QLabel, QPlainTextEdit, QSplitter, QScrollArea,
+    QWidget, QMessageBox, QSpinBox)
 from PyQt6.QtCore import Qt
 
 class PromptRefineSettingsDialog(QDialog):
@@ -86,7 +86,7 @@ class PromptRefineSettingsDialog(QDialog):
     def init_ui(self):
         self.setWindowTitle(self._get_string("prompt_refine_settings_dialog.title", "Prompts and Check/Refine Settings"))
         self.setModal(True)
-        self.resize(1200, 700)
+        self.resize(1200, 600)
 
         # Layout principal con splitter horizontal
         main_layout = QHBoxLayout()
@@ -129,6 +129,50 @@ class PromptRefineSettingsDialog(QDialog):
         check_refine_group.setLayout(check_refine_layout)
         left_layout.addWidget(check_refine_group)
 
+        # Automatic Segmentation
+        temp_segmentation_group = QGroupBox(self._get_string("prompt_refine_settings_dialog.segmentation_group"))
+        temp_segmentation_layout = QVBoxLayout()
+
+        # Radio buttons for temporary auto-segmentation
+        temp_radio_layout = QVBoxLayout()
+        self.temp_no_auto_segmentation_radio = QRadioButton(self._get_string("prompt_refine_settings_dialog.no_auto_segmentation"))
+        self.temp_auto_segmentation_radio = QRadioButton(self._get_string("prompt_refine_settings_dialog.auto_segmentation_label"))
+        temp_radio_layout.addWidget(self.temp_no_auto_segmentation_radio)
+        temp_radio_layout.addWidget(self.temp_auto_segmentation_radio)
+        temp_segmentation_layout.addLayout(temp_radio_layout)
+
+        # Threshold and segment size inputs (initially disabled)
+        temp_inputs_layout = QFormLayout()
+        self.temp_threshold_spinbox = QSpinBox()
+        self.temp_threshold_spinbox.setMinimum(1)
+        self.temp_threshold_spinbox.setMaximum(100000)
+        self.temp_threshold_spinbox.setValue(10000)
+        self.temp_threshold_spinbox.setSuffix(" characters")
+        temp_inputs_layout.addRow(self._get_string("prompt_refine_settings_dialog.auto_segmentation_enabled"), self.temp_threshold_spinbox)
+
+        self.temp_segment_size_spinbox = QSpinBox()
+        self.temp_segment_size_spinbox.setMinimum(100)
+        self.temp_segment_size_spinbox.setMaximum(10000)
+        self.temp_segment_size_spinbox.setValue(5000)
+        self.temp_segment_size_spinbox.setSuffix(" characters")
+        temp_inputs_layout.addRow(self._get_string("prompt_refine_settings_dialog.segment_size_label"), self.temp_segment_size_spinbox)
+
+        self.temp_inputs_widget = QWidget()
+        self.temp_inputs_widget.setLayout(temp_inputs_layout)
+        temp_segmentation_layout.addWidget(self.temp_inputs_widget)
+        temp_segmentation_layout.addStretch()
+
+        temp_segmentation_group.setLayout(temp_segmentation_layout)
+        left_layout.addWidget(temp_segmentation_group)
+
+        # Connect temporary radio buttons to toggle inputs
+        self.temp_auto_segmentation_radio.toggled.connect(lambda checked: self.temp_inputs_widget.setEnabled(checked))
+        self.temp_no_auto_segmentation_radio.toggled.connect(lambda checked: self.temp_inputs_widget.setEnabled(not checked))
+
+        # Set initial state for temporary segmentation inputs (default to no auto-segmentation)
+        self.temp_no_auto_segmentation_radio.setChecked(True)
+        self.temp_inputs_widget.setEnabled(False)
+
         # Espaciador
         left_layout.addStretch()
 
@@ -145,9 +189,7 @@ class PromptRefineSettingsDialog(QDialog):
 
         # Advertencia sobre temporalidad
         warning_label = QLabel(self._get_string("prompt_refine_settings_dialog.warning",
-                                               "⚠️ ADVERTENCIA: Las modificaciones a los prompts son TEMPORALES\n"
-                                               "y solo estarán disponibles durante esta sesión de la aplicación.\n"
-                                               "Los archivos originales NO serán modificados."))
+                                               "⚠️ ADVERTENCIA: Las modificaciones a los prompts son TEMPORALES y solo estarán disponibles durante esta sesión de la aplicación."))
         warning_label.setStyleSheet("color: orange; font-weight: bold;")
         warning_label.setWordWrap(True)
         prompts_layout.addWidget(warning_label)
@@ -195,15 +237,7 @@ class PromptRefineSettingsDialog(QDialog):
         prompts_group.setLayout(prompts_layout)
         right_layout.addWidget(prompts_group)
 
-        right_widget.setLayout(right_layout)
-        splitter.addWidget(right_widget)
-
-        # Configurar splitter
-        splitter.setSizes([400, 800])  # Tamaños iniciales de los paneles
-
-        main_layout.addWidget(splitter)
-
-        # Botones en la parte inferior
+        # Botones en la parte inferior del panel derecho
         buttons_layout = QHBoxLayout()
         self.save_button = QPushButton(self._get_string("check_refine_settings_dialog.save_button", "Guardar"))
         self.cancel_button = QPushButton(self._get_string("check_refine_settings_dialog.cancel_button", "Cancelar"))
@@ -211,7 +245,15 @@ class PromptRefineSettingsDialog(QDialog):
         buttons_layout.addStretch()
         buttons_layout.addWidget(self.cancel_button)
         buttons_layout.addWidget(self.save_button)
-        main_layout.addLayout(buttons_layout)
+        right_layout.addLayout(buttons_layout)
+
+        right_widget.setLayout(right_layout)
+        splitter.addWidget(right_widget)
+
+        # Configurar splitter
+        splitter.setSizes([300, 900])  # Tamaños iniciales de los paneles
+
+        main_layout.addWidget(splitter)
 
         self.setLayout(main_layout)
 
@@ -262,6 +304,17 @@ class PromptRefineSettingsDialog(QDialog):
 
         self.toggle_model_selection(self.use_same_model_radio.isChecked())
 
+        # Load temporary segmentation settings
+        temp_segmentation_config = self.current_settings.get("auto_segmentation", {"enabled": False, "threshold": 10000, "segment_size": 5000})
+        if temp_segmentation_config["enabled"]:
+            self.temp_auto_segmentation_radio.setChecked(True)
+            self.temp_threshold_spinbox.setValue(temp_segmentation_config["threshold"])
+            self.temp_segment_size_spinbox.setValue(temp_segmentation_config["segment_size"])
+            self.temp_inputs_widget.setEnabled(True)
+        else:
+            self.temp_no_auto_segmentation_radio.setChecked(True)
+            self.temp_inputs_widget.setEnabled(False)
+
     def load_prompts(self):
         """Carga los prompts desde archivos, priorizando el directorio temporal."""
         if self.source_lang and self.target_lang:
@@ -275,7 +328,12 @@ class PromptRefineSettingsDialog(QDialog):
         settings = {
             "use_separate_model": self.use_separate_model_radio.isChecked(),
             "provider": self.provider_combo.currentData() or "",
-            "model": self.model_combo.currentData() or ""
+            "model": self.model_combo.currentData() or "",
+            "auto_segmentation": {
+                "enabled": self.temp_auto_segmentation_radio.isChecked(),
+                "threshold": self.temp_threshold_spinbox.value(),
+                "segment_size": self.temp_segment_size_spinbox.value()
+            }
         }
 
         # Guardar prompts modificados en el directorio temporal

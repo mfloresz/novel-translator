@@ -19,11 +19,6 @@ Elimina por completo cualquier contenido no narrativo, incluyendo:
 - Metadatos, notas del autor, comentarios del editor, URLs, hashtags, o frases como "¡No olvides calificar!" o "Capítulo subido por X"
 </content_filtering>
 
-<fundamental_principles>
-1. **Tono y esencia primero**: La fidelidad emocional y artística es más importante que la traducción literal
-2. **Vacilaciones**: Traduce la palabra completa y luego aplica el patrón de tartamudeo
-</fundamental_principles>
-
 <spanish_specifications>
 <mandatory_rules>
 - En ausencia de contexto sobre el género del sujeto en la narración, utiliza el género masculino como predeterminado
@@ -31,6 +26,7 @@ Elimina por completo cualquier contenido no narrativo, incluyendo:
 - Adapta modismos (ej: "It's raining cats and dogs" → "Está lloviendo a cántaros" o "llueve a mares")
 - Asegura concordancia correcta en género y número según la gramática española
 - No quites los dobles saltos de línea.
+- **Vacilaciones**: Traduce la palabra completa y luego aplica el patrón de tartamudeo
 </mandatory_rules>
 </spanish_specifications>
 
@@ -99,26 +95,26 @@ Elimina por completo cualquier contenido no narrativo, incluyendo:
 </output_requirements>
 
 <examples>
-<example1>
+<example1 type=thoughts>
 <original>'This is madness,' he thought.</original>
 <translation>*Esto es una locura*, pensó.</translation>
 </example1>
-<example2>
+<example2 type=title>
 <original>Chapter 44: Chapter 45: The Path</original>
 <translation>Capítulo 45: El camino</translation>
 </example2>
-<example3>
+<example3 type=hesitations>
 <original>W-What villager?</original>
 <translation>¿Q-qué aldeano?</translation>
 </example3>
-<example4>
-<original>I-I don't know</original>
-<translation>Y-yo no sé</translation>
-</example4>
-<example5>
+<example5 type=title>
 <original>Chapter 400 Fool! (Please Subscribe) _2</original>
 <translation>Capítulo 400: ¡Idiota! (2)</translation>
 </example5>
+<example6 type=title>
+<original>Chapter 103 - 86: Jade Bone Draws Mountains And Rivers, Xu Yan Enters Innate (Ask For Monthly Ticket)_2</original>
+<translation>Capítulo 86: El hueso de jade dibuja montañas y ríos, Xu Yan entra en lo innato (2)</translation>
+</example6>
 </examples>
 
 <immediate_task>

@@ -123,7 +123,7 @@ class CleanPanel(QWidget):
 
         self.main_window.statusBar().showMessage(
             self.main_window.lang_manager.get_string("clean_panel.process_completed").format(
-                processed=processed, modified=modified)
+                modified=modified)
         )
 
     def _get_cleaning_mode(self):

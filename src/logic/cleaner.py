@@ -43,7 +43,9 @@ class CleanerLogic:
         """Limpia un archivo según el modo especificado"""
         try:
             with open(input_path, 'r', encoding='utf-8') as file:
-                lines = file.readlines()
+                original_lines = file.readlines()
+
+            lines = original_lines.copy()
 
             # Eliminar líneas en blanco al inicio
             while lines and not lines[0].strip():
@@ -60,9 +62,13 @@ class CleanerLogic:
             while lines and not lines[-1].strip():
                 lines.pop()
 
+            # Verificar si el contenido cambió
+            if lines == original_lines:
+                return False  # No hubo cambios
+
             with open(output_path, 'w', encoding='utf-8') as file:
                 file.writelines(lines)
-            return True
+            return True  # Hubo cambios
 
         except Exception as e:
             print(f"Error processing {input_path}: {str(e)}")

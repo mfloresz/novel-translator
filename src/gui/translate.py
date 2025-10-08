@@ -220,6 +220,8 @@ class TranslatePanel(QWidget):
         self.translation_manager = TranslationManager(main_window.lang_manager)
         self.working_directory = None
         self.session_check_refine_settings = None
+        self.segmentation_config = None
+        self.session_segmentation = None
 
         # Variable para almacenar API keys temporales
         self.temp_api_keys = {}
@@ -236,6 +238,7 @@ class TranslatePanel(QWidget):
 
         # Cargar configuración por defecto
         self.default_config = self._load_default_config()
+        self.segmentation_config = self.default_config.get("auto_segmentation", {"enabled": False, "threshold": 10000, "segment_size": 5000})
 
         self.init_ui()
         self.connect_signals()
@@ -620,6 +623,7 @@ class TranslatePanel(QWidget):
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.session_check_refine_settings = dialog.get_settings()
+            self.session_segmentation = self.session_check_refine_settings.get("auto_segmentation", None)
             self.main_window.statusBar().showMessage(
                 self._get_string("translate_panel.check_refine_settings_saved_session", "Configuración guardada"), 3000)
 
@@ -726,17 +730,21 @@ class TranslatePanel(QWidget):
         # Obtener términos personalizados
         custom_terms = self.terms_input.toPlainText().strip()
 
-        # Obtener configuración de segmentación
-        segment_size = None  # None = no segmentar
+        # Obtener configuración de segmentación efectiva
+        segment_size = None
+        effective_segmentation = None
         if self.segment_checkbox.isChecked():
             try:
-                segment_size = int(self.segment_size_input.text() or 5000)  # Usa 5000 si está vacío
+                segment_size = int(self.segment_size_input.text() or 5000)
                 if segment_size <= 0:
-                    segment_size = 5000  # Valor por defecto si es negativo
+                    segment_size = 5000
             except ValueError:
                 self.main_window.statusBar().showMessage(
                     self._get_string("translate_panel.error.invalid_segment_size"))
                 return
+            effective_segmentation = None  # Manual disables auto
+        else:
+            effective_segmentation = self.session_segmentation if self.session_segmentation else self.segmentation_config
 
         # Obtener estado de la comprobación
         enable_check = self.check_translation_checkbox.isChecked()
@@ -746,11 +754,6 @@ class TranslatePanel(QWidget):
 
         # Obtener la configuración de comprobación y refinado
         check_refine_settings = self.session_check_refine_settings or self.default_config.get("check_refine_settings")
-
-        # Confirmar la operación
-        if not show_confirmation_dialog(
-                self._get_string("translate_panel.confirmation")):
-            return
 
         # Preparar traducción
         self.translation_manager.initialize(
@@ -824,7 +827,8 @@ class TranslatePanel(QWidget):
             enable_refine,  # <-- Pasar parámetro para habilitar refinamiento
             check_refine_settings, # <-- Pasar la configuración de comprobación/refinado
             temp_api_keys=self.temp_api_keys,  # <-- Pasar las API keys temporales
-            allow_retranslation=allow_retranslation  # <-- Pasar el flag de permitir re-traducción
+            allow_retranslation=allow_retranslation,  # <-- Pasar el flag de permitir re-traducción
+            segmentation_config=effective_segmentation
         )
 
     def stop_translation(self):
@@ -895,7 +899,7 @@ class TranslatePanel(QWidget):
         target_lang = self.target_lang_combo.currentData()
 
         if not source_lang or not target_lang:
-            QMessageBox.warning(self, self._get_string("warning_dialog.title"), 
+            QMessageBox.warning(self, self._get_string("warning_dialog.title"),
                               self._get_string("translate_panel.preset_terms.no_language_selected"))
             return
 
@@ -909,3 +913,7 @@ class TranslatePanel(QWidget):
                 else:
                     new_text = selected_term
                 self.terms_input.setPlainText(new_text)
+
+    def set_segmentation_config(self, config):
+        """Set the segmentation configuration from main.py"""
+        self.segmentation_config = config

@@ -25,7 +25,8 @@ class TranslationWorker(QObject):
                  check_refine_settings: Optional[Dict] = None,
                  status_callback: Optional[Callable[[str, str], None]] = None,
                  lang_manager = None, temp_api_keys: dict = None,
-                 allow_retranslation: bool = False):
+                 allow_retranslation: bool = False,
+                 segmentation_config: Optional[Dict] = None):
         super().__init__()
         self.files_to_translate = files_to_translate
         self.working_directory = working_directory
@@ -45,6 +46,7 @@ class TranslationWorker(QObject):
         self.lang_manager = lang_manager
         self.temp_api_keys = temp_api_keys or {}
         self.allow_retranslation = allow_retranslation
+        self.segmentation_config = segmentation_config
         self._stop_requested = False
         self.translator.segment_size = segment_size
 
@@ -150,7 +152,8 @@ class TranslationWorker(QObject):
                 enable_check=self.enable_check,
                 enable_refine=self.enable_refine,
                 check_refine_settings=self.check_refine_settings,
-                temp_api_keys=self.temp_api_keys
+                temp_api_keys=self.temp_api_keys,
+                segmentation_config=self.segmentation_config
             )
 
             if not translated_text:
@@ -231,7 +234,8 @@ class TranslationManager(QObject):
                        custom_terms: str = "", segment_size: Optional[int] = None,
                        enable_check: bool = True, enable_refine: bool = False,
                        check_refine_settings: Optional[Dict] = None,
-                       temp_api_keys: dict = None, allow_retranslation: bool = False) -> None:
+                       temp_api_keys: dict = None, allow_retranslation: bool = False,
+                       segmentation_config: Optional[Dict] = None) -> None:
         """
         Inicia la traducción de archivos.
 
@@ -276,7 +280,8 @@ class TranslationManager(QObject):
             status_callback,  # Pasar el callback de estado
             self.lang_manager,  # Pasar el administrador de idioma
             temp_api_keys,  # Pasar las API keys temporales
-            allow_retranslation  # Pasar el flag de permitir re-traducción
+            allow_retranslation,  # Pasar el flag de permitir re-traducción
+            segmentation_config  # Pasar config de segmentación
         )
 
         # Mover el worker al thread

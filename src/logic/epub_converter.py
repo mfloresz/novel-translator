@@ -83,7 +83,7 @@ class EpubConverter:
     def _get_cover_image(self) -> Dict:
         """
         Obtiene la portada del EPUB.
-        
+
         Returns:
             Dict: Diccionario con información de la portada {'filename': str, 'content': bytes, 'mime_type': str} o None
         """
@@ -95,35 +95,44 @@ class EpubConverter:
                 # Buscar el item por ID
                 for item in self.book.get_items():
                     if item.get_name() == cover_id or item.get_id() == cover_id:
+                        try:
+                            return {
+                                'filename': f"cover{os.path.splitext(item.get_name())[1]}",
+                                'content': item.get_content(),
+                                'mime_type': getattr(item, 'media_type', None) or 'image/jpeg'
+                            }
+                        except Exception:
+                            continue
+
+            # Método 2: Buscar items de tipo portada directamente
+            for item in self.book.get_items():
+                if item.get_type() == ebooklib.ITEM_COVER:
+                    try:
                         return {
                             'filename': f"cover{os.path.splitext(item.get_name())[1]}",
                             'content': item.get_content(),
                             'mime_type': getattr(item, 'media_type', None) or 'image/jpeg'
                         }
-            
-            # Método 2: Buscar items de tipo portada directamente
-            for item in self.book.get_items():
-                if item.get_type() == ebooklib.ITEM_COVER:
-                    return {
-                        'filename': f"cover{os.path.splitext(item.get_name())[1]}",
-                        'content': item.get_content(),
-                        'mime_type': getattr(item, 'media_type', None) or 'image/jpeg'
-                    }
-            
+                    except Exception:
+                        continue
+
             # Método 3: Buscar imágenes que podrían ser portadas
             for item in self.book.get_items():
                 if item.get_type() == ebooklib.ITEM_IMAGE:
                     # Verificar si el nombre sugiere que es una portada
                     name = item.get_name().lower()
                     if any(keyword in name for keyword in ['cover', 'portada', 'front', 'titlepage']):
-                        return {
-                            'filename': f"cover{os.path.splitext(item.get_name())[1]}",
-                            'content': item.get_content(),
-                            'mime_type': getattr(item, 'media_type', None) or 'image/jpeg'
-                        }
-            
+                        try:
+                            return {
+                                'filename': f"cover{os.path.splitext(item.get_name())[1]}",
+                                'content': item.get_content(),
+                                'mime_type': getattr(item, 'media_type', None) or 'image/jpeg'
+                            }
+                        except Exception:
+                            continue
+
             return None
-            
+
         except Exception as e:
             print(f"Error extrayendo portada: {e}")
             return None

@@ -280,6 +280,47 @@ class TranslatorLogic:
 
         return validation_report
 
+    def _verify_segmentation_integrity(self, segments: List[str], original_text: str) -> bool:
+        """
+        Verifica que la segmentación no haya causado pérdida de contenido.
+
+        Args:
+            segments (List[str]): Lista de segmentos creados
+            original_text (str): Texto original para comparación
+
+        Returns:
+            bool: True si la reconstrucción es idéntica al original, False si hay diferencias
+        """
+        # Reconstruir el texto uniendo los segmentos sin separadores
+        reconstructed_text = ''.join(segments)
+
+        # Comparar exactamente con el texto original
+        if reconstructed_text == original_text:
+            return True
+        else:
+            # Loggear detalles del error
+            original_len = len(original_text)
+            reconstructed_len = len(reconstructed_text)
+
+            session_logger.log_error(
+                f"Segmentación corrupta: longitud original {original_len}, reconstruida {reconstructed_len}"
+            )
+
+            # Mostrar primeras diferencias si son pequeñas
+            if abs(original_len - reconstructed_len) <= 100:
+                min_len = min(original_len, reconstructed_len)
+                for i in range(min_len):
+                    if original_text[i] != reconstructed_text[i]:
+                        session_logger.log_error(
+                            f"Primera diferencia en posición {i}: "
+                            f"original='{original_text[i]}' vs reconstruido='{reconstructed_text[i]}'"
+                        )
+                        break
+            else:
+                session_logger.log_error("Diferencia demasiado grande para mostrar detalles")
+
+            return False
+
     def _build_check_prompt(self, source_lang: str, target_lang: str,
                             original_text: str, translated_text: str,
                             custom_terms: str = "") -> str:
@@ -525,10 +566,10 @@ class TranslatorLogic:
                             api_key: str, provider: str, model: str,
                             custom_terms: str, enable_refine: bool,
                             refine_provider: str, refine_model: str,
-                            temp_api_keys: dict) -> Optional[str]:
+                            temp_api_keys: dict, segmentation_config: Optional[Dict] = None) -> Optional[str]:
         """
         Realiza la traducción completa del texto: segmentación, traducción y refinamiento opcional.
-
+ 
         Args:
             text (str): Texto a traducir
             source_lang (str): Idioma de origen
@@ -541,7 +582,7 @@ class TranslatorLogic:
             refine_provider (str): Proveedor para refinamiento
             refine_model (str): Modelo para refinamiento
             temp_api_keys (dict): Diccionario de API keys temporales
-
+            segmentation_config (Optional[Dict]): Configuración de segmentación automática
         Returns:
             Optional[str]: Texto traducido completo, None si hay error
         """
@@ -554,10 +595,35 @@ class TranslatorLogic:
             if not model_config:
                 raise ValueError(f"Modelo no soportado: {model}")
 
-            # Segmentar el texto con validación
-            segments = self._segment_text(text)
+            # Auto-segmentation logic
+            local_segment_size = self.segment_size  # Preserve manual if set
+            auto_activated = False
+            if segmentation_config and segmentation_config.get("enabled", False):
+                threshold = segmentation_config.get("threshold", 10000)
+                if len(text) > threshold:
+                    local_segment_size = segmentation_config.get("segment_size", 5000)
+                    auto_activated = True
+                    session_logger.log_info(f"Auto-segmentation activated: text length {len(text)} > {threshold}, using segment size {local_segment_size}")
 
-            if self.segment_size is not None:
+            if not auto_activated:
+                if self.segment_size is not None:
+                    session_logger.log_info(f"Using manual segmentation with size {local_segment_size}")
+                else:
+                    session_logger.log_info("No segmentation applied - translating full text")
+                    local_segment_size = None
+
+            # Temporarily set segment_size for this translation
+            original_segment_size = self.segment_size
+            self.segment_size = local_segment_size
+            segments = self._segment_text(text)
+            self.segment_size = original_segment_size  # Restore original
+
+            # Verificar integridad de segmentación solo cuando auto-segmentación esté activada
+            if auto_activated and not self._verify_segmentation_integrity(segments, text):
+                session_logger.log_error("Segmentación automática falló verificación de integridad - abortando traducción")
+                return None
+
+            if local_segment_size is not None:
                 # Validar integridad de los segmentos creados
                 validation_report = self._validate_segment_integrity(segments, text)
 
@@ -644,6 +710,7 @@ class TranslatorLogic:
                        custom_terms: str = "", enable_check: bool = True,
                        enable_refine: bool = False,
                        check_refine_settings: Optional[Dict] = None,
+                       segmentation_config: Optional[Dict] = None,
                        temp_api_keys: dict = None) -> Optional[str]:
         """
         Traduce el texto utilizando el proveedor y modelo especificados.
@@ -689,7 +756,8 @@ class TranslatorLogic:
         session_logger.log_info("Iniciando traducción inicial")
         full_translation = self._perform_translation(
             text, source_lang, target_lang, api_key, provider, model,
-            custom_terms, enable_refine, refine_provider, refine_model, temp_keys
+            custom_terms, enable_refine, refine_provider, refine_model, temp_keys,
+            segmentation_config
         )
 
         if full_translation is None:
@@ -717,7 +785,8 @@ class TranslatorLogic:
                 session_logger.log_info("Iniciando reintento de traducción")
                 retry_translation = self._perform_translation(
                     text, source_lang, target_lang, api_key, provider, model,
-                    custom_terms, enable_refine, refine_provider, refine_model, temp_keys
+                    custom_terms, enable_refine, refine_provider, refine_model, temp_keys,
+                    segmentation_config
                 )
 
                 if retry_translation is None:

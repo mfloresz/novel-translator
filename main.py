@@ -13,6 +13,7 @@ from src.gui.clean import CleanPanel
 from src.gui.create import CreateEpubPanel
 from src.gui.translate import TranslatePanel
 from src.gui.settings_gui import SettingsDialog
+from src.gui.log_window import LogWindow
 from src.logic.get_path import get_directory, get_initial_directory
 from src.logic.loader import FileLoader
 from src.logic.creator import EpubConverterLogic
@@ -890,22 +891,10 @@ class NovelManagerApp(QMainWindow):
                 self.lang_manager.get_string("main_window.working_directory_open_error").format(error=str(e)))
 
     def open_log_file(self):
-        """Abre el archivo de log de la sesión con el programa predeterminado"""
-        log_path = session_logger.get_log_path()
-        if not log_path or not os.path.exists(log_path):
-            self.statusBar().showMessage(
-                self.lang_manager.get_string("main_window.log_file_not_found"))
-            return
+        """Abre la ventana de log de la sesión"""
         try:
-            import platform
-            system = platform.system()
-            if system == "Windows":
-                os.startfile(log_path)
-            elif system == "Darwin":  # macOS
-                subprocess.run(["open", log_path])
-            else:  # Linux y otros Unix
-                subprocess.run(["xdg-open", log_path])
-            #self.statusBar().showMessage("Abriendo archivo de registro...", 3000)
+            log_window = LogWindow(self.lang_manager, self)
+            log_window.show()
         except Exception as e:
             self.statusBar().showMessage(
                 self.lang_manager.get_string("main_window.log_file_open_error").format(error=str(e)))
@@ -948,6 +937,11 @@ class NovelManagerApp(QMainWindow):
                     "use_separate_model": True,
                     "provider": "chutes",
                     "model": "gpt-oss-20b"
+                },
+                "auto_segmentation": {
+                    "enabled": False,
+                    "threshold": 10000,
+                    "segment_size": 5000
                 }
             }
             with open(config_file, 'w') as f:
@@ -976,6 +970,11 @@ class NovelManagerApp(QMainWindow):
                     "use_separate_model": True,
                     "provider": "chutes",
                     "model": "gpt-oss-20b"
+                },
+                "auto_segmentation": {
+                    "enabled": False,
+                    "threshold": 10000,
+                    "segment_size": 5000
                 }
             }
 
@@ -1112,6 +1111,11 @@ class NovelManagerApp(QMainWindow):
                 # Aplicar configuración al panel de traducción
                 if hasattr(self, 'translate_panel'):
                     self._apply_translate_panel_config(config, languages_mapping)
+
+                    # Apply segmentation config to translate panel
+                    if hasattr(self, 'translate_panel'):
+                        segmentation_config = config.get("auto_segmentation", {"enabled": False, "threshold": 10000, "segment_size": 5000})
+                        self.translate_panel.set_segmentation_config(segmentation_config)
                     
         except Exception as e:
             print(f"Error aplicando configuración: {e}")
