@@ -8,7 +8,8 @@ def translate_segment(provider: str,
                       api_key: str,
                       model_config: Dict,
                       prompt: str,
-                      models_config: Dict) -> Optional[str]:
+                      models_config: Dict,
+                      timeout: int = 120) -> Optional[str]:
     """
     Envía el prompt al proveedor seleccionado y maneja la respuesta.
 
@@ -33,9 +34,9 @@ def translate_segment(provider: str,
 
         result = None
         if provider == 'gemini':
-            result = _translate_gemini(provider_config, api_key, model_config, prompt)
+            result = _translate_gemini(provider_config, api_key, model_config, prompt, timeout)
         elif provider in ['hyperbolic', 'chutes', 'mistral']:
-            result = _translate_openai_like(provider_config, api_key, model_config, prompt)
+            result = _translate_openai_like(provider_config, api_key, model_config, prompt, timeout)
         else:
             raise ValueError(f"Proveedor no implementado: {provider}")
 
@@ -51,7 +52,7 @@ def translate_segment(provider: str,
         print(error_msg)
         return None
 
-def _translate_gemini(provider_config: Dict, api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
+def _translate_gemini(provider_config: Dict, api_key: str, model_config: Dict, prompt: str, timeout: int = 120) -> Optional[str]:
     try:
         url = f"{provider_config['base_url']}/{model_config['endpoint']}?key={api_key}"
         headers = {'Content-Type': 'application/json'}
@@ -65,7 +66,7 @@ def _translate_gemini(provider_config: Dict, api_key: str, model_config: Dict, p
                 "temperature": model_config.get('temperature', 0.6)
             }
         }
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, timeout=timeout)
         response.raise_for_status()
         return _process_response(provider_config['type'], response.json(), model_config.get('thinking', False))
     except requests.exceptions.RequestException as e:
@@ -81,7 +82,7 @@ def _translate_gemini(provider_config: Dict, api_key: str, model_config: Dict, p
 
 
 
-def _translate_openai_like(provider_config: Dict, api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
+def _translate_openai_like(provider_config: Dict, api_key: str, model_config: Dict, prompt: str, timeout: int = 120) -> Optional[str]:
     try:
         url = provider_config['base_url']
         headers = {
@@ -98,7 +99,7 @@ def _translate_openai_like(provider_config: Dict, api_key: str, model_config: Di
             "max_tokens": model_config.get('max_tokens', 4096),
             "stream": False
         }
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, timeout=timeout)
         response.raise_for_status()
         return _process_response(provider_config['type'], response.json(), model_config.get('thinking', False))
     except Exception as e:

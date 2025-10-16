@@ -683,12 +683,6 @@ class NovelManagerApp(QMainWindow):
                 f"El archivo '{filename}' ya ha sido traducido.\n\n¿Desea volver a traducirlo y sobreescribir la versión existente?"
             ):
                 return
-        else:
-            # Confirmar la operación normal
-            if not show_confirmation_dialog(
-                self.lang_manager.get_string("main_window.confirm_translate_single").format(filename=filename)
-            ):
-                return
         # Preparar el administrador de traducción
         translate_panel.translation_manager.initialize(
             self.current_directory,

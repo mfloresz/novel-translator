@@ -388,7 +388,7 @@ class TranslatorLogic:
     def _check_translation(self, original_text: str, translated_text: str,
                             source_lang: str, target_lang: str,
                             main_api_key: str, check_provider: str, check_model: str,
-                            custom_terms: str = "", temp_api_keys: dict = None, retry_on_failure: bool = True) -> bool:
+                            custom_terms: str = "", temp_api_keys: dict = None, retry_on_failure: bool = True, timeout: int = 120) -> bool:
         """
         Comprueba la calidad de la traducción usando la API.
 
@@ -437,7 +437,8 @@ class TranslatorLogic:
                 api_key,
                 model_config,
                 prompt,
-                self.models_config
+                self.models_config,
+                timeout
             )
 
         def _parse_check_response(response: str) -> (bool, Optional[str]):
@@ -499,9 +500,9 @@ class TranslatorLogic:
             return False
 
     def _refine_translation(self, source_text: str, translated_text: str,
-                           source_lang: str, target_lang: str,
-                           main_api_key: str, refine_provider: str, refine_model: str,
-                           custom_terms: str = "", temp_api_keys: dict = None) -> Optional[str]:
+                            source_lang: str, target_lang: str,
+                            main_api_key: str, refine_provider: str, refine_model: str,
+                            custom_terms: str = "", temp_api_keys: dict = None, timeout: int = 120) -> Optional[str]:
         """
         Refina la traducción usando la API.
 
@@ -549,7 +550,8 @@ class TranslatorLogic:
                 api_key,
                 model_config,
                 prompt,
-                self.models_config
+                self.models_config,
+                timeout
             )
 
             if response is None:
@@ -563,10 +565,11 @@ class TranslatorLogic:
             return None
 
     def _perform_translation(self, text: str, source_lang: str, target_lang: str,
-                            api_key: str, provider: str, model: str,
-                            custom_terms: str, enable_refine: bool,
-                            refine_provider: str, refine_model: str,
-                            temp_api_keys: dict, segmentation_config: Optional[Dict] = None) -> Optional[str]:
+                             api_key: str, provider: str, model: str,
+                             custom_terms: str, enable_refine: bool,
+                             refine_provider: str, refine_model: str,
+                             temp_api_keys: dict, segmentation_config: Optional[Dict] = None,
+                             timeout: int = 120) -> Optional[str]:
         """
         Realiza la traducción completa del texto: segmentación, traducción y refinamiento opcional.
  
@@ -661,7 +664,8 @@ class TranslatorLogic:
                     api_key,
                     model_config,
                     prompt,
-                    self.models_config
+                    self.models_config,
+                    timeout
                 )
 
                 if translated_segment is None:
@@ -680,7 +684,8 @@ class TranslatorLogic:
                         refine_provider=refine_provider,
                         refine_model=refine_model,
                         custom_terms=custom_terms,
-                        temp_api_keys=temp_api_keys
+                        temp_api_keys=temp_api_keys,
+                        timeout=timeout
                     )
 
                     if refined_segment is not None:
@@ -711,7 +716,7 @@ class TranslatorLogic:
                        enable_refine: bool = False,
                        check_refine_settings: Optional[Dict] = None,
                        segmentation_config: Optional[Dict] = None,
-                       temp_api_keys: dict = None) -> Optional[str]:
+                       temp_api_keys: dict = None, timeout: int = 120) -> Optional[str]:
         """
         Traduce el texto utilizando el proveedor y modelo especificados.
 
@@ -757,7 +762,7 @@ class TranslatorLogic:
         full_translation = self._perform_translation(
             text, source_lang, target_lang, api_key, provider, model,
             custom_terms, enable_refine, refine_provider, refine_model, temp_keys,
-            segmentation_config
+            segmentation_config, timeout
         )
 
         if full_translation is None:
@@ -775,7 +780,8 @@ class TranslatorLogic:
                 check_model=check_model,
                 custom_terms=custom_terms,
                 temp_api_keys=temp_keys,
-                retry_on_failure=False  # No reintentar verificación internamente
+                retry_on_failure=False,  # No reintentar verificación internamente
+                timeout=timeout
             )
 
             if not check_passed:
@@ -786,7 +792,7 @@ class TranslatorLogic:
                 retry_translation = self._perform_translation(
                     text, source_lang, target_lang, api_key, provider, model,
                     custom_terms, enable_refine, refine_provider, refine_model, temp_keys,
-                    segmentation_config
+                    segmentation_config, timeout
                 )
 
                 if retry_translation is None:
@@ -804,7 +810,8 @@ class TranslatorLogic:
                     check_model=check_model,
                     custom_terms=custom_terms,
                     temp_api_keys=temp_keys,
-                    retry_on_failure=False  # No reintentar verificación internamente
+                    retry_on_failure=False,  # No reintentar verificación internamente
+                    timeout=timeout
                 )
 
                 if not check_passed_retry:

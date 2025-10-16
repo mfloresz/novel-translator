@@ -191,8 +191,12 @@ class SettingsDialog(QDialog):
 
         # Add the translation columns to left_column
         left_column.addLayout(translation_columns_layout)
-        
-        # Default Segmentation Settings Group (below the two columns)
+
+        # Create two columns for Segmentation and Timeout settings
+        segmentation_timeout_columns_layout = QHBoxLayout()
+
+        # Left sub-column: Segmentation settings
+        segmentation_left_column = QVBoxLayout()
         segmentation_group = QGroupBox(self._get_string("settings_dialog.segmentation_group"))
         segmentation_layout = QVBoxLayout()
 
@@ -226,7 +230,30 @@ class SettingsDialog(QDialog):
         segmentation_layout.addStretch()
 
         segmentation_group.setLayout(segmentation_layout)
-        left_column.addWidget(segmentation_group)
+        segmentation_left_column.addWidget(segmentation_group)
+        segmentation_left_column.addStretch()
+
+        # Right sub-column: Timeout settings
+        timeout_right_column = QVBoxLayout()
+        timeout_group = QGroupBox(self._get_string("settings_dialog.timeout_group", "Tiempo de Espera"))
+        timeout_layout = QFormLayout()
+        self.timeout_spinbox = QSpinBox()
+        self.timeout_spinbox.setMinimum(30)
+        self.timeout_spinbox.setMaximum(600)
+        self.timeout_spinbox.setValue(120)
+        self.timeout_spinbox.setSuffix(" segundos")
+        self.timeout_spinbox.setToolTip(self._get_string("settings_dialog.timeout_tooltip", "Tiempo máximo de espera para respuestas de traducción (30-600 segundos)"))
+        timeout_layout.addRow(self._get_string("settings_dialog.timeout_label", "Timeout:"), self.timeout_spinbox)
+        timeout_group.setLayout(timeout_layout)
+        timeout_right_column.addWidget(timeout_group)
+        timeout_right_column.addStretch()
+
+        # Add sub-columns to the segmentation/timeout columns layout
+        segmentation_timeout_columns_layout.addLayout(segmentation_left_column)
+        segmentation_timeout_columns_layout.addLayout(timeout_right_column)
+
+        # Add the segmentation/timeout columns to left_column
+        left_column.addLayout(segmentation_timeout_columns_layout)
 
         # Connect radio buttons to toggle inputs
         self.auto_segmentation_radio.toggled.connect(lambda checked: self.inputs_widget.setEnabled(checked))
@@ -414,6 +441,10 @@ class SettingsDialog(QDialog):
         else:
             self.no_auto_segmentation_radio.setChecked(True)
             self.inputs_widget.setEnabled(False)
+
+        # Load timeout setting
+        timeout_value = self.current_config.get("timeout", 120)
+        self.timeout_spinbox.setValue(timeout_value)
 
     def load_languages_combos(self):
         self.source_lang_combo.clear()
@@ -631,7 +662,10 @@ class SettingsDialog(QDialog):
             "threshold": self.threshold_spinbox.value(),
             "segment_size": self.segment_size_spinbox.value()
         }
-        
+
+        # Save timeout setting
+        timeout_value = self.timeout_spinbox.value()
+
         new_config = {
             "default_directory": self.current_config.get("default_directory", os.path.expanduser("~")),
             "last_used_directories": self.current_config.get("last_used_directories", []),
@@ -641,7 +675,8 @@ class SettingsDialog(QDialog):
             "target_language": target_lang,
             "ui_language": ui_language,
             "check_refine_settings": check_refine_settings,
-            "auto_segmentation": auto_segmentation
+            "auto_segmentation": auto_segmentation,
+            "timeout": timeout_value
         }
         
         try:

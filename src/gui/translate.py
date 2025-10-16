@@ -167,14 +167,14 @@ class RangeTranslationDialog(QDialog):
     def init_ui(self):
         self.setWindowTitle(self._get_string("translate_panel.range_translation_dialog.title", "Capítulos ya traducidos"))
         self.setModal(True)
-        self.resize(450, 200)
+        self.resize(450, 100)
 
         layout = QVBoxLayout()
 
         # Mensaje informativo
         message = self._get_string(
             "translate_panel.range_translation_dialog.message",
-            "Se encontraron {translated} capítulos ya traducidos de {total} en el rango seleccionado.\n\n¿Qué desea hacer?"
+            "Se encontraron {translated} capítulos ya traducidos de {total} en el rango seleccionado. ¿Qué desea hacer?"
         ).format(translated=self.translated_count, total=self.total_count)
 
         info_label = QLabel(message)
@@ -182,7 +182,7 @@ class RangeTranslationDialog(QDialog):
         layout.addWidget(info_label)
 
         # Espacio
-        layout.addStretch()
+        #layout.addStretch()
 
         # Botones
         buttons_layout = QHBoxLayout()
@@ -239,6 +239,7 @@ class TranslatePanel(QWidget):
         # Cargar configuración por defecto
         self.default_config = self._load_default_config()
         self.segmentation_config = self.default_config.get("auto_segmentation", {"enabled": False, "threshold": 10000, "segment_size": 5000})
+        self.timeout_config = self.default_config.get("timeout", 120)
 
         self.init_ui()
         self.connect_signals()
@@ -828,7 +829,8 @@ class TranslatePanel(QWidget):
             check_refine_settings, # <-- Pasar la configuración de comprobación/refinado
             temp_api_keys=self.temp_api_keys,  # <-- Pasar las API keys temporales
             allow_retranslation=allow_retranslation,  # <-- Pasar el flag de permitir re-traducción
-            segmentation_config=effective_segmentation
+            segmentation_config=effective_segmentation,
+            timeout=self.timeout_config  # <-- Pasar el timeout configurado
         )
 
     def stop_translation(self):

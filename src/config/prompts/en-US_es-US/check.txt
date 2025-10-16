@@ -28,9 +28,9 @@ Se usó la siguiente lista como guía para indicar como deben traducirse algunas
 - Nombres propios, títulos de obras, o marcas comerciales
 
 <!-- OMISIONES VÁLIDAS -->
-- Texto corrupto o ilegible, ej: 'Se??ch ?ew?o?e? ,o?g o? ?oo?l?'
-- Numeración duplicada en títulos, ej: 'Chapter 106: Chapter 88: The Universe Changes Position' → 'Capítulo 88: El universo cambia de posición'
-- Títulos redundantes cuando aparecen dos versiones (preservar solo el más descriptivo)
+- Falta de texto corrupto o ilegible, ej: 'Se??ch ?ew?o?e? ,o?g o? ?oo?l?'
+- Omisión de numeraciones dobles en títulos, ej: 'Chapter 106: Chapter 88: The Universe Changes Position' → 'Capítulo 88: El universo cambia de posición'
+- Eliminación de Títulos redundantes cuando aparecen dos versiones (preservar solo el más descriptivo)
 
 <!-- CONTENIDO PARATEXTUAL - DEBE OMITIRSE -->
 <critical>Las siguientes categorías SIEMPRE deben omitirse de la traducción y su ausencia NO es penalizable:</critical>
