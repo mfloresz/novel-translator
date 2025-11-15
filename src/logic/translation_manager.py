@@ -61,6 +61,10 @@ class TranslationWorker(QObject):
     def stop(self):
         self._stop_requested = True
 
+    def is_stop_requested(self) -> bool:
+        """Retorna True si se ha solicitado detener la traducción"""
+        return self._stop_requested
+
     def run(self):
         try:
             total_files = len(self.files_to_translate)
@@ -156,7 +160,8 @@ class TranslationWorker(QObject):
                 check_refine_settings=self.check_refine_settings,
                 temp_api_keys=self.temp_api_keys,
                 segmentation_config=self.segmentation_config,
-                timeout=self.timeout
+                timeout=self.timeout,
+                stop_callback=self.is_stop_requested
             )
 
             if not translated_text:
@@ -165,12 +170,33 @@ class TranslationWorker(QObject):
                 self.error_occurred.emit(error_msg)
                 return False
 
+            # Verificar si se ha solicitado detener antes de guardar archivos
+            if self.is_stop_requested():
+                session_logger.log_info(f"Guardado cancelado para {filename} por solicitud del usuario")
+                return False
+
             # Guardar primero en archivo temporal
             with open(temp_output_path, 'w', encoding='utf-8') as file:
                 file.write(translated_text)
 
+            # Verificar nuevamente antes de mover el archivo final
+            if self.is_stop_requested():
+                session_logger.log_info(f"Guardado final cancelado para {filename} por solicitud del usuario")
+                # Limpiar archivo temporal
+                try:
+                    temp_output_path.unlink()
+                except:
+                    pass
+                return False
+
             # Si todo salió bien, mover el archivo temporal al destino final
             temp_output_path.replace(output_path)
+
+            # Verificar antes de registrar en base de datos
+            if self.is_stop_requested():
+                session_logger.log_info(f"Registro en DB cancelado para {filename} por solicitud del usuario")
+                return False
+
             return True
 
         except Exception as e:
@@ -261,8 +287,7 @@ class TranslationManager(QObject):
                 return
 
         # Guardar términos personalizados
-        if custom_terms.strip():
-            self.db.save_custom_terms(custom_terms)
+        self.db.save_custom_terms(custom_terms)
 
         # Crear y configurar el worker
         self.thread = QThread()

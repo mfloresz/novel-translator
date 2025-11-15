@@ -29,7 +29,6 @@ Se usó la siguiente lista como guía para indicar como deben traducirse algunas
 
 <!-- OMISIONES VÁLIDAS -->
 - Falta de texto corrupto o ilegible, ej: 'Se??ch ?ew?o?e? ,o?g o? ?oo?l?'
-- Omisión de numeraciones dobles en títulos, ej: 'Chapter 106: Chapter 88: The Universe Changes Position' → 'Capítulo 88: El universo cambia de posición'
 - Eliminación de Títulos redundantes cuando aparecen dos versiones (preservar solo el más descriptivo)
 
 <!-- CONTENIDO PARATEXTUAL - DEBE OMITIRSE -->
@@ -64,7 +63,9 @@ Se usó la siguiente lista como guía para indicar como deben traducirse algunas
 
 5. **Coherencia lógica**: La secuencia de ideas tiene sentido como texto independiente
 
-<note>NO penalices por: reformulación estilística, reordenamiento de cláusulas, consolidación de oraciones fragmentadas, o ausencia de contenido paratextual (criterios en  non-penalty_criteria)</note>
+6. **Manejo de redundancias en títulos**: Se considera válido omitir numeraciones dobles en títulos de capítulos (ej: 'Chapter 106: Chapter 88: The Universe Changes Position' → 'Capítulo 88: El universo cambia de posición'). No se debe penalizar esta omisión.
+
+<note>NO penalices por: reformulación estilística, reordenamiento de cláusulas, consolidación de oraciones fragmentadas, o ausencia de contenido paratextual (criterios en  <non-penalty_criteria>)</note>
 </evaluation_criteria>
 
 </detailed_rules>

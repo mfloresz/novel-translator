@@ -343,6 +343,13 @@ class TranslatePanel(QWidget):
         terms_instructions.setWordWrap(True)
         terms_header_layout.addWidget(terms_instructions)
 
+        # Botón para guardar términos personalizados
+        self.save_terms_btn = QPushButton()
+        self.save_terms_btn.setMaximumWidth(30)
+        self.save_terms_btn.setToolTip(self._get_string("translate_panel.save_terms_button.tooltip", "Guardar términos personalizados"))
+        self.save_terms_btn.clicked.connect(self.save_custom_terms)
+        terms_header_layout.addWidget(self.save_terms_btn)
+
         # Botón para copiar símbolo →
         self.copy_arrow_btn = QPushButton(self._get_string("translate_panel.copy_arrow_button"))
         self.copy_arrow_btn.setMaximumWidth(30)
@@ -419,6 +426,9 @@ class TranslatePanel(QWidget):
 
         # Conectar el checkbox de segmentación
         self.segment_checkbox.toggled.connect(self.segment_size_input.setEnabled)
+
+        # Configurar iconos para las pestañas y botones (después de configurar detección de tema)
+        self.set_terms_button_icons()
 
     def _load_default_config(self) -> Dict:
         """Carga la configuración por defecto desde config.json"""
@@ -919,3 +929,31 @@ class TranslatePanel(QWidget):
     def set_segmentation_config(self, config):
         """Set the segmentation configuration from main.py"""
         self.segmentation_config = config
+
+    def set_terms_button_icons(self):
+        """Configurar iconos para los botones de términos según el tema del sistema"""
+        try:
+            # Ruta del ícono de guardar
+            save_icon_path = "src/gui/icons/save_2_line.svg"
+            self.save_terms_btn.setIcon(self.main_window.create_themed_icon(save_icon_path))
+        except Exception as e:
+            print(f"Error cargando ícono del botón de guardar términos: {e}")
+
+    def save_custom_terms(self):
+        """Guarda los términos personalizados en la base de datos"""
+        if not self.main_window.current_directory:
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.error.no_directory"))
+            return
+
+        # Obtener términos personalizados del campo de texto
+        custom_terms = self.terms_input.toPlainText()
+
+        # Inicializar la base de datos y guardar términos
+        db = TranslationDatabase(self.main_window.current_directory)
+        if db.save_custom_terms(custom_terms):
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.save_terms_success", "Términos personalizados guardados"), 3000)
+        else:
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.save_terms_error", "Error al guardar términos personalizados"))

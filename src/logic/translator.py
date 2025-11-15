@@ -3,7 +3,7 @@ import json
 import os
 import re
 from dotenv import load_dotenv
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Callable
 from pathlib import Path
 from src.logic import translator_req
 from src.logic.session_logger import session_logger
@@ -386,9 +386,10 @@ class TranslatorLogic:
         return os.getenv(env_var_name, "")
 
     def _check_translation(self, original_text: str, translated_text: str,
-                            source_lang: str, target_lang: str,
-                            main_api_key: str, check_provider: str, check_model: str,
-                            custom_terms: str = "", temp_api_keys: dict = None, retry_on_failure: bool = True, timeout: int = 120) -> bool:
+                             source_lang: str, target_lang: str,
+                             main_api_key: str, check_provider: str, check_model: str,
+                             custom_terms: str = "", temp_api_keys: dict = None, retry_on_failure: bool = True, timeout: int = 120,
+                             stop_callback: Optional[Callable[[], bool]] = None) -> bool:
         """
         Comprueba la calidad de la traducción usando la API.
 
@@ -460,6 +461,11 @@ class TranslatorLogic:
                 return False, f"Respuesta inesperada: {response}"
 
         try:
+            # Verificar si se ha solicitado detener antes de hacer la llamada API
+            if stop_callback and stop_callback():
+                session_logger.log_info("Comprobación cancelada por solicitud del usuario")
+                return False
+
             response = query_model()
             if response is None:
                 session_logger.log_error("Error en la comprobación de la traducción (respuesta nula)")
@@ -476,6 +482,12 @@ class TranslatorLogic:
 
                 # Reintentar una vez
                 time.sleep(5)
+
+                # Verificar nuevamente si se ha solicitado detener antes del reintento
+                if stop_callback and stop_callback():
+                    session_logger.log_info("Reintento de comprobación cancelado por solicitud del usuario")
+                    return False
+
                 response_retry = query_model()
                 if response_retry is None:
                     session_logger.log_error("Error en la comprobación de la traducción (reintento respuesta nula)")
@@ -500,9 +512,10 @@ class TranslatorLogic:
             return False
 
     def _refine_translation(self, source_text: str, translated_text: str,
-                            source_lang: str, target_lang: str,
-                            main_api_key: str, refine_provider: str, refine_model: str,
-                            custom_terms: str = "", temp_api_keys: dict = None, timeout: int = 120) -> Optional[str]:
+                             source_lang: str, target_lang: str,
+                             main_api_key: str, refine_provider: str, refine_model: str,
+                             custom_terms: str = "", temp_api_keys: dict = None, timeout: int = 120,
+                             stop_callback: Optional[Callable[[], bool]] = None) -> Optional[str]:
         """
         Refina la traducción usando la API.
 
@@ -544,6 +557,11 @@ class TranslatorLogic:
             return None
 
         try:
+            # Verificar si se ha solicitado detener antes de hacer la llamada API
+            if stop_callback and stop_callback():
+                session_logger.log_info("Refinamiento cancelado por solicitud del usuario")
+                return None
+
             response = translator_req.translate_segment(
                 refine_provider,
                 "",  # texto ya incluido en prompt, pasar vacío para evitar doble agregado
@@ -565,11 +583,11 @@ class TranslatorLogic:
             return None
 
     def _perform_translation(self, text: str, source_lang: str, target_lang: str,
-                             api_key: str, provider: str, model: str,
-                             custom_terms: str, enable_refine: bool,
-                             refine_provider: str, refine_model: str,
-                             temp_api_keys: dict, segmentation_config: Optional[Dict] = None,
-                             timeout: int = 120) -> Optional[str]:
+                              api_key: str, provider: str, model: str,
+                              custom_terms: str, enable_refine: bool,
+                              refine_provider: str, refine_model: str,
+                              temp_api_keys: dict, segmentation_config: Optional[Dict] = None,
+                              timeout: int = 120, stop_callback: Optional[Callable[[], bool]] = None) -> Optional[str]:
         """
         Realiza la traducción completa del texto: segmentación, traducción y refinamiento opcional.
  
@@ -647,6 +665,11 @@ class TranslatorLogic:
 
             # Traducir cada segmento
             for i, segment in enumerate(segments, 1):
+                # Verificar si se ha solicitado detener antes de procesar segmento
+                if stop_callback and stop_callback():
+                    session_logger.log_info(f"Traducción cancelada en segmento {i} por solicitud del usuario")
+                    return None
+
                 session_logger.log_info(f"Traduciendo segmento {i} de {len(segments)} con {provider}/{model}")
 
                 # Construir prompt base con reemplazo de etiquetas
@@ -656,6 +679,11 @@ class TranslatorLogic:
 
                 # Reemplazar la etiqueta {text_to_translate} con el segmento actual
                 prompt = prompt.replace("{text_to_translate}", segment)
+
+                # Verificar nuevamente antes de llamada API
+                if stop_callback and stop_callback():
+                    session_logger.log_info(f"Traducción cancelada antes de llamada API en segmento {i}")
+                    return None
 
                 # Delegar la petición al módulo translator_req
                 translated_segment = translator_req.translate_segment(
@@ -674,6 +702,11 @@ class TranslatorLogic:
 
                 # Si enable_refine está habilitado, refinar la traducción del segmento
                 if enable_refine:
+                    # Verificar antes de refinamiento
+                    if stop_callback and stop_callback():
+                        session_logger.log_info(f"Refinamiento cancelado en segmento {i} por solicitud del usuario")
+                        return None
+
                     session_logger.log_info(f"Refinando segmento {i} de {len(segments)}")
                     refined_segment = self._refine_translation(
                         source_text=segment,
@@ -685,7 +718,8 @@ class TranslatorLogic:
                         refine_model=refine_model,
                         custom_terms=custom_terms,
                         temp_api_keys=temp_api_keys,
-                        timeout=timeout
+                        timeout=timeout,
+                        stop_callback=stop_callback
                     )
 
                     if refined_segment is not None:
@@ -711,12 +745,13 @@ class TranslatorLogic:
             return None
 
     def translate_text(self, text: str, source_lang: str, target_lang: str,
-                       api_key: str, provider: str, model: str,
-                       custom_terms: str = "", enable_check: bool = True,
-                       enable_refine: bool = False,
-                       check_refine_settings: Optional[Dict] = None,
-                       segmentation_config: Optional[Dict] = None,
-                       temp_api_keys: dict = None, timeout: int = 120) -> Optional[str]:
+                        api_key: str, provider: str, model: str,
+                        custom_terms: str = "", enable_check: bool = True,
+                        enable_refine: bool = False,
+                        check_refine_settings: Optional[Dict] = None,
+                        segmentation_config: Optional[Dict] = None,
+                        temp_api_keys: dict = None, timeout: int = 120,
+                        stop_callback: Optional[Callable[[], bool]] = None) -> Optional[str]:
         """
         Traduce el texto utilizando el proveedor y modelo especificados.
 
@@ -762,7 +797,7 @@ class TranslatorLogic:
         full_translation = self._perform_translation(
             text, source_lang, target_lang, api_key, provider, model,
             custom_terms, enable_refine, refine_provider, refine_model, temp_keys,
-            segmentation_config, timeout
+            segmentation_config, timeout, stop_callback
         )
 
         if full_translation is None:
@@ -781,7 +816,8 @@ class TranslatorLogic:
                 custom_terms=custom_terms,
                 temp_api_keys=temp_keys,
                 retry_on_failure=False,  # No reintentar verificación internamente
-                timeout=timeout
+                timeout=timeout,
+                stop_callback=stop_callback
             )
 
             if not check_passed:
@@ -792,7 +828,7 @@ class TranslatorLogic:
                 retry_translation = self._perform_translation(
                     text, source_lang, target_lang, api_key, provider, model,
                     custom_terms, enable_refine, refine_provider, refine_model, temp_keys,
-                    segmentation_config, timeout
+                    segmentation_config, timeout, stop_callback
                 )
 
                 if retry_translation is None:
@@ -811,11 +847,17 @@ class TranslatorLogic:
                     custom_terms=custom_terms,
                     temp_api_keys=temp_keys,
                     retry_on_failure=False,  # No reintentar verificación internamente
-                    timeout=timeout
+                    timeout=timeout,
+                    stop_callback=stop_callback
                 )
 
                 if not check_passed_retry:
                     session_logger.log_error("La comprobación del reintento también falló. Traducción marcada como fallida.")
+                    return None
+
+                # Verificar si se canceló durante el reintento
+                if stop_callback and stop_callback():
+                    session_logger.log_info("Reintento de traducción cancelado por solicitud del usuario")
                     return None
 
                 # Si el reintento pasa la verificación, usar esa traducción

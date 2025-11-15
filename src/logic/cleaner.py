@@ -82,15 +82,28 @@ class CleanerLogic:
         return lines
 
     def _remove_duplicates(self, lines, search_text):
-        """Elimina contenido duplicado a partir del texto especificado"""
+        """Elimina líneas duplicadas, conservando solo la última occurrence"""
+        if not search_text:
+            return lines
+        
         duplicates = []
         for i, line in enumerate(lines):
             if line.strip().startswith(search_text):
                 duplicates.append(i)
-
-        if len(duplicates) > 1:
-            return lines[duplicates[1]:]
-        return lines
+        
+        if len(duplicates) <= 1:
+            return lines  # No hay duplicados o solo una occurrence
+        
+        # Eliminar todas las líneas duplicadas excepto la última
+        lines_to_remove = duplicates[:-1]  # Todas excepto la última
+        
+        # Crear nueva lista sin las líneas duplicadas (excepto la última)
+        result = []
+        for i, line in enumerate(lines):
+            if i not in lines_to_remove:
+                result.append(line)
+        
+        return result
 
     def _remove_line(self, lines, search_text):
         """Elimina las líneas que comienzan con el texto especificado"""
