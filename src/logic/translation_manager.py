@@ -25,7 +25,9 @@ class TranslationWorker(QObject):
                  check_refine_settings: Optional[Dict] = None,
                  status_callback: Optional[Callable[[str, str], None]] = None,
                  lang_manager = None, temp_api_keys: dict = None,
-                 allow_retranslation: bool = False):
+                 allow_retranslation: bool = False,
+                 segmentation_config: Optional[Dict] = None,
+                 timeout: int = 120):
         super().__init__()
         self.files_to_translate = files_to_translate
         self.working_directory = working_directory
@@ -45,6 +47,8 @@ class TranslationWorker(QObject):
         self.lang_manager = lang_manager
         self.temp_api_keys = temp_api_keys or {}
         self.allow_retranslation = allow_retranslation
+        self.segmentation_config = segmentation_config
+        self.timeout = timeout
         self._stop_requested = False
         self.translator.segment_size = segment_size
 
@@ -56,6 +60,10 @@ class TranslationWorker(QObject):
 
     def stop(self):
         self._stop_requested = True
+
+    def is_stop_requested(self) -> bool:
+        """Retorna True si se ha solicitado detener la traducción"""
+        return self._stop_requested
 
     def run(self):
         try:
@@ -150,7 +158,10 @@ class TranslationWorker(QObject):
                 enable_check=self.enable_check,
                 enable_refine=self.enable_refine,
                 check_refine_settings=self.check_refine_settings,
-                temp_api_keys=self.temp_api_keys
+                temp_api_keys=self.temp_api_keys,
+                segmentation_config=self.segmentation_config,
+                timeout=self.timeout,
+                stop_callback=self.is_stop_requested
             )
 
             if not translated_text:
@@ -159,12 +170,33 @@ class TranslationWorker(QObject):
                 self.error_occurred.emit(error_msg)
                 return False
 
+            # Verificar si se ha solicitado detener antes de guardar archivos
+            if self.is_stop_requested():
+                session_logger.log_info(f"Guardado cancelado para {filename} por solicitud del usuario")
+                return False
+
             # Guardar primero en archivo temporal
             with open(temp_output_path, 'w', encoding='utf-8') as file:
                 file.write(translated_text)
 
+            # Verificar nuevamente antes de mover el archivo final
+            if self.is_stop_requested():
+                session_logger.log_info(f"Guardado final cancelado para {filename} por solicitud del usuario")
+                # Limpiar archivo temporal
+                try:
+                    temp_output_path.unlink()
+                except:
+                    pass
+                return False
+
             # Si todo salió bien, mover el archivo temporal al destino final
             temp_output_path.replace(output_path)
+
+            # Verificar antes de registrar en base de datos
+            if self.is_stop_requested():
+                session_logger.log_info(f"Registro en DB cancelado para {filename} por solicitud del usuario")
+                return False
+
             return True
 
         except Exception as e:
@@ -231,7 +263,9 @@ class TranslationManager(QObject):
                        custom_terms: str = "", segment_size: Optional[int] = None,
                        enable_check: bool = True, enable_refine: bool = False,
                        check_refine_settings: Optional[Dict] = None,
-                       temp_api_keys: dict = None, allow_retranslation: bool = False) -> None:
+                       temp_api_keys: dict = None, allow_retranslation: bool = False,
+                       segmentation_config: Optional[Dict] = None,
+                       timeout: int = 120) -> None:
         """
         Inicia la traducción de archivos.
 
@@ -253,8 +287,7 @@ class TranslationManager(QObject):
                 return
 
         # Guardar términos personalizados
-        if custom_terms.strip():
-            self.db.save_custom_terms(custom_terms)
+        self.db.save_custom_terms(custom_terms)
 
         # Crear y configurar el worker
         self.thread = QThread()
@@ -276,7 +309,9 @@ class TranslationManager(QObject):
             status_callback,  # Pasar el callback de estado
             self.lang_manager,  # Pasar el administrador de idioma
             temp_api_keys,  # Pasar las API keys temporales
-            allow_retranslation  # Pasar el flag de permitir re-traducción
+            allow_retranslation,  # Pasar el flag de permitir re-traducción
+            segmentation_config,  # Pasar config de segmentación
+            timeout  # Pasar timeout
         )
 
         # Mover el worker al thread

@@ -16,20 +16,7 @@ class CleanPanel(QWidget):
         # Main layout
         main_layout = QVBoxLayout()
 
-        # Text section
-        text_layout = QVBoxLayout()
-        text_label = QLabel(self.main_window.lang_manager.get_string("clean_panel.text_label"))
-        self.text_input = QLineEdit()
-        text_layout.addWidget(text_label)
-        text_layout.addWidget(self.text_input)
-
-        # Añadir campo para texto de reemplazo
-        self.replace_input = QLineEdit()
-        self.replace_input.setPlaceholderText(self.main_window.lang_manager.get_string("clean_panel.replace_placeholder"))
-        text_layout.addWidget(QLabel(self.main_window.lang_manager.get_string("clean_panel.replace_label")))
-        text_layout.addWidget(self.replace_input)
-
-        # Task section
+        # Task section (primero)
         task_group = QGroupBox(self.main_window.lang_manager.get_string("clean_panel.task_group"))
         task_layout = QVBoxLayout()
 
@@ -39,6 +26,20 @@ class CleanPanel(QWidget):
         self.task_remove_blanks = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.task_remove_blanks"))
         self.task_search_replace = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.task_search_replace"))
 
+        # Añadir tooltips a cada opción
+        self.task_remove_from_text.setToolTip(self.main_window.lang_manager.get_string("clean_panel.task_remove_from_text.tooltip"))
+        self.task_remove_duplicates.setToolTip(self.main_window.lang_manager.get_string("clean_panel.task_remove_duplicates.tooltip"))
+        self.task_remove_line.setToolTip(self.main_window.lang_manager.get_string("clean_panel.task_remove_line.tooltip"))
+        self.task_remove_blanks.setToolTip(self.main_window.lang_manager.get_string("clean_panel.task_remove_blanks.tooltip"))
+        self.task_search_replace.setToolTip(self.main_window.lang_manager.get_string("clean_panel.task_search_replace.tooltip"))
+
+        # Conectar señales para habilitar/deshabilitar textboxes
+        self.task_remove_from_text.toggled.connect(self._on_task_changed)
+        self.task_remove_duplicates.toggled.connect(self._on_task_changed)
+        self.task_remove_line.toggled.connect(self._on_task_changed)
+        self.task_remove_blanks.toggled.connect(self._on_task_changed)
+        self.task_search_replace.toggled.connect(self._on_task_changed)
+
         task_layout.addWidget(self.task_remove_from_text)
         task_layout.addWidget(self.task_remove_duplicates)
         task_layout.addWidget(self.task_remove_line)
@@ -47,26 +48,56 @@ class CleanPanel(QWidget):
 
         task_group.setLayout(task_layout)
 
-        # Range section
+        # Text section (después de tarea)
+        text_layout = QVBoxLayout()
+        text_label = QLabel(self.main_window.lang_manager.get_string("clean_panel.text_label"))
+        self.text_input = QLineEdit()
+        self.text_input.setEnabled(False)  # Deshabilitado por defecto
+        text_layout.addWidget(text_label)
+        text_layout.addWidget(self.text_input)
+
+        # Añadir campo para texto de reemplazo
+        self.replace_input = QLineEdit()
+        self.replace_input.setPlaceholderText(self.main_window.lang_manager.get_string("clean_panel.replace_placeholder"))
+        self.replace_input.setEnabled(False)  # Deshabilitado por defecto
+        text_layout.addWidget(QLabel(self.main_window.lang_manager.get_string("clean_panel.replace_label")))
+        text_layout.addWidget(self.replace_input)
+
+        # Range section (al final)
         range_group = QGroupBox(self.main_window.lang_manager.get_string("clean_panel.range_group"))
         range_layout = QVBoxLayout()
 
+        # Layout horizontal principal para toda la sección de rango
+        range_row_layout = QHBoxLayout()
+
+        # Radio button "Todos"
         self.range_all = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.range_all"))
         self.range_all.setChecked(True)  # Por defecto seleccionado
+        range_row_layout.addWidget(self.range_all)
 
+        # Layout para "Desde" y "Hasta" en la misma fila
         range_from_layout = QHBoxLayout()
         self.range_from = QRadioButton(self.main_window.lang_manager.get_string("clean_panel.range_from"))
         self.range_from_input = QLineEdit()
+        self.range_from_input.setEnabled(False)  # Deshabilitado por defecto
         range_from_label = QLabel(self.main_window.lang_manager.get_string("clean_panel.range_to"))
         self.range_to_input = QLineEdit()
+        self.range_to_input.setEnabled(False)  # Deshabilitado por defecto
 
         range_from_layout.addWidget(self.range_from)
         range_from_layout.addWidget(self.range_from_input)
         range_from_layout.addWidget(range_from_label)
         range_from_layout.addWidget(self.range_to_input)
 
-        range_layout.addWidget(self.range_all)
-        range_layout.addLayout(range_from_layout)
+        # Conectar señales para habilitar/deshabilitar inputs de rango
+        self.range_all.toggled.connect(self._on_range_changed)
+        self.range_from.toggled.connect(self._on_range_changed)
+
+        # Añadir el layout de "Desde/Hasta" a la fila principal
+        range_row_layout.addLayout(range_from_layout)
+        range_row_layout.addStretch()  # Para empujar el contenido hacia la izquierda
+
+        range_layout.addLayout(range_row_layout)
 
         range_group.setLayout(range_layout)
 
@@ -74,14 +105,46 @@ class CleanPanel(QWidget):
         self.clean_button = QPushButton(self.main_window.lang_manager.get_string("clean_panel.clean_button"))
         self.clean_button.clicked.connect(self.handle_clean)
 
-        # Add all layouts to the main layout
-        main_layout.addLayout(text_layout)
+        # Add all layouts to the main layout (orden: tarea, texto, rango, botón)
         main_layout.addWidget(task_group)
+        main_layout.addLayout(text_layout)
         main_layout.addWidget(range_group)
         main_layout.addWidget(self.clean_button)
         main_layout.addStretch()
 
         self.setLayout(main_layout)
+
+        # Configurar estado inicial de inputs de rango
+        self._on_range_changed()
+
+    def _on_task_changed(self):
+        """Maneja cambios en la selección de tarea para habilitar/deshabilitar textboxes"""
+        # Deshabilitar ambos textboxes por defecto
+        self.text_input.setEnabled(False)
+        self.replace_input.setEnabled(False)
+
+        # Habilitar según la tarea seleccionada
+        if self.task_remove_from_text.isChecked():
+            self.text_input.setEnabled(True)
+        elif self.task_remove_duplicates.isChecked():
+            self.text_input.setEnabled(True)
+        elif self.task_remove_line.isChecked():
+            self.text_input.setEnabled(True)
+        elif self.task_search_replace.isChecked():
+            self.text_input.setEnabled(True)
+            self.replace_input.setEnabled(True)
+        # Para "Eliminar líneas en blanco múltiples" no se habilita ningún textbox
+
+    def _on_range_changed(self):
+        """Maneja cambios en la selección de rango para habilitar/deshabilitar inputs de rango"""
+        # Si está seleccionado "todos", deshabilitar inputs
+        if self.range_all.isChecked():
+            self.range_from_input.setEnabled(False)
+            self.range_to_input.setEnabled(False)
+        # Si está seleccionado "desde", habilitar inputs
+        elif self.range_from.isChecked():
+            self.range_from_input.setEnabled(True)
+            self.range_to_input.setEnabled(True)
 
     def handle_clean(self):
         if not self.main_window.current_directory:
@@ -95,6 +158,15 @@ class CleanPanel(QWidget):
             self.main_window.statusBar().showMessage(
                 self.main_window.lang_manager.get_string("clean_panel.error.no_task"))
             return
+
+        # Validar contenido de textboxes según la tarea seleccionada
+        if mode in ["remove_after", "remove_duplicates", "remove_line", "search_replace"]:
+            if not self.text_input.text().strip():
+                self.main_window.statusBar().showMessage(
+                    self.main_window.lang_manager.get_string("clean_panel.error.no_text"))
+                return
+
+        # Para buscar y reemplazar, el textbox de reemplazo puede estar vacío, solo 'Texto:' es obligatorio
 
         # Obtener rango
         try:
@@ -123,7 +195,7 @@ class CleanPanel(QWidget):
 
         self.main_window.statusBar().showMessage(
             self.main_window.lang_manager.get_string("clean_panel.process_completed").format(
-                processed=processed, modified=modified)
+                modified=modified)
         )
 
     def _get_cleaning_mode(self):

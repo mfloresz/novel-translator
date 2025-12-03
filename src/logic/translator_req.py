@@ -8,7 +8,8 @@ def translate_segment(provider: str,
                       api_key: str,
                       model_config: Dict,
                       prompt: str,
-                      models_config: Dict) -> Optional[str]:
+                      models_config: Dict,
+                      timeout: int = 120) -> Optional[str]:
     """
     Envía el prompt al proveedor seleccionado y maneja la respuesta.
 
@@ -33,9 +34,9 @@ def translate_segment(provider: str,
 
         result = None
         if provider == 'gemini':
-            result = _translate_gemini(provider_config, api_key, model_config, prompt)
+            result = _translate_gemini(provider_config, api_key, model_config, prompt, timeout)
         elif provider in ['hyperbolic', 'chutes', 'mistral']:
-            result = _translate_openai_like(provider_config, api_key, model_config, prompt)
+            result = _translate_openai_like(provider_config, api_key, model_config, prompt, timeout)
         else:
             raise ValueError(f"Proveedor no implementado: {provider}")
 
@@ -51,7 +52,7 @@ def translate_segment(provider: str,
         print(error_msg)
         return None
 
-def _translate_gemini(provider_config: Dict, api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
+def _translate_gemini(provider_config: Dict, api_key: str, model_config: Dict, prompt: str, timeout: int = 120) -> Optional[str]:
     try:
         url = f"{provider_config['base_url']}/{model_config['endpoint']}?key={api_key}"
         headers = {'Content-Type': 'application/json'}
@@ -65,7 +66,7 @@ def _translate_gemini(provider_config: Dict, api_key: str, model_config: Dict, p
                 "temperature": model_config.get('temperature', 0.6)
             }
         }
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, timeout=timeout)
         response.raise_for_status()
         return _process_response(provider_config['type'], response.json(), model_config.get('thinking', False))
     except requests.exceptions.RequestException as e:
@@ -81,7 +82,7 @@ def _translate_gemini(provider_config: Dict, api_key: str, model_config: Dict, p
 
 
 
-def _translate_openai_like(provider_config: Dict, api_key: str, model_config: Dict, prompt: str) -> Optional[str]:
+def _translate_openai_like(provider_config: Dict, api_key: str, model_config: Dict, prompt: str, timeout: int = 120) -> Optional[str]:
     try:
         url = provider_config['base_url']
         headers = {
@@ -98,7 +99,7 @@ def _translate_openai_like(provider_config: Dict, api_key: str, model_config: Di
             "max_tokens": model_config.get('max_tokens', 4096),
             "stream": False
         }
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, timeout=timeout)
         response.raise_for_status()
         return _process_response(provider_config['type'], response.json(), model_config.get('thinking', False))
     except Exception as e:
@@ -161,6 +162,7 @@ def _process_response(provider_type: str, response: Dict, thinking: bool = False
 def _clean_translation(text: str) -> str:
     """
     Limpia el texto recibido del proveedor para eliminar encabezados o texto adicional no deseado.
+    Para modelos thinking, elimina el bloque de pensamiento entre <think> y </think>.
 
     Args:
         text (str): Texto sin procesar
@@ -168,6 +170,13 @@ def _clean_translation(text: str) -> str:
     Returns:
         str: Texto limpio y listo para usar
     """
+    # Remover bloque de pensamiento si existe (para modelos thinking)
+    import re
+    # Remover desde <think> hasta </think> si existe el bloque completo
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    # Si solo hay </think> al final, remover todo antes de él
+    text = re.sub(r'.*?</think>', '', text, flags=re.DOTALL)
+
     lines = text.split('\n')
     actual_translation = []
     translation_started = False

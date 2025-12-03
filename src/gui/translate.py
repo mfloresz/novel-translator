@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt6.QtCore import Qt
 from dotenv import load_dotenv
 from src.logic.translation_manager import TranslationManager
+from src.logic.database import TranslationDatabase
 from src.logic.functions import show_confirmation_dialog, load_preset_terms
 from src.logic.status_manager import STATUS_TRANSLATED, STATUS_ERROR, STATUS_PROCESSING, get_status_text
 from src.gui.prompt_refine_settings import PromptRefineSettingsDialog
@@ -148,6 +149,70 @@ class ApiKeyConfigDialog(QDialog):
     def get_api_key(self):
         return self.api_input.text().strip()
 
+class RangeTranslationDialog(QDialog):
+    def __init__(self, translated_count, total_count, parent=None):
+        super().__init__(parent)
+        self.translated_count = translated_count
+        self.total_count = total_count
+        self.main_window = parent.main_window if parent else None
+        self.result_choice = False  # False = omitir, True = volver a traducir
+        self.init_ui()
+
+    def _get_string(self, key, default_text=""):
+        """Get a localized string from the language manager."""
+        if self.main_window and hasattr(self.main_window, 'lang_manager'):
+            return self.main_window.lang_manager.get_string(key, default_text)
+        return default_text or key
+
+    def init_ui(self):
+        self.setWindowTitle(self._get_string("translate_panel.range_translation_dialog.title", "Capítulos ya traducidos"))
+        self.setModal(True)
+        self.resize(450, 100)
+
+        layout = QVBoxLayout()
+
+        # Mensaje informativo
+        message = self._get_string(
+            "translate_panel.range_translation_dialog.message",
+            "Se encontraron {translated} capítulos ya traducidos de {total} en el rango seleccionado. ¿Qué desea hacer?"
+        ).format(translated=self.translated_count, total=self.total_count)
+
+        info_label = QLabel(message)
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+
+        # Espacio
+        #layout.addStretch()
+
+        # Botones
+        buttons_layout = QHBoxLayout()
+
+        self.omit_button = QPushButton(self._get_string("translate_panel.range_translation_dialog.omit_button", "Omitir"))
+        self.retranslate_button = QPushButton(self._get_string("translate_panel.range_translation_dialog.retranslate_button", "Volver a traducir"))
+
+        self.omit_button.clicked.connect(self.on_omit)
+        self.retranslate_button.clicked.connect(self.on_retranslate)
+
+        buttons_layout.addWidget(self.omit_button)
+        buttons_layout.addWidget(self.retranslate_button)
+
+        layout.addLayout(buttons_layout)
+        self.setLayout(layout)
+
+    def on_omit(self):
+        """El usuario elige omitir los capítulos ya traducidos"""
+        self.result_choice = False
+        self.accept()
+
+    def on_retranslate(self):
+        """El usuario elige volver a traducir todos los capítulos"""
+        self.result_choice = True
+        self.accept()
+
+    def get_result(self):
+        """Retorna True si elige volver a traducir, False si omite"""
+        return self.result_choice
+
 class TranslatePanel(QWidget):
     def __init__(self, main_window):
         super().__init__()
@@ -155,6 +220,8 @@ class TranslatePanel(QWidget):
         self.translation_manager = TranslationManager(main_window.lang_manager)
         self.working_directory = None
         self.session_check_refine_settings = None
+        self.segmentation_config = None
+        self.session_segmentation = None
 
         # Variable para almacenar API keys temporales
         self.temp_api_keys = {}
@@ -171,6 +238,8 @@ class TranslatePanel(QWidget):
 
         # Cargar configuración por defecto
         self.default_config = self._load_default_config()
+        self.segmentation_config = self.default_config.get("auto_segmentation", {"enabled": False, "threshold": 10000, "segment_size": 5000})
+        self.timeout_config = self.default_config.get("timeout", 120)
 
         self.init_ui()
         self.connect_signals()
@@ -274,6 +343,13 @@ class TranslatePanel(QWidget):
         terms_instructions.setWordWrap(True)
         terms_header_layout.addWidget(terms_instructions)
 
+        # Botón para guardar términos personalizados
+        self.save_terms_btn = QPushButton()
+        self.save_terms_btn.setMaximumWidth(30)
+        self.save_terms_btn.setToolTip(self._get_string("translate_panel.save_terms_button.tooltip", "Guardar términos personalizados"))
+        self.save_terms_btn.clicked.connect(self.save_custom_terms)
+        terms_header_layout.addWidget(self.save_terms_btn)
+
         # Botón para copiar símbolo →
         self.copy_arrow_btn = QPushButton(self._get_string("translate_panel.copy_arrow_button"))
         self.copy_arrow_btn.setMaximumWidth(30)
@@ -350,6 +426,9 @@ class TranslatePanel(QWidget):
 
         # Conectar el checkbox de segmentación
         self.segment_checkbox.toggled.connect(self.segment_size_input.setEnabled)
+
+        # Configurar iconos para las pestañas y botones (después de configurar detección de tema)
+        self.set_terms_button_icons()
 
     def _load_default_config(self) -> Dict:
         """Carga la configuración por defecto desde config.json"""
@@ -555,6 +634,7 @@ class TranslatePanel(QWidget):
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.session_check_refine_settings = dialog.get_settings()
+            self.session_segmentation = self.session_check_refine_settings.get("auto_segmentation", None)
             self.main_window.statusBar().showMessage(
                 self._get_string("translate_panel.check_refine_settings_saved_session", "Configuración guardada"), 3000)
 
@@ -661,17 +741,21 @@ class TranslatePanel(QWidget):
         # Obtener términos personalizados
         custom_terms = self.terms_input.toPlainText().strip()
 
-        # Obtener configuración de segmentación
-        segment_size = None  # None = no segmentar
+        # Obtener configuración de segmentación efectiva
+        segment_size = None
+        effective_segmentation = None
         if self.segment_checkbox.isChecked():
             try:
-                segment_size = int(self.segment_size_input.text() or 5000)  # Usa 5000 si está vacío
+                segment_size = int(self.segment_size_input.text() or 5000)
                 if segment_size <= 0:
-                    segment_size = 5000  # Valor por defecto si es negativo
+                    segment_size = 5000
             except ValueError:
                 self.main_window.statusBar().showMessage(
                     self._get_string("translate_panel.error.invalid_segment_size"))
                 return
+            effective_segmentation = None  # Manual disables auto
+        else:
+            effective_segmentation = self.session_segmentation if self.session_segmentation else self.segmentation_config
 
         # Obtener estado de la comprobación
         enable_check = self.check_translation_checkbox.isChecked()
@@ -681,11 +765,6 @@ class TranslatePanel(QWidget):
 
         # Obtener la configuración de comprobación y refinado
         check_refine_settings = self.session_check_refine_settings or self.default_config.get("check_refine_settings")
-
-        # Confirmar la operación
-        if not show_confirmation_dialog(
-                self._get_string("translate_panel.confirmation")):
-            return
 
         # Preparar traducción
         self.translation_manager.initialize(
@@ -715,6 +794,33 @@ class TranslatePanel(QWidget):
                 self._get_string("translate_panel.error.no_files"))
             return
 
+        # Verificar si hay capítulos ya traducidos en el rango
+        db = TranslationDatabase(self.main_window.current_directory)
+        translated_count = 0
+        for file_info in files_to_translate:
+            if db.is_file_translated(file_info['name']):
+                translated_count += 1
+
+        allow_retranslation = False
+        if translated_count > 0:
+            # Mostrar diálogo para preguntar qué hacer con los capítulos ya traducidos
+            dialog = RangeTranslationDialog(translated_count, len(files_to_translate), self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                allow_retranslation = dialog.get_result()
+                if not allow_retranslation:
+                    # Filtrar la lista para omitir los ya traducidos
+                    files_to_translate = [
+                        file_info for file_info in files_to_translate
+                        if not db.is_file_translated(file_info['name'])
+                    ]
+                    if not files_to_translate:
+                        self.main_window.statusBar().showMessage(
+                            self._get_string("translate_panel.range_translation.all_already_translated", "Todos los capítulos en el rango ya están traducidos"))
+                        return
+            else:
+                # Usuario canceló la operación
+                return
+
         # Configurar UI para traducción
         self.translate_button.setEnabled(False)
         self.stop_button.setEnabled(True)
@@ -731,7 +837,10 @@ class TranslatePanel(QWidget):
             enable_check,   # <-- Pasar parámetro para habilitar comprobación
             enable_refine,  # <-- Pasar parámetro para habilitar refinamiento
             check_refine_settings, # <-- Pasar la configuración de comprobación/refinado
-            temp_api_keys=self.temp_api_keys  # <-- Pasar las API keys temporales
+            temp_api_keys=self.temp_api_keys,  # <-- Pasar las API keys temporales
+            allow_retranslation=allow_retranslation,  # <-- Pasar el flag de permitir re-traducción
+            segmentation_config=effective_segmentation,
+            timeout=self.timeout_config  # <-- Pasar el timeout configurado
         )
 
     def stop_translation(self):
@@ -802,7 +911,7 @@ class TranslatePanel(QWidget):
         target_lang = self.target_lang_combo.currentData()
 
         if not source_lang or not target_lang:
-            QMessageBox.warning(self, self._get_string("warning_dialog.title"), 
+            QMessageBox.warning(self, self._get_string("warning_dialog.title"),
                               self._get_string("translate_panel.preset_terms.no_language_selected"))
             return
 
@@ -816,3 +925,35 @@ class TranslatePanel(QWidget):
                 else:
                     new_text = selected_term
                 self.terms_input.setPlainText(new_text)
+
+    def set_segmentation_config(self, config):
+        """Set the segmentation configuration from main.py"""
+        self.segmentation_config = config
+
+    def set_terms_button_icons(self):
+        """Configurar iconos para los botones de términos según el tema del sistema"""
+        try:
+            # Ruta del ícono de guardar
+            save_icon_path = "src/gui/icons/save_2_line.svg"
+            self.save_terms_btn.setIcon(self.main_window.create_themed_icon(save_icon_path))
+        except Exception as e:
+            print(f"Error cargando ícono del botón de guardar términos: {e}")
+
+    def save_custom_terms(self):
+        """Guarda los términos personalizados en la base de datos"""
+        if not self.main_window.current_directory:
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.error.no_directory"))
+            return
+
+        # Obtener términos personalizados del campo de texto
+        custom_terms = self.terms_input.toPlainText()
+
+        # Inicializar la base de datos y guardar términos
+        db = TranslationDatabase(self.main_window.current_directory)
+        if db.save_custom_terms(custom_terms):
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.save_terms_success", "Términos personalizados guardados"), 3000)
+        else:
+            self.main_window.statusBar().showMessage(
+                self._get_string("translate_panel.save_terms_error", "Error al guardar términos personalizados"))

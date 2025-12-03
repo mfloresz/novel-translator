@@ -140,6 +140,21 @@ class SessionLogger:
         """Retorna la ruta del archivo de log"""
         return self.log_file_path
 
+    def clear_log(self) -> None:
+        """Limpia el contenido del archivo de log, manteniendo el encabezado"""
+        if not self.log_file_path:
+            return
+
+        try:
+            # Recrear el archivo con el encabezado
+            with open(self.log_file_path, 'w', encoding='utf-8') as f:
+                f.write(f"=== Novel Translator Session Log ===\n")
+                f.write(f"Sesión iniciada: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Archivo de log: {self.log_file_path}\n")
+                f.write("=" * 50 + "\n\n")
+        except Exception as e:
+            print(f"Error limpiando archivo de log: {e}")
+
     def cleanup(self) -> None:
         """Limpia el archivo de log al cerrar la aplicación"""
         if self.log_file_path and os.path.exists(self.log_file_path):

@@ -43,7 +43,9 @@ class CleanerLogic:
         """Limpia un archivo según el modo especificado"""
         try:
             with open(input_path, 'r', encoding='utf-8') as file:
-                lines = file.readlines()
+                original_lines = file.readlines()
+
+            lines = original_lines.copy()
 
             # Eliminar líneas en blanco al inicio
             while lines and not lines[0].strip():
@@ -60,9 +62,13 @@ class CleanerLogic:
             while lines and not lines[-1].strip():
                 lines.pop()
 
+            # Verificar si el contenido cambió
+            if lines == original_lines:
+                return False  # No hubo cambios
+
             with open(output_path, 'w', encoding='utf-8') as file:
                 file.writelines(lines)
-            return True
+            return True  # Hubo cambios
 
         except Exception as e:
             print(f"Error processing {input_path}: {str(e)}")
@@ -76,15 +82,28 @@ class CleanerLogic:
         return lines
 
     def _remove_duplicates(self, lines, search_text):
-        """Elimina contenido duplicado a partir del texto especificado"""
+        """Elimina líneas duplicadas, conservando solo la última occurrence"""
+        if not search_text:
+            return lines
+        
         duplicates = []
         for i, line in enumerate(lines):
             if line.strip().startswith(search_text):
                 duplicates.append(i)
-
-        if len(duplicates) > 1:
-            return lines[duplicates[1]:]
-        return lines
+        
+        if len(duplicates) <= 1:
+            return lines  # No hay duplicados o solo una occurrence
+        
+        # Eliminar todas las líneas duplicadas excepto la última
+        lines_to_remove = duplicates[:-1]  # Todas excepto la última
+        
+        # Crear nueva lista sin las líneas duplicadas (excepto la última)
+        result = []
+        for i, line in enumerate(lines):
+            if i not in lines_to_remove:
+                result.append(line)
+        
+        return result
 
     def _remove_line(self, lines, search_text):
         """Elimina las líneas que comienzan con el texto especificado"""

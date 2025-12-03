@@ -3,7 +3,7 @@ import json
 import os
 import re
 from dotenv import load_dotenv
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Callable
 from pathlib import Path
 from src.logic import translator_req
 from src.logic.session_logger import session_logger
@@ -117,13 +117,13 @@ class TranslatorLogic:
     def _segment_text(self, text: str) -> List[str]:
         """
         Segmenta el texto en partes manejables basadas en un tamaño objetivo,
-        respetando oraciones y párrafos.
+        respetando oraciones y párrafos usando búsqueda hacia atrás inteligente.
 
         Args:
             text (str): Texto completo a segmentar
 
         Returns:
-            List[str]: Lista de segmentos de texto
+            List[str]: Lista de segmentos de texto con cortes naturales
         """
         if self.segment_size is None:
             return [text]
@@ -134,58 +134,192 @@ class TranslatorLogic:
         # Normalizar saltos de línea
         text = text.replace('\r\n', '\n')
 
-        # Definir marcadores de fin de oración
-        sentence_endings = [
-            '. ', '? ', '! ',
-            '] ', '] \n', ']\n',
-            '..." ', '..." \n',
-            '…” ', '…” \n',
-            '" ', '" \n',
-            '."', '?"', '!"',
-            '." ', '?" ', '!" '
-        ]
-
         while current_position < len(text):
+            # Calcular posición objetivo (guía, no corte fijo)
             target_position = min(current_position + self.segment_size, len(text))
-            best_end_pos = -1
-            search_position = target_position
 
-            while search_position < len(text):
-                next_end = -1
-                for ending in sentence_endings:
-                    pos = text.find(ending, search_position)
-                    if pos != -1 and (next_end == -1 or pos < next_end):
-                        next_end = pos + len(ending)
+            # Buscar punto de corte óptimo hacia atrás desde el objetivo
+            cut_position = self._find_optimal_cut_point(text, target_position)
 
-                if next_end == -1:
-                    break
+            # Validar que el corte sea razonable
+            if cut_position <= current_position:
+                # Fallback: cortar por palabras completas si no hay corte natural
+                cut_position = self._find_word_boundary(text, target_position)
 
-                end_pos = next_end
-                while end_pos < len(text) and text[end_pos].isspace():
-                    if end_pos + 1 < len(text) and text[end_pos:end_pos+2] == '\n\n':
-                        best_end_pos = end_pos + 2
-                        break
-                    end_pos += 1
-
-                if best_end_pos != -1:
-                    break
-
-                search_position = next_end
-
-                if search_position > current_position + (self.segment_size * 1.5):
-                    best_end_pos = next_end
-                    break
-
-            if best_end_pos == -1:
-                best_end_pos = len(text)
-
-            segment_text = text[current_position:best_end_pos].strip()
+            segment_text = text[current_position:cut_position]
             if segment_text:
                 segments.append(segment_text)
 
-            current_position = best_end_pos
+            current_position = cut_position
 
         return segments
+
+    def _find_optimal_cut_point(self, text: str, target_position: int) -> int:
+        """
+        Busca hacia atrás desde la posición objetivo para encontrar
+        el mejor punto de corte natural respetando oraciones completas.
+
+        Args:
+            text (str): Texto completo
+            target_position (int): Posición objetivo desde donde buscar hacia atrás
+
+        Returns:
+            int: Posición del mejor punto de corte encontrado
+        """
+        # Si estamos cerca del final, devolver todo el texto restante
+        if target_position >= len(text) - 100:
+            return len(text)
+
+        # Definir jerarquía de puntos de corte naturales (ordenados por prioridad)
+        CUT_POINTS = [
+            ("\n\n", 10.0),      # Párrafo doble - corte ideal
+            (".\n", 9.5),        # Punto al final de línea
+            ("?\n", 9.5),        # Interrogación al final de línea
+            ("!\n", 9.5),        # Exclamación al final de línea
+            (". ", 9.0),         # Punto con espacio
+            ("? ", 9.0),         # Interrogación con espacio
+            ("! ", 9.0),         # Exclamación con espacio
+            ("\n", 7.0),         # Nueva línea simple
+            (".", 6.0),          # Punto sin espacio (menos ideal)
+            ("?", 6.0),          # Interrogación sin espacio
+            ("!", 6.0),          # Exclamación sin espacio
+            ("; ", 4.0),         # Punto y coma
+            (": ", 3.0),         # Dos puntos
+            (", ", 2.0),         # Coma
+        ]
+
+        best_position = target_position
+        best_score = 0
+        search_start = max(0, target_position - 500)  # Buscar hasta 500 chars atrás
+
+        # Buscar hacia atrás desde la posición objetivo
+        for pos in range(target_position, search_start, -1):
+            for cut_pattern, base_priority in CUT_POINTS:
+                if text[pos:pos + len(cut_pattern)] == cut_pattern:
+                    # Calcular puntuación basada en cercanía al objetivo
+                    distance = abs(target_position - pos)
+                    # Más cerca = mejor puntuación
+                    proximity_bonus = 1 - (distance / 500)
+                    score = base_priority * proximity_bonus
+
+                    if score > best_score:
+                        best_score = score
+                        best_position = pos + len(cut_pattern)
+
+        return best_position
+
+    def _find_word_boundary(self, text: str, target_position: int) -> int:
+        """
+        Busca el límite de palabra más cercano hacia atrás desde la posición objetivo.
+        Método fallback cuando no se encuentran puntos de corte naturales.
+
+        Args:
+            text (str): Texto completo
+            target_position (int): Posición objetivo
+
+        Returns:
+            int: Posición del límite de palabra encontrado
+        """
+        # Buscar hacia atrás hasta encontrar un espacio
+        pos = target_position
+        while pos > 0 and not text[pos].isspace():
+            pos -= 1
+
+        # Si encontramos un espacio, devolver esa posición
+        if pos > 0:
+            return pos
+
+        # Si no encontramos espacio (texto muy largo sin espacios), cortar en objetivo
+        return target_position
+
+    def _validate_segment_integrity(self, segments: List[str], original_text: str) -> Dict:
+        """
+        Valida la integridad de los segmentos creados.
+
+        Args:
+            segments (List[str]): Lista de segmentos creados
+            original_text (str): Texto original para comparación
+
+        Returns:
+            Dict: Reporte de validación con métricas y problemas encontrados
+        """
+        validation_report = {
+            'total_segments': len(segments),
+            'natural_cuts': 0,
+            'word_boundary_cuts': 0,
+            'forced_cuts': 0,
+            'issues': [],
+            'warnings': []
+        }
+
+        # Verificar cada segmento
+        for i, segment in enumerate(segments):
+            if not segment.strip():
+                validation_report['issues'].append(f"Segmento {i+1}: vacío")
+                continue
+
+            # Verificar tipo de corte (si termina naturalmente)
+            last_chars = segment[-10:] if len(segment) >= 10 else segment
+
+            if last_chars.endswith(('. ', '? ', '! ', '.\n', '?\n', '!\n', '\n\n')):
+                validation_report['natural_cuts'] += 1
+            elif last_chars.rstrip().endswith(('.', '?', '!')):
+                validation_report['word_boundary_cuts'] += 1
+            else:
+                validation_report['forced_cuts'] += 1
+                validation_report['warnings'].append(
+                    f"Segmento {i+1}: corte no natural en '{last_chars}'"
+                )
+
+        # Calcular estadísticas
+        total_cuts = validation_report['natural_cuts'] + validation_report['word_boundary_cuts'] + validation_report['forced_cuts']
+        if total_cuts > 0:
+            validation_report['natural_cut_percentage'] = (validation_report['natural_cuts'] / total_cuts) * 100
+        else:
+            validation_report['natural_cut_percentage'] = 0
+
+        return validation_report
+
+    def _verify_segmentation_integrity(self, segments: List[str], original_text: str) -> bool:
+        """
+        Verifica que la segmentación no haya causado pérdida de contenido.
+
+        Args:
+            segments (List[str]): Lista de segmentos creados
+            original_text (str): Texto original para comparación
+
+        Returns:
+            bool: True si la reconstrucción es idéntica al original, False si hay diferencias
+        """
+        # Reconstruir el texto uniendo los segmentos sin separadores
+        reconstructed_text = ''.join(segments)
+
+        # Comparar exactamente con el texto original
+        if reconstructed_text == original_text:
+            return True
+        else:
+            # Loggear detalles del error
+            original_len = len(original_text)
+            reconstructed_len = len(reconstructed_text)
+
+            session_logger.log_error(
+                f"Segmentación corrupta: longitud original {original_len}, reconstruida {reconstructed_len}"
+            )
+
+            # Mostrar primeras diferencias si son pequeñas
+            if abs(original_len - reconstructed_len) <= 100:
+                min_len = min(original_len, reconstructed_len)
+                for i in range(min_len):
+                    if original_text[i] != reconstructed_text[i]:
+                        session_logger.log_error(
+                            f"Primera diferencia en posición {i}: "
+                            f"original='{original_text[i]}' vs reconstruido='{reconstructed_text[i]}'"
+                        )
+                        break
+            else:
+                session_logger.log_error("Diferencia demasiado grande para mostrar detalles")
+
+            return False
 
     def _build_check_prompt(self, source_lang: str, target_lang: str,
                             original_text: str, translated_text: str,
@@ -252,9 +386,10 @@ class TranslatorLogic:
         return os.getenv(env_var_name, "")
 
     def _check_translation(self, original_text: str, translated_text: str,
-                            source_lang: str, target_lang: str,
-                            main_api_key: str, check_provider: str, check_model: str,
-                            custom_terms: str = "", temp_api_keys: dict = None, retry_on_failure: bool = True) -> bool:
+                             source_lang: str, target_lang: str,
+                             main_api_key: str, check_provider: str, check_model: str,
+                             custom_terms: str = "", temp_api_keys: dict = None, retry_on_failure: bool = True, timeout: int = 120,
+                             stop_callback: Optional[Callable[[], bool]] = None) -> bool:
         """
         Comprueba la calidad de la traducción usando la API.
 
@@ -303,7 +438,8 @@ class TranslatorLogic:
                 api_key,
                 model_config,
                 prompt,
-                self.models_config
+                self.models_config,
+                timeout
             )
 
         def _parse_check_response(response: str) -> (bool, Optional[str]):
@@ -325,6 +461,11 @@ class TranslatorLogic:
                 return False, f"Respuesta inesperada: {response}"
 
         try:
+            # Verificar si se ha solicitado detener antes de hacer la llamada API
+            if stop_callback and stop_callback():
+                session_logger.log_info("Comprobación cancelada por solicitud del usuario")
+                return False
+
             response = query_model()
             if response is None:
                 session_logger.log_error("Error en la comprobación de la traducción (respuesta nula)")
@@ -341,6 +482,12 @@ class TranslatorLogic:
 
                 # Reintentar una vez
                 time.sleep(5)
+
+                # Verificar nuevamente si se ha solicitado detener antes del reintento
+                if stop_callback and stop_callback():
+                    session_logger.log_info("Reintento de comprobación cancelado por solicitud del usuario")
+                    return False
+
                 response_retry = query_model()
                 if response_retry is None:
                     session_logger.log_error("Error en la comprobación de la traducción (reintento respuesta nula)")
@@ -365,9 +512,10 @@ class TranslatorLogic:
             return False
 
     def _refine_translation(self, source_text: str, translated_text: str,
-                           source_lang: str, target_lang: str,
-                           main_api_key: str, refine_provider: str, refine_model: str,
-                           custom_terms: str = "", temp_api_keys: dict = None) -> Optional[str]:
+                             source_lang: str, target_lang: str,
+                             main_api_key: str, refine_provider: str, refine_model: str,
+                             custom_terms: str = "", temp_api_keys: dict = None, timeout: int = 120,
+                             stop_callback: Optional[Callable[[], bool]] = None) -> Optional[str]:
         """
         Refina la traducción usando la API.
 
@@ -409,13 +557,19 @@ class TranslatorLogic:
             return None
 
         try:
+            # Verificar si se ha solicitado detener antes de hacer la llamada API
+            if stop_callback and stop_callback():
+                session_logger.log_info("Refinamiento cancelado por solicitud del usuario")
+                return None
+
             response = translator_req.translate_segment(
                 refine_provider,
                 "",  # texto ya incluido en prompt, pasar vacío para evitar doble agregado
                 api_key,
                 model_config,
                 prompt,
-                self.models_config
+                self.models_config,
+                timeout
             )
 
             if response is None:
@@ -429,13 +583,14 @@ class TranslatorLogic:
             return None
 
     def _perform_translation(self, text: str, source_lang: str, target_lang: str,
-                            api_key: str, provider: str, model: str,
-                            custom_terms: str, enable_refine: bool,
-                            refine_provider: str, refine_model: str,
-                            temp_api_keys: dict) -> Optional[str]:
+                              api_key: str, provider: str, model: str,
+                              custom_terms: str, enable_refine: bool,
+                              refine_provider: str, refine_model: str,
+                              temp_api_keys: dict, segmentation_config: Optional[Dict] = None,
+                              timeout: int = 120, stop_callback: Optional[Callable[[], bool]] = None) -> Optional[str]:
         """
         Realiza la traducción completa del texto: segmentación, traducción y refinamiento opcional.
-
+ 
         Args:
             text (str): Texto a traducir
             source_lang (str): Idioma de origen
@@ -448,7 +603,7 @@ class TranslatorLogic:
             refine_provider (str): Proveedor para refinamiento
             refine_model (str): Modelo para refinamiento
             temp_api_keys (dict): Diccionario de API keys temporales
-
+            segmentation_config (Optional[Dict]): Configuración de segmentación automática
         Returns:
             Optional[str]: Texto traducido completo, None si hay error
         """
@@ -461,12 +616,60 @@ class TranslatorLogic:
             if not model_config:
                 raise ValueError(f"Modelo no soportado: {model}")
 
-            # Segmentar el texto
+            # Auto-segmentation logic
+            local_segment_size = self.segment_size  # Preserve manual if set
+            auto_activated = False
+            if segmentation_config and segmentation_config.get("enabled", False):
+                threshold = segmentation_config.get("threshold", 10000)
+                if len(text) > threshold:
+                    local_segment_size = segmentation_config.get("segment_size", 5000)
+                    auto_activated = True
+                    session_logger.log_info(f"Auto-segmentation activated: text length {len(text)} > {threshold}, using segment size {local_segment_size}")
+
+            if not auto_activated:
+                if self.segment_size is not None:
+                    session_logger.log_info(f"Using manual segmentation with size {local_segment_size}")
+                else:
+                    session_logger.log_info("No segmentation applied - translating full text")
+                    local_segment_size = None
+
+            # Temporarily set segment_size for this translation
+            original_segment_size = self.segment_size
+            self.segment_size = local_segment_size
             segments = self._segment_text(text)
+            self.segment_size = original_segment_size  # Restore original
+
+            # Verificar integridad de segmentación solo cuando auto-segmentación esté activada
+            if auto_activated and not self._verify_segmentation_integrity(segments, text):
+                session_logger.log_error("Segmentación automática falló verificación de integridad - abortando traducción")
+                return None
+
+            if local_segment_size is not None:
+                # Validar integridad de los segmentos creados
+                validation_report = self._validate_segment_integrity(segments, text)
+
+                # Log de métricas de segmentación
+                session_logger.log_info(
+                    f"Segmentación completada: {validation_report['total_segments']} segmentos, "
+                    f"{validation_report['natural_cut_percentage']:.1f}% cortes naturales"
+                )
+
+                # Log de advertencias si hay cortes no naturales
+                if validation_report['warnings']:
+                    for warning in validation_report['warnings'][:3]:  # Solo primeras 3
+                        session_logger.log_warning(f"Segmentación: {warning}")
+            else:
+                session_logger.log_info("Segmentación deshabilitada - traduciendo texto completo")
+
             translated_segments = []
 
             # Traducir cada segmento
             for i, segment in enumerate(segments, 1):
+                # Verificar si se ha solicitado detener antes de procesar segmento
+                if stop_callback and stop_callback():
+                    session_logger.log_info(f"Traducción cancelada en segmento {i} por solicitud del usuario")
+                    return None
+
                 session_logger.log_info(f"Traduciendo segmento {i} de {len(segments)} con {provider}/{model}")
 
                 # Construir prompt base con reemplazo de etiquetas
@@ -477,6 +680,11 @@ class TranslatorLogic:
                 # Reemplazar la etiqueta {text_to_translate} con el segmento actual
                 prompt = prompt.replace("{text_to_translate}", segment)
 
+                # Verificar nuevamente antes de llamada API
+                if stop_callback and stop_callback():
+                    session_logger.log_info(f"Traducción cancelada antes de llamada API en segmento {i}")
+                    return None
+
                 # Delegar la petición al módulo translator_req
                 translated_segment = translator_req.translate_segment(
                     provider,
@@ -484,7 +692,8 @@ class TranslatorLogic:
                     api_key,
                     model_config,
                     prompt,
-                    self.models_config
+                    self.models_config,
+                    timeout
                 )
 
                 if translated_segment is None:
@@ -493,6 +702,11 @@ class TranslatorLogic:
 
                 # Si enable_refine está habilitado, refinar la traducción del segmento
                 if enable_refine:
+                    # Verificar antes de refinamiento
+                    if stop_callback and stop_callback():
+                        session_logger.log_info(f"Refinamiento cancelado en segmento {i} por solicitud del usuario")
+                        return None
+
                     session_logger.log_info(f"Refinando segmento {i} de {len(segments)}")
                     refined_segment = self._refine_translation(
                         source_text=segment,
@@ -503,7 +717,9 @@ class TranslatorLogic:
                         refine_provider=refine_provider,
                         refine_model=refine_model,
                         custom_terms=custom_terms,
-                        temp_api_keys=temp_api_keys
+                        temp_api_keys=temp_api_keys,
+                        timeout=timeout,
+                        stop_callback=stop_callback
                     )
 
                     if refined_segment is not None:
@@ -529,11 +745,13 @@ class TranslatorLogic:
             return None
 
     def translate_text(self, text: str, source_lang: str, target_lang: str,
-                       api_key: str, provider: str, model: str,
-                       custom_terms: str = "", enable_check: bool = True,
-                       enable_refine: bool = False,
-                       check_refine_settings: Optional[Dict] = None,
-                       temp_api_keys: dict = None) -> Optional[str]:
+                        api_key: str, provider: str, model: str,
+                        custom_terms: str = "", enable_check: bool = True,
+                        enable_refine: bool = False,
+                        check_refine_settings: Optional[Dict] = None,
+                        segmentation_config: Optional[Dict] = None,
+                        temp_api_keys: dict = None, timeout: int = 120,
+                        stop_callback: Optional[Callable[[], bool]] = None) -> Optional[str]:
         """
         Traduce el texto utilizando el proveedor y modelo especificados.
 
@@ -578,7 +796,8 @@ class TranslatorLogic:
         session_logger.log_info("Iniciando traducción inicial")
         full_translation = self._perform_translation(
             text, source_lang, target_lang, api_key, provider, model,
-            custom_terms, enable_refine, refine_provider, refine_model, temp_keys
+            custom_terms, enable_refine, refine_provider, refine_model, temp_keys,
+            segmentation_config, timeout, stop_callback
         )
 
         if full_translation is None:
@@ -596,7 +815,9 @@ class TranslatorLogic:
                 check_model=check_model,
                 custom_terms=custom_terms,
                 temp_api_keys=temp_keys,
-                retry_on_failure=False  # No reintentar verificación internamente
+                retry_on_failure=False,  # No reintentar verificación internamente
+                timeout=timeout,
+                stop_callback=stop_callback
             )
 
             if not check_passed:
@@ -606,7 +827,8 @@ class TranslatorLogic:
                 session_logger.log_info("Iniciando reintento de traducción")
                 retry_translation = self._perform_translation(
                     text, source_lang, target_lang, api_key, provider, model,
-                    custom_terms, enable_refine, refine_provider, refine_model, temp_keys
+                    custom_terms, enable_refine, refine_provider, refine_model, temp_keys,
+                    segmentation_config, timeout, stop_callback
                 )
 
                 if retry_translation is None:
@@ -624,11 +846,18 @@ class TranslatorLogic:
                     check_model=check_model,
                     custom_terms=custom_terms,
                     temp_api_keys=temp_keys,
-                    retry_on_failure=False  # No reintentar verificación internamente
+                    retry_on_failure=False,  # No reintentar verificación internamente
+                    timeout=timeout,
+                    stop_callback=stop_callback
                 )
 
                 if not check_passed_retry:
                     session_logger.log_error("La comprobación del reintento también falló. Traducción marcada como fallida.")
+                    return None
+
+                # Verificar si se canceló durante el reintento
+                if stop_callback and stop_callback():
+                    session_logger.log_info("Reintento de traducción cancelado por solicitud del usuario")
                     return None
 
                 # Si el reintento pasa la verificación, usar esa traducción

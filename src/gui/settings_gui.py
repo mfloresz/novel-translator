@@ -5,7 +5,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                             QComboBox, QPushButton, QGroupBox, QMessageBox,
                             QFormLayout, QLineEdit, QTableWidget, QTableWidgetItem,
-                            QHeaderView, QRadioButton)
+                            QHeaderView, QRadioButton, QSpinBox, QWidget)
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices
 from typing import Dict, Any, Optional
@@ -102,7 +102,7 @@ class SettingsDialog(QDialog):
     def init_ui(self):
         self.setWindowTitle(self._get_string("settings_dialog.title"))
         self.setModal(True)
-        self.resize(800, 700)
+        self.resize(800, 600)
         
         main_layout = QVBoxLayout()
         
@@ -125,15 +125,20 @@ class SettingsDialog(QDialog):
         library_layout = QFormLayout()
         self.library_path_label = QLabel()
         self.library_path_label.setWordWrap(True)
+        self.library_path_label.setMinimumWidth(400)
         self.library_path_label.setToolTip(self._get_string("settings_dialog.library_path_tooltip", "Ruta actual de la biblioteca"))
         self.select_library_button = QPushButton(self._get_string("settings_dialog.select_library_button", "Seleccionar Biblioteca"))
         self.select_library_button.clicked.connect(self.select_library_directory)
-        library_layout.addRow(self._get_string("settings_dialog.library_path_label", "Directorio de Biblioteca:"), self.library_path_label)
+        library_layout.addRow(self._get_string("settings_dialog.library_path_label", "Ubicación:"), self.library_path_label)
         library_layout.addRow("", self.select_library_button)
         library_group.setLayout(library_layout)
         left_column.addWidget(library_group)
         
-        # Translation settings group
+        # Create two columns for Translation and Check/Refine settings
+        translation_columns_layout = QHBoxLayout()
+
+        # Left sub-column: Translation settings
+        translation_left_column = QVBoxLayout()
         translation_group = QGroupBox(self._get_string("settings_dialog.translation_group"))
         translation_layout = QFormLayout()
         self.provider_combo = QComboBox()
@@ -153,18 +158,16 @@ class SettingsDialog(QDialog):
         translation_layout.addRow(self._get_string("settings_dialog.target_language_label"), self.target_lang_combo)
         
         translation_group.setLayout(translation_layout)
-        left_column.addWidget(translation_group)
+        translation_left_column.addWidget(translation_group)
+        translation_left_column.addStretch()
 
-        # Check and Refine Settings Group
+        # Right sub-column: Check and Refine Settings
+        translation_right_column = QVBoxLayout()
         check_refine_group = QGroupBox(self._get_string("settings_dialog.check_refine_group"))
-        check_refine_layout = QHBoxLayout()
+        check_refine_layout = QVBoxLayout()
 
-        radio_button_layout = QVBoxLayout()
         self.check_refine_use_same_model_radio = QRadioButton(self._get_string("check_refine_settings_dialog.use_same_model"))
         self.check_refine_use_separate_model_radio = QRadioButton(self._get_string("check_refine_settings_dialog.use_separate_model"))
-        radio_button_layout.addWidget(self.check_refine_use_same_model_radio)
-        radio_button_layout.addWidget(self.check_refine_use_separate_model_radio)
-        radio_button_layout.addStretch()
 
         self.check_refine_model_group = QGroupBox()
         check_refine_model_layout = QFormLayout()
@@ -174,11 +177,88 @@ class SettingsDialog(QDialog):
         check_refine_model_layout.addRow(self._get_string("check_refine_settings_dialog.model_label"), self.check_refine_model_combo)
         self.check_refine_model_group.setLayout(check_refine_model_layout)
 
-        check_refine_layout.addLayout(radio_button_layout)
+        check_refine_layout.addWidget(self.check_refine_use_same_model_radio)
+        check_refine_layout.addWidget(self.check_refine_use_separate_model_radio)
         check_refine_layout.addWidget(self.check_refine_model_group)
+        check_refine_layout.addStretch()
         check_refine_group.setLayout(check_refine_layout)
-        left_column.addWidget(check_refine_group)
-        
+        translation_right_column.addWidget(check_refine_group)
+        translation_right_column.addStretch()
+
+        # Add sub-columns to the translation columns layout
+        translation_columns_layout.addLayout(translation_left_column)
+        translation_columns_layout.addLayout(translation_right_column)
+
+        # Add the translation columns to left_column
+        left_column.addLayout(translation_columns_layout)
+
+        # Create two columns for Segmentation and Timeout settings
+        segmentation_timeout_columns_layout = QHBoxLayout()
+
+        # Left sub-column: Segmentation settings
+        segmentation_left_column = QVBoxLayout()
+        segmentation_group = QGroupBox(self._get_string("settings_dialog.segmentation_group"))
+        segmentation_layout = QVBoxLayout()
+
+        # Radio buttons for auto-segmentation
+        radio_layout = QVBoxLayout()
+        self.no_auto_segmentation_radio = QRadioButton(self._get_string("settings_dialog.no_auto_segmentation"))
+        self.auto_segmentation_radio = QRadioButton(self._get_string("settings_dialog.auto_segmentation_label"))
+        radio_layout.addWidget(self.no_auto_segmentation_radio)
+        radio_layout.addWidget(self.auto_segmentation_radio)
+        segmentation_layout.addLayout(radio_layout)
+
+        # Threshold and segment size inputs (initially hidden)
+        inputs_layout = QFormLayout()
+        self.threshold_spinbox = QSpinBox()
+        self.threshold_spinbox.setMinimum(1)
+        self.threshold_spinbox.setMaximum(100000)
+        self.threshold_spinbox.setValue(10000)
+        self.threshold_spinbox.setSuffix(" caracteres")
+        inputs_layout.addRow(self._get_string("settings_dialog.auto_segmentation_enabled"), self.threshold_spinbox)
+
+        self.segment_size_spinbox = QSpinBox()
+        self.segment_size_spinbox.setMinimum(100)
+        self.segment_size_spinbox.setMaximum(10000)
+        self.segment_size_spinbox.setValue(5000)
+        self.segment_size_spinbox.setSuffix(" caracteres")
+        inputs_layout.addRow(self._get_string("settings_dialog.segment_size_label"), self.segment_size_spinbox)
+
+        self.inputs_widget = QWidget()
+        self.inputs_widget.setLayout(inputs_layout)
+        segmentation_layout.addWidget(self.inputs_widget)
+        segmentation_layout.addStretch()
+
+        segmentation_group.setLayout(segmentation_layout)
+        segmentation_left_column.addWidget(segmentation_group)
+        segmentation_left_column.addStretch()
+
+        # Right sub-column: Timeout settings
+        timeout_right_column = QVBoxLayout()
+        timeout_group = QGroupBox(self._get_string("settings_dialog.timeout_group", "Tiempo de Espera"))
+        timeout_layout = QFormLayout()
+        self.timeout_spinbox = QSpinBox()
+        self.timeout_spinbox.setMinimum(30)
+        self.timeout_spinbox.setMaximum(600)
+        self.timeout_spinbox.setValue(120)
+        self.timeout_spinbox.setSuffix(" segundos")
+        self.timeout_spinbox.setToolTip(self._get_string("settings_dialog.timeout_tooltip", "Tiempo máximo de espera para respuestas de traducción (30-600 segundos)"))
+        timeout_layout.addRow(self._get_string("settings_dialog.timeout_label", "Timeout:"), self.timeout_spinbox)
+        timeout_group.setLayout(timeout_layout)
+        timeout_right_column.addWidget(timeout_group)
+        timeout_right_column.addStretch()
+
+        # Add sub-columns to the segmentation/timeout columns layout
+        segmentation_timeout_columns_layout.addLayout(segmentation_left_column)
+        segmentation_timeout_columns_layout.addLayout(timeout_right_column)
+
+        # Add the segmentation/timeout columns to left_column
+        left_column.addLayout(segmentation_timeout_columns_layout)
+
+        # Connect radio buttons to toggle inputs
+        self.auto_segmentation_radio.toggled.connect(lambda checked: self.inputs_widget.setEnabled(checked))
+        self.no_auto_segmentation_radio.toggled.connect(lambda checked: self.inputs_widget.setEnabled(not checked))
+
         # Right column
         right_column = QVBoxLayout()
         
@@ -346,6 +426,25 @@ class SettingsDialog(QDialog):
             self.check_refine_model_combo.setCurrentIndex(model_index)
 
         self.toggle_check_refine_model_selection(self.check_refine_use_same_model_radio.isChecked())
+
+        # Set initial state for segmentation inputs (default to no auto-segmentation)
+        self.no_auto_segmentation_radio.setChecked(True)
+        self.inputs_widget.setEnabled(False)
+
+        # Load default segmentation settings
+        segmentation_config = self.current_config.get("auto_segmentation", {"enabled": False, "threshold": 10000, "segment_size": 5000})
+        if segmentation_config["enabled"]:
+            self.auto_segmentation_radio.setChecked(True)
+            self.threshold_spinbox.setValue(segmentation_config["threshold"])
+            self.segment_size_spinbox.setValue(segmentation_config["segment_size"])
+            self.inputs_widget.setEnabled(True)
+        else:
+            self.no_auto_segmentation_radio.setChecked(True)
+            self.inputs_widget.setEnabled(False)
+
+        # Load timeout setting
+        timeout_value = self.current_config.get("timeout", 120)
+        self.timeout_spinbox.setValue(timeout_value)
 
     def load_languages_combos(self):
         self.source_lang_combo.clear()
@@ -556,7 +655,17 @@ class SettingsDialog(QDialog):
             "provider": self.check_refine_provider_combo.currentData(),
             "model": self.check_refine_model_combo.currentData()
         }
-        
+
+        # Save default segmentation settings
+        auto_segmentation = {
+            "enabled": self.auto_segmentation_radio.isChecked(),
+            "threshold": self.threshold_spinbox.value(),
+            "segment_size": self.segment_size_spinbox.value()
+        }
+
+        # Save timeout setting
+        timeout_value = self.timeout_spinbox.value()
+
         new_config = {
             "default_directory": self.current_config.get("default_directory", os.path.expanduser("~")),
             "last_used_directories": self.current_config.get("last_used_directories", []),
@@ -565,7 +674,9 @@ class SettingsDialog(QDialog):
             "source_language": source_lang,
             "target_language": target_lang,
             "ui_language": ui_language,
-            "check_refine_settings": check_refine_settings
+            "check_refine_settings": check_refine_settings,
+            "auto_segmentation": auto_segmentation,
+            "timeout": timeout_value
         }
         
         try:
