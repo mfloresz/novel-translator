@@ -15,7 +15,7 @@ La siguiente lista define cómo traducir términos específicos: `[Inglés] → 
 </input_data>
 
 <workflow>
-  <step1>Limpieza: Elimina anuncios, metadatos y contenido no narrativo del texto original</step1>
+  <step1>Limpieza: Elimina anuncios, metadatos y contenido no narrativo del texto original. Une oraciones fragmentadas en múltiples líneas en una sola línea continua para facilitar la lectura.</step1>
   <step2>Corrección: Corrige errores ortográficos o gramaticales evidentes en el texto original en inglés si es necesario para comprenderlo</step2>
   <step3>Traducción: Elabora un borrador natural aplicando todas las reglas establecidas</step3>
   <step4>Revisión: Verifica gramática, coherencia, terminología y fluidez en el texto traducido</step4>
