@@ -340,5 +340,11 @@
   "log_window.clear_button": "Clear Log",
   "log_window.close_button": "Close",
   "log_window.no_log_file": "Log file not found.",
-  "log_window.log_cleared": "\n--- Log cleared ---\n"
+  "log_window.log_cleared": "\n--- Log cleared ---\n",
+  "create_panel.collection_group": "Collection",
+  "create_panel.collection_enabled": "Enable collection",
+  "create_panel.collection_placeholder": "Collection name",
+  "create_panel.collection_type_series": "Series",
+  "create_panel.collection_type_set": "Set",
+  "create_panel.collection_position_placeholder": "Position"
 }

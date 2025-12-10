@@ -24,7 +24,7 @@ La siguiente lista define cómo traducir términos específicos: `[Inglés] → 
 
 <fundamental_principles>
   1. Tono y esencia primero: La fidelidad emocional y artística es más importante que la traducción literal.
-  2. Vacilaciones: Traduce la palabra completa y luego aplica el patrón de tartamudeo.
+  2. Vacilaciones: Traduce la palabra completa primero al español y luego aplica el patrón de tartamudeo.
 </fundamental_principles>
 
 <spanish_specifications>

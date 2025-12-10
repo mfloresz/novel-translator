@@ -1443,11 +1443,6 @@ class NovelManagerApp(QMainWindow):
             self.add_recent(directory)
             self.current_directory = directory
 
-            # Guardar en config como default_directory
-            config = self.load_config()
-            config["default_directory"] = directory
-            self.save_config(config)
-
             self.statusBar().showMessage(
                 self.lang_manager.get_string("main_window.directory_selected").format(
                     directory=os.path.basename(self.current_directory)))
@@ -1463,9 +1458,6 @@ class NovelManagerApp(QMainWindow):
             # Actualizar título de la ventana
             self.update_window_title()
             self.load_chapters()
-
-            # Actualizar combobox de biblioteca
-            self.populate_library_combobox()
 
 if __name__ == "__main__":
     try:
