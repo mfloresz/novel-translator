@@ -31,13 +31,21 @@
         "top_p": 0.95,
         "thinking": true
       },
-      "qwen3-next-thinking": {
-        "name": "Qwen3 80B A3B Tkinking",
-        "endpoint": "Qwen/Qwen3-Next-80B-A3B-Thinking",
+      "gpt-oss-20b": {
+        "name": "GPT OSS 20B",
+        "endpoint": "openai/gpt-oss-20b",
         "temperature": 0.7,
-        "max_tokens": 200000,
+        "max_tokens": 90000,
         "top_p": 0.85,
         "thinking": true
+      },
+        "gpt-oss-20b": {
+        "name": "Qwen3 80B A3B",
+        "endpoint": "Qwen/Qwen3-Next-80B-A3B-Instruct",
+        "temperature": 0.7,
+        "max_tokens": 90000,
+        "top_p": 0.85,
+        "thinking": false
       }
     }
   },
@@ -46,7 +54,7 @@
     "type": "openai",
     "base_url": "https://llm.chutes.ai/v1/chat/completions",
     "models": {
-      "mistral-3.2": {
+      "mistral-small-3.2": {
         "name": "Mistral Small 3.2",
         "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
         "max_tokens": 40000,
@@ -78,18 +86,26 @@
         "top_p": 0.95,
         "thinking": false
       },
-        "ling-1t": {
-        "name": "Ling 1T FP8",
-        "endpoint": "chutesai/Ling-1T-FP8",
+        "deepseek-v3.2": {
+        "name": "DeepSeek TNG Chimera",
+        "endpoint": "tngtech/DeepSeek-TNG-R1T2-Chimera",
         "max_tokens": 60000,
         "temperature": 0.7,
         "top_p": 0.95,
         "thinking": false
       },
-        "hermes-4": {
-        "name": "Hermes 4 70B",
-        "endpoint": "NousResearch/Hermes-4-70B",
-        "max_tokens": 100000,
+        "mistral-nemo": {
+        "name": "Mistral Nemo",
+        "endpoint": "unsloth/Mistral-Nemo-Instruct-2407",
+        "max_tokens": 40000,
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "thinking": false
+      },
+        "mistral-small-3.1": {
+        "name": "Mistral Small 3.1",
+        "endpoint": "chutesai/Mistral-Small-3.1-24B-Instruct-2503",
+        "max_tokens": 40000,
         "temperature": 0.7,
         "top_p": 0.95,
         "thinking": false
@@ -101,13 +117,13 @@
     "type": "openai",
     "base_url": "https://api.mistral.ai/v1/chat/completions",
     "models": {
-      "magistral-small": {
-        "name": "Magistral Small",
-        "endpoint": "magistral-small-latest",
+      "ministral-14b": {
+        "name": "Ministral 14B",
+        "endpoint": "ministral-14b-latest",
         "max_tokens": 128000,
         "temperature": 0.7,
         "top_p": 0.95,
-        "thinking": true
+        "thinking": false
       },
       "mistral-small": {
         "name": "Mistral Small",
@@ -116,6 +132,21 @@
         "temperature": 0.7,
         "top_p": 0.95,
         "thinking": false
+      }
+    }
+  },
+    "openrouter": {
+    "name": "OpenRouter",
+    "type": "openai",
+    "base_url": "https://openrouter.ai/api/v1/chat/completions",
+    "models": {
+      "grok-4.1-fast": {
+        "name": "Grok 4.1 Fast",
+        "endpoint": "x-ai/grok-4.1-fast",
+        "temperature": 0.7,
+        "thinking": false,
+        "include_reasoning": true,
+        "reasoning": false
       }
     }
   }
