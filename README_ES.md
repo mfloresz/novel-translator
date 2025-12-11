@@ -68,8 +68,9 @@ Lo hice porque tengo algunas novelas que aunque se tradujeron al español la cal
 - **Vista Previa y Respaldo**: Previsualizar cambios antes de aplicar con respaldos automáticos
 - **Procesamiento por Lotes**: Manejo eficiente de múltiples archivos
 
-### 📚 **Creación Profesional de EPUB**
-![Translation](assets/ebook.webp)
+### 📚 **Creación de EPUB**
+![Creación de EPUB Paso 1](assets/ebook-1.webp)
+![Creación de EPUB Paso 2](assets/ebook-2.webp)
 
 #### **Motor de Conversión Avanzado**
 - **HTML a Markdown**: Conversión profesional con procesamiento BeautifulSoup
