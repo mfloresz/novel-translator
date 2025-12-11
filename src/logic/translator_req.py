@@ -33,12 +33,12 @@ def translate_segment(provider: str,
             raise ValueError(f"Proveedor no encontrado en configuración: {provider}")
 
         result = None
-        if provider == 'gemini':
+        if provider_config['type'] == 'gemini':
             result = _translate_gemini(provider_config, api_key, model_config, prompt, timeout)
-        elif provider in ['hyperbolic', 'chutes', 'mistral']:
+        elif provider_config['type'] == 'openai':
             result = _translate_openai_like(provider_config, api_key, model_config, prompt, timeout)
         else:
-            raise ValueError(f"Proveedor no implementado: {provider}")
+            raise ValueError(f"Tipo de proveedor no soportado: {provider_config['type']}")
 
         if result:
             session_logger.log_api_response(provider, True)
@@ -99,6 +99,13 @@ def _translate_openai_like(provider_config: Dict, api_key: str, model_config: Di
             "max_tokens": model_config.get('max_tokens', 4096),
             "stream": False
         }
+
+        # Incluir parámetro 'reasoning' si está configurado en el modelo
+        if model_config.get('include_reasoning', False):
+            data['reasoning'] = {
+                "enabled": model_config.get('reasoning', False)
+            }
+
         response = requests.post(url, headers=headers, json=data, timeout=timeout)
         response.raise_for_status()
         return _process_response(provider_config['type'], response.json(), model_config.get('thinking', False))

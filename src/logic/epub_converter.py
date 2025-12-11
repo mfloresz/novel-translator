@@ -39,15 +39,47 @@ class EpubConverter:
         
     def _get_chapters(self) -> List:
         """
-        Obtiene la lista de capítulos del EPUB.
-        
+        Obtiene la lista de capítulos del EPUB ordenados por número de capítulo.
+
         Returns:
-            List: Lista de capítulos (objetos ebooklib)
+            List: Lista de capítulos ordenados (objetos ebooklib)
         """
         chapters = []
         for item in self.book.get_items():
             if item.get_type() == ebooklib.ITEM_DOCUMENT:
                 chapters.append(item)
+
+        # Ordenar capítulos por número de capítulo
+        def get_chapter_number(chapter):
+            """Extrae el número de capítulo del nombre del archivo o del contenido"""
+            try:
+                # Método 1: Extraer número del nombre del archivo (ej: chapter10.html)
+                name = chapter.get_name().lower()
+                match = re.search(r'chapter(\d+)', name)
+                if match:
+                    return int(match.group(1))
+
+                # Método 2: Extraer número del contenido HTML (si el nombre no tiene número)
+                html_content = chapter.get_content().decode('utf-8')
+                soup = BeautifulSoup(html_content, 'html.parser')
+
+                # Buscar en títulos (h1, h2, etc.)
+                for tag in ['h1', 'h2', 'h3']:
+                    title = soup.find(tag)
+                    if title:
+                        text = title.get_text().lower()
+                        match = re.search(r'chapter\s*(\d+)', text)
+                        if match:
+                            return int(match.group(1))
+
+                # Método 3: Usar el orden original si no se encuentra número
+                return float('inf')  # Poner al final si no tiene número
+
+            except Exception:
+                return float('inf')  # Poner al final si hay error
+
+        # Ordenar por número de capítulo
+        chapters.sort(key=get_chapter_number)
         return chapters
     
     def _get_metadata(self) -> Dict:

@@ -6,9 +6,5 @@
   "italic": {
     "pattern": "\\*([^*]+)\\*",
     "replacement": "<i>\\1</i>"
-  },
-  "italic_quotes": {
-    "pattern": "‘([^’]+)’",
-    "replacement": "<i>\\1</i>"
   }
 }

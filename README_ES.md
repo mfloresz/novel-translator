@@ -68,8 +68,9 @@ Lo hice porque tengo algunas novelas que aunque se tradujeron al español la cal
 - **Vista Previa y Respaldo**: Previsualizar cambios antes de aplicar con respaldos automáticos
 - **Procesamiento por Lotes**: Manejo eficiente de múltiples archivos
 
-### 📚 **Creación Profesional de EPUB**
-![Translation](assets/ebook.webp)
+### 📚 **Creación de EPUB**
+![Creación de EPUB Paso 1](assets/ebook-1.webp)
+![Creación de EPUB Paso 2](assets/ebook-2.webp)
 
 #### **Motor de Conversión Avanzado**
 - **HTML a Markdown**: Conversión profesional con procesamiento BeautifulSoup
@@ -77,6 +78,7 @@ Lo hice porque tengo algunas novelas que aunque se tradujeron al español la cal
 - **Integración de Portadas**: Detección automática de portadas desde múltiples fuentes
 - **Gestión de Metadatos**: Manejo integral de información del libro
 - **Optimización CSS**: Diseño responsivo para lectores electrónicos
+- **Patrones de Formateo Personalizados**: Aplicar formato personalizado al texto basado en patrones regex (centrar, separador, cursiva)
 
 #### **Sistema de Importación Inteligente**
 - **Importación EPUB con Vista Previa**: Vista previa de capítulos antes de importar con selección de capítulos

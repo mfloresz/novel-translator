@@ -76,6 +76,7 @@
   "create_panel.range_specific": "Especificar rango:",
   "create_panel.range_from_placeholder": "Desde",
   "create_panel.range_to_placeholder": "Hasta",
+  "create_panel.range_to": "Hasta",
   "create_panel.save_metadata_button": "Guardar Metadatos",
   "create_panel.save_metadata_button.tooltip": "Guarda el título, autor y descripción para este directorio de trabajo.\nSe cargarán automáticamente cuando abras este directorio.",
   "create_panel.create_button": "Crear EPUB",
@@ -339,5 +340,11 @@
   "log_window.clear_button": "Limpiar Log",
   "log_window.close_button": "Cerrar",
   "log_window.no_log_file": "Archivo de log no encontrado.",
-  "log_window.log_cleared": "\n--- Log limpiado ---\n"
+  "log_window.log_cleared": "\n--- Log limpiado ---\n",
+  "create_panel.collection_group": "Colección",
+  "create_panel.collection_enabled": "Habilitar colección",
+  "create_panel.collection_placeholder": "Nombre de la colección",
+  "create_panel.collection_type_series": "Serie",
+  "create_panel.collection_type_set": "Set",
+  "create_panel.collection_position_placeholder": "Posición"
 }

@@ -68,8 +68,9 @@ I created this application because I have some novels that were translated to Sp
 - **Preview & Backup**: Preview changes before applying with automatic backups
 - **Batch Processing**: Handle multiple files efficiently
 
-### 📚 **Professional EPUB Creation**
-![Translation](assets/ebook.webp)
+### 📚 ** EPUB Creation**
+![EPUB Creation Step 1](assets/ebook-1.webp)
+![EPUB Creation Step 2](assets/ebook-2.webp)
 
 #### **Advanced Conversion Engine**
 - **HTML to Markdown**: Professional conversion with BeautifulSoup processing
@@ -77,6 +78,7 @@ I created this application because I have some novels that were translated to Sp
 - **Cover Integration**: Automatic cover detection from multiple sources
 - **Metadata Management**: Comprehensive book information handling
 - **CSS Optimization**: Responsive design for e-readers
+- **Custom Formatting Patterns**: Apply custom text formatting based on regex patterns (center, separator, italic)
 
 #### **Smart Import System**
 - **EPUB Import with Preview**: Preview chapters before import with chapter selection

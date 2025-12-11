@@ -45,7 +45,7 @@ class TranslatorLogic:
         """
         Maneja la sección de terminología en los prompts.
         Si hay términos personalizados, los formatea y reemplaza {terminology_reference}.
-        Si no hay términos, elimina toda la sección <background_data>...</background_data>.
+        Si no hay términos, elimina toda la sección <terminology_reference>...</terminology_reference>.
 
         Args:
             prompt_template (str): Template del prompt
@@ -66,8 +66,8 @@ class TranslatorLogic:
             # Reemplazar la etiqueta {terminology_reference} con los términos formateados
             return prompt_template.replace("{terminology_reference}", formatted_terms)
         else:
-            # Si no hay términos personalizados, eliminar toda la sección <background_data>
-            return re.sub(r'<background_data>.*?</background_data>', '', prompt_template, flags=re.DOTALL)
+            # Si no hay términos personalizados, eliminar toda la sección <terminology_reference>
+            return re.sub(r'<terminology_reference>.*?</terminology_reference>', '', prompt_template, flags=re.DOTALL)
 
     def _load_prompt(self, prompt_name: str, source_lang: str, target_lang: str) -> str:
         """
@@ -341,8 +341,8 @@ class TranslatorLogic:
         prompt = self._handle_terminology_section(check_prompt_template, custom_terms)
         prompt = prompt.replace("{source_lang}", source_lang)
         prompt = prompt.replace("{target_lang}", target_lang)
-        prompt = prompt.replace("{TEXT_1}", original_text.strip())
-        prompt = prompt.replace("{TEXT_2}", translated_text.strip())
+        prompt = prompt.replace("{source_text}", original_text.strip())
+        prompt = prompt.replace("{translated_text}", translated_text.strip())
 
         return prompt
 
@@ -677,8 +677,8 @@ class TranslatorLogic:
                 prompt = self._handle_terminology_section(prompt_template, custom_terms)
                 prompt = prompt.replace("{source_lang}", source_lang).replace("{target_lang}", target_lang)
 
-                # Reemplazar la etiqueta {text_to_translate} con el segmento actual
-                prompt = prompt.replace("{text_to_translate}", segment)
+                # Reemplazar la etiqueta {source_text} con el segmento actual
+                prompt = prompt.replace("{source_text}", segment)
 
                 # Verificar nuevamente antes de llamada API
                 if stop_callback and stop_callback():
