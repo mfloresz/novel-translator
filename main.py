@@ -654,22 +654,22 @@ class NovelManagerApp(QMainWindow):
             return
         # Obtener términos personalizados
         custom_terms = translate_panel.terms_input.toPlainText().strip()
-        # Obtener configuración de segmentación
-        segment_size = None
-        if translate_panel.segment_checkbox.isChecked():
-            try:
-                segment_size = int(translate_panel.segment_size_input.text() or 5000)
-                if segment_size <= 0:
-                    segment_size = 5000
-            except ValueError:
-                self.statusBar().showMessage(
-                    self.lang_manager.get_string("translate_panel.error.invalid_segment_size"))
-                return
+        # Obtener configuración de segmentación efectiva
+        effective_segmentation = None
+        if translate_panel.enable_auto_segmentation_radio.isChecked():
+            if translate_panel.session_segmentation:
+                effective_segmentation = translate_panel.session_segmentation
+            else:
+                # Usar configuración por defecto con enabled=True
+                effective_segmentation = {**translate_panel.segmentation_config, "enabled": True}
+        else:
+            effective_segmentation = None
+
         # Obtener estado de la comprobación
         enable_check = translate_panel.check_translation_checkbox.isChecked()
         # Obtener estado del refinamiento
         enable_refine = translate_panel.refine_translation_checkbox.isChecked()
-        
+
         # Obtener la configuración de comprobación y refinado
         check_refine_settings = translate_panel.session_check_refine_settings or translate_panel.default_config.get("check_refine_settings")
 
@@ -708,12 +708,13 @@ class NovelManagerApp(QMainWindow):
             api_key,
             self.update_file_status,
             custom_terms,
-            segment_size,
+            None,  # segment_size no se usa
             enable_check,
             enable_refine,
             check_refine_settings,
             temp_api_keys=translate_panel.temp_api_keys,
-            allow_retranslation=already_translated
+            allow_retranslation=already_translated,
+            segmentation_config=effective_segmentation
         )
 
     def import_epub(self):
@@ -914,7 +915,6 @@ class NovelManagerApp(QMainWindow):
         """
         # Como main.py está en la raíz, la ruta correcta es src/config/config.json
         config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "config", "config.json")
-        print(f"DEBUG: Intentando cargar config desde: {config_file}")
         config_dir = os.path.dirname(config_file)
         os.makedirs(config_dir, exist_ok=True)
         if not os.path.exists(config_file):
@@ -944,7 +944,6 @@ class NovelManagerApp(QMainWindow):
         try:
             with open(config_file, 'r') as f:
                 config = json.load(f)
-                print(f"DEBUG: Config cargada: {config}")
                 # Asegurar que default_directory existe
                 if "default_directory" not in config:
                     config["default_directory"] = os.path.expanduser("~")
@@ -993,14 +992,11 @@ class NovelManagerApp(QMainWindow):
         """
         config = self.load_config()
         library_path = config.get("default_directory", "")
-        print(f"DEBUG: populate_library_combobox - library_path: {library_path}")
         if not library_path:
-            print("DEBUG: library_path está vacío")
             self.library_combobox.clear()
             self.library_combobox.addItem("No hay ruta de biblioteca configurada")
             return
         if not os.path.isdir(library_path):
-            print(f"DEBUG: library_path no es un directorio válido: {library_path}")
             self.library_combobox.clear()
             self.library_combobox.addItem(f"Ruta inválida: {os.path.basename(library_path)}")
             return
@@ -1015,8 +1011,7 @@ class NovelManagerApp(QMainWindow):
             # Obtener subdirectorios (novelas)
             novel_folders = [d for d in os.listdir(library_path) if os.path.isdir(os.path.join(library_path, d))]
             novel_folders.sort()
-            print(f"DEBUG: Encontrados {len(novel_folders)} subdirectorios en {library_path}")
-            
+
             self.library_combobox.clear()
             if novel_folders:
                 self.library_combobox.addItems(novel_folders)
@@ -1024,7 +1019,6 @@ class NovelManagerApp(QMainWindow):
             else:
                 self.library_combobox.addItem("No se encontraron novelas")
         except Exception as e:
-            print(f"DEBUG: Error poblando combobox de biblioteca: {e}")
             self.library_combobox.clear()
             self.library_combobox.addItem(f"Error al cargar novelas: {str(e)}")
         finally:

@@ -290,8 +290,10 @@ th {
       <meta property="dcterms:modified">{now}</meta>'''
         
         if metadata.description:
+            # Convertir saltos de línea a entidades XML para preservar en metadatos
+            escaped_desc = self._escape_xml(metadata.description).replace('\n', '&#10;')
             content_opf += f'''
-      <dc:description>{self._escape_xml(metadata.description)}</dc:description>'''
+      <dc:description>{escaped_desc}</dc:description>'''
         
         # Agregar metadatos de serie/colección
         if metadata.collection:
@@ -449,16 +451,18 @@ th {
   <div class="titlepage">
     <h1>{self._escape_xml(title)}</h1>
     <p>por {self._escape_xml(author)}</p>'''
-        
+
         if description:
+            # Convertir saltos de línea a <br> para preservar párrafos en HTML
+            escaped_desc = self._escape_xml(description).replace('\n', '<br>')
             html += f'''
-    <p>{self._escape_xml(description)}</p>'''
-        
+    <p>{escaped_desc}</p>'''
+
         html += '''
   </div>
 </body>
 </html>'''
-        
+
         return html
 
     def generate_epub_filename(self, title: str, author: str) -> str:

@@ -298,16 +298,11 @@ class TranslatePanel(QWidget):
         # Combined layout for segmentation and translation options
         options_layout = QHBoxLayout()
 
-        # Text segmentation options
-        self.segment_checkbox = QRadioButton(self._get_string("translate_panel.segment_checkbox"))
-        self.segment_checkbox.setToolTip(self._get_string("translate_panel.segment_checkbox.tooltip"))
-        self.segment_size_input = QLineEdit()
-        self.segment_size_input.setPlaceholderText(self._get_string("translate_panel.segment_size_placeholder"))
-        self.segment_size_input.setEnabled(False)
-        self.segment_size_input.setText("5000")  # Valor por defecto
+        # Auto segmentation option
+        self.enable_auto_segmentation_radio = QRadioButton(self._get_string("translate_panel.enable_auto_segmentation"))
+        self.enable_auto_segmentation_radio.setToolTip(self._get_string("translate_panel.enable_auto_segmentation.tooltip"))
 
-        options_layout.addWidget(self.segment_checkbox)
-        options_layout.addWidget(self.segment_size_input)
+        options_layout.addWidget(self.enable_auto_segmentation_radio)
 
         # Add separator
         options_layout.addWidget(QLabel("Traducción:"))
@@ -424,8 +419,7 @@ class TranslatePanel(QWidget):
         # self.start_chapter_spin.textChanged.connect(self.adjust_chapter_range)
         # self.end_chapter_spin.textChanged.connect(self.adjust_chapter_range)
 
-        # Conectar el checkbox de segmentación
-        self.segment_checkbox.toggled.connect(self.segment_size_input.setEnabled)
+        # No hay conexión necesaria para el radio button de autosegmentación
 
         # Configurar iconos para las pestañas y botones (después de configurar detección de tema)
         self.set_terms_button_icons()
@@ -630,7 +624,8 @@ class TranslatePanel(QWidget):
             models_config=self.models_config,
             source_lang=source_lang,
             target_lang=target_lang,
-            temp_prompts_path=self.temp_prompts_path  # Pasar la ruta temporal
+            temp_prompts_path=self.temp_prompts_path,  # Pasar la ruta temporal
+            enabled_auto_segmentation=self.enable_auto_segmentation_radio.isChecked()
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.session_check_refine_settings = dialog.get_settings()
@@ -744,18 +739,14 @@ class TranslatePanel(QWidget):
         # Obtener configuración de segmentación efectiva
         segment_size = None
         effective_segmentation = None
-        if self.segment_checkbox.isChecked():
-            try:
-                segment_size = int(self.segment_size_input.text() or 5000)
-                if segment_size <= 0:
-                    segment_size = 5000
-            except ValueError:
-                self.main_window.statusBar().showMessage(
-                    self._get_string("translate_panel.error.invalid_segment_size"))
-                return
-            effective_segmentation = None  # Manual disables auto
+        if self.enable_auto_segmentation_radio.isChecked():
+            if self.session_segmentation:
+                effective_segmentation = self.session_segmentation
+            else:
+                # Usar configuración por defecto con enabled=True
+                effective_segmentation = {**self.segmentation_config, "enabled": True}
         else:
-            effective_segmentation = self.session_segmentation if self.session_segmentation else self.segmentation_config
+            effective_segmentation = None
 
         # Obtener estado de la comprobación
         enable_check = self.check_translation_checkbox.isChecked()

@@ -28,6 +28,7 @@ La siguiente lista define traducciones obligatorias de términos específicos: `
 
   <linguistic_standards>
     - Corrige ortografía, gramática, puntuación y fluidez.
+    - Corrige los determinantes.
     - Mantén el tono, voz y estilo del autor sin parafrasear ni resumir.
     - No alteres el contenido narrativo.
     - Usa género masculino por defecto si el contexto no especifica género.

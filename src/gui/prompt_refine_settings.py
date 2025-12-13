@@ -8,7 +8,7 @@ from PyQt6.QtCore import Qt
 
 class PromptRefineSettingsDialog(QDialog):
     def __init__(self, parent=None, current_settings=None, models_config=None,
-                 source_lang=None, target_lang=None, temp_prompts_path=None):
+                 source_lang=None, target_lang=None, temp_prompts_path=None, enabled_auto_segmentation=False):
         super().__init__(parent)
         self.main_window = parent.main_window if parent else None
         self.models_config = models_config or self._load_models_config()
@@ -16,6 +16,7 @@ class PromptRefineSettingsDialog(QDialog):
         self.source_lang = source_lang
         self.target_lang = target_lang
         self.temp_prompts_path = temp_prompts_path  # Ruta al directorio de prompts temporales
+        self.enabled_auto_segmentation = enabled_auto_segmentation
 
         self.init_ui()
         self.load_settings()
@@ -133,15 +134,7 @@ class PromptRefineSettingsDialog(QDialog):
         temp_segmentation_group = QGroupBox(self._get_string("prompt_refine_settings_dialog.segmentation_group"))
         temp_segmentation_layout = QVBoxLayout()
 
-        # Radio buttons for temporary auto-segmentation
-        temp_radio_layout = QVBoxLayout()
-        self.temp_no_auto_segmentation_radio = QRadioButton(self._get_string("prompt_refine_settings_dialog.no_auto_segmentation"))
-        self.temp_auto_segmentation_radio = QRadioButton(self._get_string("prompt_refine_settings_dialog.auto_segmentation_label"))
-        temp_radio_layout.addWidget(self.temp_no_auto_segmentation_radio)
-        temp_radio_layout.addWidget(self.temp_auto_segmentation_radio)
-        temp_segmentation_layout.addLayout(temp_radio_layout)
-
-        # Threshold and segment size inputs (initially disabled)
+        # Threshold and segment size inputs (always enabled)
         temp_inputs_layout = QFormLayout()
         self.temp_threshold_spinbox = QSpinBox()
         self.temp_threshold_spinbox.setMinimum(1)
@@ -165,13 +158,8 @@ class PromptRefineSettingsDialog(QDialog):
         temp_segmentation_group.setLayout(temp_segmentation_layout)
         left_layout.addWidget(temp_segmentation_group)
 
-        # Connect temporary radio buttons to toggle inputs
-        self.temp_auto_segmentation_radio.toggled.connect(lambda checked: self.temp_inputs_widget.setEnabled(checked))
-        self.temp_no_auto_segmentation_radio.toggled.connect(lambda checked: self.temp_inputs_widget.setEnabled(not checked))
-
-        # Set initial state for temporary segmentation inputs (default to no auto-segmentation)
-        self.temp_no_auto_segmentation_radio.setChecked(True)
-        self.temp_inputs_widget.setEnabled(False)
+        # Inputs always enabled
+        self.temp_inputs_widget.setEnabled(True)
 
         # Espaciador
         left_layout.addStretch()
@@ -306,14 +294,8 @@ class PromptRefineSettingsDialog(QDialog):
 
         # Load temporary segmentation settings
         temp_segmentation_config = self.current_settings.get("auto_segmentation", {"enabled": False, "threshold": 10000, "segment_size": 5000})
-        if temp_segmentation_config["enabled"]:
-            self.temp_auto_segmentation_radio.setChecked(True)
-            self.temp_threshold_spinbox.setValue(temp_segmentation_config["threshold"])
-            self.temp_segment_size_spinbox.setValue(temp_segmentation_config["segment_size"])
-            self.temp_inputs_widget.setEnabled(True)
-        else:
-            self.temp_no_auto_segmentation_radio.setChecked(True)
-            self.temp_inputs_widget.setEnabled(False)
+        self.temp_threshold_spinbox.setValue(temp_segmentation_config["threshold"])
+        self.temp_segment_size_spinbox.setValue(temp_segmentation_config["segment_size"])
 
     def load_prompts(self):
         """Carga los prompts desde archivos, priorizando el directorio temporal."""
@@ -330,7 +312,7 @@ class PromptRefineSettingsDialog(QDialog):
             "provider": self.provider_combo.currentData() or "",
             "model": self.model_combo.currentData() or "",
             "auto_segmentation": {
-                "enabled": self.temp_auto_segmentation_radio.isChecked(),
+                "enabled": self.enabled_auto_segmentation,
                 "threshold": self.temp_threshold_spinbox.value(),
                 "segment_size": self.temp_segment_size_spinbox.value()
             }
