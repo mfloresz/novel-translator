@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import tempfile
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
     QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
@@ -217,12 +218,16 @@ class NovelManagerApp(QMainWindow):
         right_layout = QVBoxLayout(right_panel)
         # Create the tab widget for the right side only
         self.tab_widget = QTabWidget()
+        # Create shared temporary directory for prompts
+        self._temp_dir_obj = tempfile.TemporaryDirectory()
+        self.shared_temp_prompts_path = Path(self._temp_dir_obj.name)
+
         # Create individual tab panels with reference to main window
         self.clean_panel = CleanPanel(self)
         self.create_panel = CreateEpubPanel()
         self.create_panel.set_main_window(self)
-        self.translate_panel = TranslatePanel(self)  # Modificado para pasar self
-        self.refine_panel = RefinePanel(self)  # Nueva pestaña de refinamiento
+        self.translate_panel = TranslatePanel(self, self.shared_temp_prompts_path)  # Modificado para pasar self y temp_path
+        self.refine_panel = RefinePanel(self, self.shared_temp_prompts_path)  # Nueva pestaña de refinamiento con temp_path compartido
         # Add panels to the tab widget
         self.tab_widget.addTab(self.clean_panel, self.lang_manager.get_string("clean_panel.tab_label", "Limpiar"))
         self.tab_widget.addTab(self.create_panel, self.lang_manager.get_string("create_panel.tab_label", "Ebook"))

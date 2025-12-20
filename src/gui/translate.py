@@ -214,7 +214,7 @@ class RangeTranslationDialog(QDialog):
         return self.result_choice
 
 class TranslatePanel(QWidget):
-    def __init__(self, main_window):
+    def __init__(self, main_window, temp_prompts_path):
         super().__init__()
         self.main_window = main_window
         self.translation_manager = TranslationManager(main_window.lang_manager)
@@ -226,9 +226,8 @@ class TranslatePanel(QWidget):
         # Variable para almacenar API keys temporales
         self.temp_api_keys = {}
 
-        # Crear directorio temporal para prompts de la sesión
-        self._temp_dir_obj = tempfile.TemporaryDirectory()
-        self.temp_prompts_path = Path(self._temp_dir_obj.name)
+        # Usar directorio temporal compartido para prompts de la sesión
+        self.temp_prompts_path = temp_prompts_path
         self.translation_manager.update_temp_prompts_path(self.temp_prompts_path)
 
         # Cargar variables de entorno desde .env en la carpeta padre

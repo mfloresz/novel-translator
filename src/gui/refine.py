@@ -151,7 +151,7 @@ class ApiKeyConfigDialog(QDialog):
         return self.api_input.text().strip()
 
 class RefinePanel(QWidget):
-    def __init__(self, main_window):
+    def __init__(self, main_window, temp_prompts_path):
         super().__init__()
         self.main_window = main_window
         self.refine_manager = RefineManager(main_window.lang_manager)
@@ -160,9 +160,8 @@ class RefinePanel(QWidget):
         # Variable para almacenar API keys temporales
         self.temp_api_keys = {}
 
-        # Crear directorio temporal para prompts de la sesión
-        self._temp_dir_obj = tempfile.TemporaryDirectory()
-        self.temp_prompts_path = Path(self._temp_dir_obj.name)
+        # Usar directorio temporal compartido para prompts de la sesión
+        self.temp_prompts_path = temp_prompts_path
         self.refine_manager.update_temp_prompts_path(self.temp_prompts_path)
 
         # Cargar variables de entorno desde .env en la carpeta padre
