@@ -12,6 +12,7 @@ from PyQt6.QtSvg import QSvgRenderer
 from src.gui.clean import CleanPanel
 from src.gui.create import CreateEpubPanel
 from src.gui.translate import TranslatePanel
+from src.gui.refine import RefinePanel
 from src.gui.settings_gui import SettingsDialog
 from src.gui.log_window import LogWindow
 from src.logic.get_path import get_directory, get_initial_directory
@@ -221,10 +222,12 @@ class NovelManagerApp(QMainWindow):
         self.create_panel = CreateEpubPanel()
         self.create_panel.set_main_window(self)
         self.translate_panel = TranslatePanel(self)  # Modificado para pasar self
+        self.refine_panel = RefinePanel(self)  # Nueva pestaña de refinamiento
         # Add panels to the tab widget
         self.tab_widget.addTab(self.clean_panel, self.lang_manager.get_string("clean_panel.tab_label", "Limpiar"))
         self.tab_widget.addTab(self.create_panel, self.lang_manager.get_string("create_panel.tab_label", "Ebook"))
         self.tab_widget.addTab(self.translate_panel, self.lang_manager.get_string("translate_panel.tab_label", "Traducir"))
+        self.tab_widget.addTab(self.refine_panel, self.lang_manager.get_string("refine_panel.tab_label", "Refinar"))
         right_layout.addWidget(self.tab_widget)
         # Add both panels to splitter
         splitter.addWidget(left_panel)
@@ -335,10 +338,12 @@ class NovelManagerApp(QMainWindow):
             clean_icon_path = "src/gui/icons/clean.svg"
             ebook_icon_path = "src/gui/icons/ebook.svg"
             translate_icon_path = "src/gui/icons/translate.svg"
+            refine_icon_path = "src/gui/icons/translate.svg"  # Usar el mismo icono por ahora
             # Configurar iconos con coloración automática
             self.tab_widget.setTabIcon(0, self.create_themed_icon(clean_icon_path))
             self.tab_widget.setTabIcon(1, self.create_themed_icon(ebook_icon_path))
             self.tab_widget.setTabIcon(2, self.create_themed_icon(translate_icon_path))
+            self.tab_widget.setTabIcon(3, self.create_themed_icon(refine_icon_path))
         except Exception as e:
             print(f"Error cargando iconos: {e}")
 
@@ -774,6 +779,8 @@ class NovelManagerApp(QMainWindow):
             self.create_panel.set_working_directory(directory_path)
             # Configurar directorio de trabajo en el panel de traducción
             self.translate_panel.set_working_directory(directory_path)
+            # Configurar directorio de trabajo en el panel de refinamiento
+            self.refine_panel.set_working_directory(directory_path)
             # Habilitar botones
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
@@ -1055,6 +1062,7 @@ class NovelManagerApp(QMainWindow):
             self.epub_converter.set_directory(selected_directory)
             self.create_panel.set_working_directory(selected_directory)
             self.translate_panel.set_working_directory(selected_directory)
+            self.refine_panel.set_working_directory(selected_directory)
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
             self.update_window_title()
@@ -1371,6 +1379,7 @@ class NovelManagerApp(QMainWindow):
             self.epub_converter.set_directory(normalized_path)
             self.create_panel.set_working_directory(normalized_path)
             self.translate_panel.set_working_directory(normalized_path)
+            self.refine_panel.set_working_directory(normalized_path)
 
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
@@ -1446,6 +1455,8 @@ class NovelManagerApp(QMainWindow):
             self.create_panel.set_working_directory(directory)
             # Configurar directorio de trabajo en el panel de traducción
             self.translate_panel.set_working_directory(directory)
+            # Configurar directorio de trabajo en el panel de refinamiento
+            self.refine_panel.set_working_directory(directory)
             # Habilitar botones
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
