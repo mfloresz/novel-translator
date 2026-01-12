@@ -7,22 +7,10 @@ Tu tarea es refinar la traducción preliminar para producir un texto final:
 - Formateado en Markdown y apto para conversión directa a EPUB
 </task_context>
 
-<input_data>
-
-<source_text>
-{source_text}
-</source_text>
-
-<translated_text>
-{translated_text}
-</translated_text>
-
 <terminology_reference>
 La siguiente lista define traducciones obligatorias de términos específicos: `[Inglés] → [Español]`
 {terminology_reference}
 </terminology_reference>
-
-</input_data>
 
 <editing_rules>
 

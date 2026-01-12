@@ -323,10 +323,10 @@ class TranslatorLogic:
 
     def _build_check_prompt(self, source_lang: str, target_lang: str,
                             original_text: str, translated_text: str,
-                            custom_terms: str = "") -> str:
+                            custom_terms: str = "") -> Dict:
         """
         Construye el prompt para comprobar la calidad de la traducción.
-
+        
         Args:
             source_lang (str): Idioma original
             target_lang (str): Idioma destino
@@ -335,20 +335,24 @@ class TranslatorLogic:
             custom_terms (str): Términos personalizados para la traducción
 
         Returns:
-            str: Prompt completo para la comprobación
+            Dict: Prompt estructurado con roles system y user
         """
         check_prompt_template = self._load_prompt("check.txt", source_lang, target_lang)
-        prompt = self._handle_terminology_section(check_prompt_template, custom_terms)
-        prompt = prompt.replace("{source_lang}", source_lang)
-        prompt = prompt.replace("{target_lang}", target_lang)
-        prompt = prompt.replace("{source_text}", original_text.strip())
-        prompt = prompt.replace("{translated_text}", translated_text.strip())
-
-        return prompt
+        prompt_content = self._handle_terminology_section(check_prompt_template, custom_terms)
+        prompt_content = prompt_content.replace("{source_lang}", source_lang)
+        prompt_content = prompt_content.replace("{target_lang}", target_lang)
+        
+        # Crear estructura con roles
+        messages = [
+            {"role": "system", "content": prompt_content},
+            {"role": "user", "content": f"**Text 1 (Original - {source_lang}):**\n{original_text.strip()}\n\n**Text 2 (Translation - {target_lang}):**\n{translated_text.strip()}"}
+        ]
+        
+        return {"messages": messages}
 
     def _build_refine_prompt(self, source_lang: str, target_lang: str,
                             source_text: str, translated_text: str,
-                            custom_terms: str = "") -> str:
+                            custom_terms: str = "") -> Dict:
         """
         Construye el prompt para refinar la traducción.
 
@@ -360,16 +364,20 @@ class TranslatorLogic:
             custom_terms (str): Términos personalizados para la traducción
 
         Returns:
-            str: Prompt completo para el refinamiento
+            Dict: Prompt estructurado con roles system y user
         """
         refine_prompt_template = self._load_prompt("refine.txt", source_lang, target_lang)
-        prompt = self._handle_terminology_section(refine_prompt_template, custom_terms)
-        prompt = prompt.replace("{source_lang}", source_lang)
-        prompt = prompt.replace("{target_lang}", target_lang)
-        prompt = prompt.replace("{source_text}", source_text.strip())
-        prompt = prompt.replace("{translated_text}", translated_text.strip())
-
-        return prompt
+        prompt_content = self._handle_terminology_section(refine_prompt_template, custom_terms)
+        prompt_content = prompt_content.replace("{source_lang}", source_lang)
+        prompt_content = prompt_content.replace("{target_lang}", target_lang)
+        
+        # Crear estructura con roles
+        messages = [
+            {"role": "system", "content": prompt_content},
+            {"role": "user", "content": f"Original text ({source_lang}):\n{source_text.strip()}\n\nPreliminary translation ({target_lang}):\n{translated_text.strip()}"}
+        ]
+        
+        return {"messages": messages}
 
     def _get_api_key_for_provider(self, provider: str) -> str:
         """
@@ -443,22 +451,53 @@ class TranslatorLogic:
             )
 
         def _parse_check_response(response: str) -> (bool, Optional[str]):
-            response_lines = response.strip().split('\n')
-            check_result = None
-            cause = None
-
-            for line in response_lines:
-                if line.lower().startswith("check response:"):
-                    check_result = line.split(":", 1)[1].strip().lower()
-                elif line.lower().startswith("cause:"):
-                    cause = line.split(":", 1)[1].strip()
-
-            if check_result == "yes":
-                return True, None
-            elif check_result == "no":
-                return False, cause
+            """
+            Parses the check response in XML format.
+            Extracts the result (Yes/No) and comments separately.
+            """
+            import re
+            
+            # Try to extract XML response
+            xml_match = re.search(r'<response>.*?</response>', response, re.DOTALL)
+            
+            if xml_match:
+                xml_content = xml_match.group(0)  # Use group(0) for the full match
+                
+                # Extract result
+                result_match = re.search(r'<result>(.*?)</result>', xml_content, re.DOTALL)
+                check_result = result_match.group(1).strip().lower() if result_match else None
+                
+                # Extract comments
+                comments_match = re.search(r'<comments>(.*?)</comments>', xml_content, re.DOTALL)
+                comments = comments_match.group(1).strip() if comments_match else ""
+                
+                if check_result == "yes":
+                    # Log comments if present
+                    if comments:
+                        session_logger.log_info(f"Check comments: {comments}")
+                    return True, None
+                elif check_result == "no":
+                    return False, comments if comments else "Respuesta No sin causa especificada"
+                else:
+                    return False, f"Respuesta inesperada: {response}"
             else:
-                return False, f"Respuesta inesperada: {response}"
+                # Fallback to old format for backward compatibility
+                response_lines = response.strip().split('\n')
+                check_result = None
+                cause = None
+
+                for line in response_lines:
+                    if line.lower().startswith("check response:"):
+                        check_result = line.split(":", 1)[1].strip().lower()
+                    elif line.lower().startswith("cause:"):
+                        cause = line.split(":", 1)[1].strip()
+
+                if check_result == "yes":
+                    return True, None
+                elif check_result == "no":
+                    return False, cause
+                else:
+                    return False, f"Respuesta inesperada: {response}"
 
         try:
             # Verificar si se ha solicitado detener antes de hacer la llamada API
@@ -474,11 +513,17 @@ class TranslatorLogic:
             is_ok, cause = _parse_check_response(response)
 
             if is_ok:
-                session_logger.log_info(f"Comprobación exitosa - Respuesta: {response}")
+                # Only log the response if it doesn't contain XML format (to avoid duplication)
+                if not re.search(r'<response>.*?</response>', response, re.DOTALL):
+                    session_logger.log_info(f"Comprobación exitosa - Respuesta: {response}")
                 return True
             elif retry_on_failure:
                 log_message = f"Comprobación falló - Respuesta: {response}"
                 session_logger.log_warning(f"{log_message}. Reintentando...")
+                
+                # Log the cause if available
+                if cause:
+                    session_logger.log_warning(f"Causa del fallo: {cause}")
 
                 # Reintentar una vez
                 time.sleep(5)
@@ -674,11 +719,16 @@ class TranslatorLogic:
 
                 # Construir prompt base con reemplazo de etiquetas
                 prompt_template = self._load_prompt("translation.txt", source_lang, target_lang)
-                prompt = self._handle_terminology_section(prompt_template, custom_terms)
-                prompt = prompt.replace("{source_lang}", source_lang).replace("{target_lang}", target_lang)
+                prompt_content = self._handle_terminology_section(prompt_template, custom_terms)
+                prompt_content = prompt_content.replace("{source_lang}", source_lang).replace("{target_lang}", target_lang)
 
-                # Reemplazar la etiqueta {source_text} con el segmento actual
-                prompt = prompt.replace("{source_text}", segment)
+                # Crear estructura con roles system/user
+                prompt = {
+                    "messages": [
+                        {"role": "system", "content": prompt_content},
+                        {"role": "user", "content": segment}
+                    ]
+                }
 
                 # Verificar nuevamente antes de llamada API
                 if stop_callback and stop_callback():

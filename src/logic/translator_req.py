@@ -24,13 +24,25 @@ def translate_segment(
         api_key (str): API key para autenticación
         model_config (Dict): Configuración del modelo seleccionado
         prompt (str): Prompt completo incluyendo instrucciones y texto a traducir
+        models_config (Dict): Configuración de todos los modelos
+        timeout (int): Tiempo de espera para la petición
 
     Returns:
         Optional[str]: Texto traducido recibido o None en caso de error
     """
     try:
         # Para verificación de traducción, el texto está en el prompt, no en text
+        # Si text está vacío, usar la longitud del prompt para estimar el tamaño
         text_length = len(text) if text else len(prompt)
+        
+        # Si el prompt es un diccionario con messages, estimar longitud basada en el contenido
+        if isinstance(prompt, dict) and "messages" in prompt:
+            total_length = 0
+            for message in prompt["messages"]:
+                if "content" in message:
+                    total_length += len(message["content"])
+            text_length = total_length
+        
         session_logger.log_api_request(
             provider,
             model_config.get("model_id", model_config.get("endpoint", "unknown")),
@@ -80,8 +92,23 @@ def _translate_gemini(
     try:
         url = f"{provider_config['base_url']}/{model_config['endpoint']}?key={api_key}"
         headers = {"Content-Type": "application/json"}
+        
+        # Determinar el formato del prompt (string o dict con messages)
+        contents = []
+        if isinstance(prompt, dict) and "messages" in prompt:
+            # Nuevo formato con roles system/user - convertir a formato Gemini
+            for message in prompt["messages"]:
+                role = message.get("role", "user")
+                content = message.get("content", "")
+                # Gemini usa "parts" en lugar de "content" y no tiene roles como OpenAI
+                # Para Gemini, simplemente usamos el contenido sin distinguir roles
+                contents.append({"parts": [{"text": content}]})
+        else:
+            # Formato antiguo: solo texto en prompt
+            contents = [{"parts": [{"text": prompt}]}]
+        
         data = {
-            "contents": [{"parts": [{"text": prompt}]}],
+            "contents": contents,
             "generationConfig": {"temperature": model_config.get("temperature", 0.6)},
         }
         response = requests.post(url, headers=headers, json=data, timeout=timeout)
@@ -119,9 +146,18 @@ def _translate_openai_like(
         }
         if provider_config.get("name") == "Mistral":
             headers["Accept"] = "application/json"
+        # Determinar el formato del prompt (string o dict con messages)
+        messages = []
+        if isinstance(prompt, dict) and "messages" in prompt:
+            # Nuevo formato con roles system/user
+            messages = prompt["messages"]
+        else:
+            # Formato antiguo: solo texto en prompt
+            messages = [{"role": "user", "content": prompt}]
+        
         data = {
             "model": model_config["endpoint"],
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
             **(
                 {"temperature": model_config["temperature"]}
                 if model_config.get("temperature") is not None
