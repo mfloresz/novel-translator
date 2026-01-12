@@ -74,6 +74,16 @@ class TranslationDatabase:
                         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
+                # Tabla de refinamientos
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS refines (
+                        filename TEXT PRIMARY KEY,
+                        source_lang TEXT,
+                        target_lang TEXT,
+                        status INTEGER DEFAULT 4,
+                        refined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
 
                 # --- Migraciones de Datos Antiguas (se mantienen por si acaso) ---
                 try:
@@ -407,3 +417,40 @@ class TranslationDatabase:
         except sqlite3.Error as e:
             print(f"Error recuperando prompt personalizado: {e}")
             return ""
+
+    def is_file_refined(self, filename: str) -> bool:
+        """Verifica si un archivo ya ha sido refinado."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT status FROM refines WHERE filename = ?",
+                    (filename,)
+                )
+                result = cursor.fetchone()
+                if result and result[0] == 4:  # STATUS_REFINED
+                    # Verificar que el archivo refinado realmente exista en la carpeta translated
+                    translated_path = NovelFolderStructure.get_translated_path(self.directory)
+                    translated_file = translated_path / filename
+                    return translated_file.exists()
+                return False
+        except sqlite3.Error as e:
+            print(f"Error verificando refinamiento: {e}")
+            return False
+
+    def add_refine_record(self, filename: str, source_lang: str,
+                         target_lang: str) -> bool:
+        """Registra un refinamiento exitoso."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO refines
+                    (filename, source_lang, target_lang, status)
+                    VALUES (?, ?, ?, 4)
+                ''', (filename, source_lang, target_lang))
+                conn.commit()
+                return True
+        except sqlite3.Error as e:
+            print(f"Error registrando refinamiento: {e}")
+            return False

@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import tempfile
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
     QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
@@ -12,6 +13,7 @@ from PyQt6.QtSvg import QSvgRenderer
 from src.gui.clean import CleanPanel
 from src.gui.create import CreateEpubPanel
 from src.gui.translate import TranslatePanel
+from src.gui.refine import RefinePanel
 from src.gui.settings_gui import SettingsDialog
 from src.gui.log_window import LogWindow
 from src.logic.get_path import get_directory, get_initial_directory
@@ -216,15 +218,21 @@ class NovelManagerApp(QMainWindow):
         right_layout = QVBoxLayout(right_panel)
         # Create the tab widget for the right side only
         self.tab_widget = QTabWidget()
+        # Create shared temporary directory for prompts
+        self._temp_dir_obj = tempfile.TemporaryDirectory()
+        self.shared_temp_prompts_path = Path(self._temp_dir_obj.name)
+
         # Create individual tab panels with reference to main window
         self.clean_panel = CleanPanel(self)
         self.create_panel = CreateEpubPanel()
         self.create_panel.set_main_window(self)
-        self.translate_panel = TranslatePanel(self)  # Modificado para pasar self
+        self.translate_panel = TranslatePanel(self, self.shared_temp_prompts_path)  # Modificado para pasar self y temp_path
+        self.refine_panel = RefinePanel(self, self.shared_temp_prompts_path)  # Nueva pestaña de refinamiento con temp_path compartido
         # Add panels to the tab widget
         self.tab_widget.addTab(self.clean_panel, self.lang_manager.get_string("clean_panel.tab_label", "Limpiar"))
         self.tab_widget.addTab(self.create_panel, self.lang_manager.get_string("create_panel.tab_label", "Ebook"))
         self.tab_widget.addTab(self.translate_panel, self.lang_manager.get_string("translate_panel.tab_label", "Traducir"))
+        self.tab_widget.addTab(self.refine_panel, self.lang_manager.get_string("refine_panel.tab_label", "Refinar"))
         right_layout.addWidget(self.tab_widget)
         # Add both panels to splitter
         splitter.addWidget(left_panel)
@@ -335,10 +343,12 @@ class NovelManagerApp(QMainWindow):
             clean_icon_path = "src/gui/icons/clean.svg"
             ebook_icon_path = "src/gui/icons/ebook.svg"
             translate_icon_path = "src/gui/icons/translate.svg"
+            refine_icon_path = "src/gui/icons/translate.svg"  # Usar el mismo icono por ahora
             # Configurar iconos con coloración automática
             self.tab_widget.setTabIcon(0, self.create_themed_icon(clean_icon_path))
             self.tab_widget.setTabIcon(1, self.create_themed_icon(ebook_icon_path))
             self.tab_widget.setTabIcon(2, self.create_themed_icon(translate_icon_path))
+            self.tab_widget.setTabIcon(3, self.create_themed_icon(refine_icon_path))
         except Exception as e:
             print(f"Error cargando iconos: {e}")
 
@@ -654,22 +664,22 @@ class NovelManagerApp(QMainWindow):
             return
         # Obtener términos personalizados
         custom_terms = translate_panel.terms_input.toPlainText().strip()
-        # Obtener configuración de segmentación
-        segment_size = None
-        if translate_panel.segment_checkbox.isChecked():
-            try:
-                segment_size = int(translate_panel.segment_size_input.text() or 5000)
-                if segment_size <= 0:
-                    segment_size = 5000
-            except ValueError:
-                self.statusBar().showMessage(
-                    self.lang_manager.get_string("translate_panel.error.invalid_segment_size"))
-                return
+        # Obtener configuración de segmentación efectiva
+        effective_segmentation = None
+        if translate_panel.enable_auto_segmentation_radio.isChecked():
+            if translate_panel.session_segmentation:
+                effective_segmentation = translate_panel.session_segmentation
+            else:
+                # Usar configuración por defecto con enabled=True
+                effective_segmentation = {**translate_panel.segmentation_config, "enabled": True}
+        else:
+            effective_segmentation = None
+
         # Obtener estado de la comprobación
         enable_check = translate_panel.check_translation_checkbox.isChecked()
         # Obtener estado del refinamiento
         enable_refine = translate_panel.refine_translation_checkbox.isChecked()
-        
+
         # Obtener la configuración de comprobación y refinado
         check_refine_settings = translate_panel.session_check_refine_settings or translate_panel.default_config.get("check_refine_settings")
 
@@ -708,12 +718,13 @@ class NovelManagerApp(QMainWindow):
             api_key,
             self.update_file_status,
             custom_terms,
-            segment_size,
+            None,  # segment_size no se usa
             enable_check,
             enable_refine,
             check_refine_settings,
             temp_api_keys=translate_panel.temp_api_keys,
-            allow_retranslation=already_translated
+            allow_retranslation=already_translated,
+            segmentation_config=effective_segmentation
         )
 
     def import_epub(self):
@@ -773,6 +784,8 @@ class NovelManagerApp(QMainWindow):
             self.create_panel.set_working_directory(directory_path)
             # Configurar directorio de trabajo en el panel de traducción
             self.translate_panel.set_working_directory(directory_path)
+            # Configurar directorio de trabajo en el panel de refinamiento
+            self.refine_panel.set_working_directory(directory_path)
             # Habilitar botones
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
@@ -914,7 +927,6 @@ class NovelManagerApp(QMainWindow):
         """
         # Como main.py está en la raíz, la ruta correcta es src/config/config.json
         config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "config", "config.json")
-        print(f"DEBUG: Intentando cargar config desde: {config_file}")
         config_dir = os.path.dirname(config_file)
         os.makedirs(config_dir, exist_ok=True)
         if not os.path.exists(config_file):
@@ -944,7 +956,6 @@ class NovelManagerApp(QMainWindow):
         try:
             with open(config_file, 'r') as f:
                 config = json.load(f)
-                print(f"DEBUG: Config cargada: {config}")
                 # Asegurar que default_directory existe
                 if "default_directory" not in config:
                     config["default_directory"] = os.path.expanduser("~")
@@ -993,14 +1004,11 @@ class NovelManagerApp(QMainWindow):
         """
         config = self.load_config()
         library_path = config.get("default_directory", "")
-        print(f"DEBUG: populate_library_combobox - library_path: {library_path}")
         if not library_path:
-            print("DEBUG: library_path está vacío")
             self.library_combobox.clear()
             self.library_combobox.addItem("No hay ruta de biblioteca configurada")
             return
         if not os.path.isdir(library_path):
-            print(f"DEBUG: library_path no es un directorio válido: {library_path}")
             self.library_combobox.clear()
             self.library_combobox.addItem(f"Ruta inválida: {os.path.basename(library_path)}")
             return
@@ -1015,8 +1023,7 @@ class NovelManagerApp(QMainWindow):
             # Obtener subdirectorios (novelas)
             novel_folders = [d for d in os.listdir(library_path) if os.path.isdir(os.path.join(library_path, d))]
             novel_folders.sort()
-            print(f"DEBUG: Encontrados {len(novel_folders)} subdirectorios en {library_path}")
-            
+
             self.library_combobox.clear()
             if novel_folders:
                 self.library_combobox.addItems(novel_folders)
@@ -1024,7 +1031,6 @@ class NovelManagerApp(QMainWindow):
             else:
                 self.library_combobox.addItem("No se encontraron novelas")
         except Exception as e:
-            print(f"DEBUG: Error poblando combobox de biblioteca: {e}")
             self.library_combobox.clear()
             self.library_combobox.addItem(f"Error al cargar novelas: {str(e)}")
         finally:
@@ -1061,6 +1067,7 @@ class NovelManagerApp(QMainWindow):
             self.epub_converter.set_directory(selected_directory)
             self.create_panel.set_working_directory(selected_directory)
             self.translate_panel.set_working_directory(selected_directory)
+            self.refine_panel.set_working_directory(selected_directory)
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
             self.update_window_title()
@@ -1377,6 +1384,7 @@ class NovelManagerApp(QMainWindow):
             self.epub_converter.set_directory(normalized_path)
             self.create_panel.set_working_directory(normalized_path)
             self.translate_panel.set_working_directory(normalized_path)
+            self.refine_panel.set_working_directory(normalized_path)
 
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)
@@ -1452,6 +1460,8 @@ class NovelManagerApp(QMainWindow):
             self.create_panel.set_working_directory(directory)
             # Configurar directorio de trabajo en el panel de traducción
             self.translate_panel.set_working_directory(directory)
+            # Configurar directorio de trabajo en el panel de refinamiento
+            self.refine_panel.set_working_directory(directory)
             # Habilitar botones
             self.refresh_button.setEnabled(True)
             self.open_dir_button.setEnabled(True)

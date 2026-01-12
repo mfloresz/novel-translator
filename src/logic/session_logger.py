@@ -95,6 +95,17 @@ class SessionLogger:
             message += f", Segmentos: {segments}"
         self._write_log("TRANSLATION_COMPLETE", message)
 
+    def log_refine_start(self, filename: str, source_lang: str, target_lang: str) -> None:
+        """Registra el inicio de un refinamiento"""
+        message = f"Iniciando refinamiento - Archivo: {filename}, {source_lang} -> {target_lang}"
+        self._write_log("REFINE_START", message)
+
+    def log_refine_complete(self, filename: str, success: bool) -> None:
+        """Registra la finalización de un refinamiento"""
+        status = "exitoso" if success else "fallido"
+        message = f"Refinamiento {status} - Archivo: {filename}"
+        self._write_log("REFINE_COMPLETE", message)
+
     def log_check_result(self, filename: str, passed: bool, attempt: int = 1) -> None:
         """Registra el resultado de la comprobación de traducción"""
         result = "PASÓ" if passed else "FALLÓ"
