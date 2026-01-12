@@ -31,21 +31,12 @@ La siguiente lista define cómo traducir términos específicos: `[Inglés] → 
   <mandatory_rules>
     - En ausencia de contexto sobre el género del sujeto en la narración, utiliza el género masculino como predeterminado.
     - Prohibido usar españolismos europeos: follar, joder, vosotros, terminaciones -éis/-óis, pediros, id, pedid.
-    - Se permiten usar mexicanismos.
+    - Las preguntas y exclamaciones deben abrirse con los signos de apertura '¿' y '¡' y cerrarse con los de cierre '?' y '!' respectivamente.
     - Adapta modismos (ej: "It's raining cats and dogs" → "Está lloviendo a cántaros" o "llueve a mares").
     - Conserva todos los dobles saltos de línea originales.
     - Aplica la terminología de referencia cuando corresponda
   </mandatory_rules>
 </spanish_specifications>
-
-<thoughts_rules>
-  - Convierte comillas simples en asteriscos: `'text'` → `*texto*`
-
-  <example type="thought">
-    <original>'This is madness,' he thought.</original>
-    <translation>*Esto es una locura*, pensó.</translation>
-  </example>
-</thoughts_rules>
 
 <structure_preservation>
   - Si hay título de capítulo, colócalo al inicio siguiendo la estructura original.
@@ -61,6 +52,11 @@ La siguiente lista define cómo traducir términos específicos: `[Inglés] → 
     <translation>1</translation>
   </example>
 
+  <example type="title_number_word">
+    <original>Chapter one</original>
+    <translation>Capítulo Uno</translation>
+  </example>
+
   <example type="title_with_redundancy">
     <original>Chapter 44: Chapter 45: The Path</original>
     <translation>Capítulo 45: El camino</translation>
@@ -71,6 +67,18 @@ La siguiente lista define cómo traducir términos específicos: `[Inglés] → 
   <proper_names>
     - Ajusta determinantes según la gramática española.
   </proper_names>
+
+  <scene_separators>
+    - Identifica separadores de escena presentes en el texto original (por ejemplo: `***`, `___`, `* * *`, `— — —`, `---`, `...`).
+    - Los separadores se reconocen por:
+    * Estar en su propia línea, rodeados de líneas vacías o al inicio/fin de párrafos
+    * NO estar entre comillas ni formar parte del diálogo o narración
+    * Servir como división visual entre escenas o secciones
+    - Reemplázalos TODOS por exactamente: `***`.
+    - Mantén su posición original en el texto.
+    - No elimines separadores ni los conviertas en líneas vacías.
+    - IMPORTANTE: Los puntos suspensivos (`...`) dentro de diálogos, entre comillas, o en medio de oraciones NO son separadores de escena.
+  </scene_separators>
 
   <onomatopoeia_and_stylized_typography>
     - Traduce efectos de sonido y texto enfatizado usando equivalentes del español.

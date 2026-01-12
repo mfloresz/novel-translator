@@ -31,7 +31,7 @@
         "top_p": 0.95,
         "thinking": true
       },
-        "qwen3-80b-a3b": {
+      "qwen3-80b-a3b": {
         "name": "Qwen3 80B A3B",
         "endpoint": "Qwen/Qwen3-Next-80B-A3B-Instruct",
         "temperature": 0.7,
@@ -49,13 +49,13 @@
       "mistral-small-3.2": {
         "name": "Mistral Small 3.2",
         "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
-        "max_tokens": 40000,
-        "temperature": 0.7,
-        "top_p": 0.95,
+        "max_tokens": 8192,
+        "temperature": 0.3,
+        "top_p": 1,
         "thinking": false,
         "include_reasoning": false
       },
-        "qwen3-235b-a22b": {
+      "qwen3-235b-a22b": {
         "name": "Qwen3 235B A22B",
         "endpoint": "Qwen/Qwen3-235B-A22B-Instruct-2507",
         "max_tokens": 40000,
@@ -64,25 +64,25 @@
         "thinking": true,
         "include_reasoning": false
       },
-        "gpt-oss-20b": {
+      "gpt-oss-20b": {
         "name": "GPT OSS 20B",
         "endpoint": "openai/gpt-oss-20b",
         "max_tokens": 100000,
-        "temperature": 0.7,
-        "top_p": 0.95,
+        "temperature": 1,
+        "top_p": 1,
         "thinking": false,
         "include_reasoning": false
       },
-        "gpt-oss-120b": {
+      "gpt-oss-120b": {
         "name": "GPT OSS 120B",
         "endpoint": "openai/gpt-oss-120b-TEE",
         "max_tokens": 100000,
-        "temperature": 0.7,
+        "temperature": 1,
         "top_p": 0.95,
         "thinking": false,
         "include_reasoning": false
       },
-        "deepseek-v3.2": {
+      "deepseek-v3.2": {
         "name": "DeepSeek TNG Chimera",
         "endpoint": "tngtech/DeepSeek-TNG-R1T2-Chimera",
         "max_tokens": 60000,
@@ -91,7 +91,7 @@
         "thinking": false,
         "include_reasoning": false
       },
-        "mistral-nemo": {
+      "mistral-nemo": {
         "name": "Mistral Nemo",
         "endpoint": "unsloth/Mistral-Nemo-Instruct-2407",
         "max_tokens": 40000,
@@ -100,7 +100,7 @@
         "thinking": false,
         "include_reasoning": false
       },
-        "hermes-4-70b": {
+      "hermes-4-70b": {
         "name": "Hermes 4 70B",
         "endpoint": "NousResearch/Hermes-4-70B",
         "max_tokens": 40000,
@@ -109,25 +109,25 @@
         "thinking": false,
         "include_reasoning": false
       },
-        "qwen3-30b-a3b": {
+      "qwen3-30b-a3b": {
         "name": "Qwen3 30B A3B",
         "endpoint": "Qwen/Qwen3-30B-A3B-Instruct-2507",
         "max_tokens": 40000,
         "temperature": 0.7,
-        "top_p": 0.95,
+        "top_p": 0.8,
         "thinking": false,
         "include_reasoning": false
       },
-        "deep-hermes-mistral-24b": {
-        "name": "DeepHermes Mistral 24B",
-        "endpoint": "NousResearch/DeepHermes-3-Mistral-24B-Preview",
+      "deepseek-3.2-tee": {
+        "name": "DeepSeek 3.2",
+        "endpoint": "deepseek-ai/DeepSeek-V3.2-TEE",
         "max_tokens": 40000,
         "temperature": 0.7,
         "top_p": 0.95,
         "thinking": false,
         "include_reasoning": false
       },
-        "qwen3-80b-a3b": {
+      "qwen3-80b-a3b": {
         "name": "Qwen3 80B A3B",
         "endpoint": "Qwen/Qwen3-Next-80B-A3B-Instruct",
         "max_tokens": 40000,
@@ -158,10 +158,18 @@
         "temperature": 0.7,
         "top_p": 0.95,
         "thinking": false
+      },
+      "mistral-creative": {
+        "name": "Mistral Creative",
+        "endpoint": "labs-mistral-small-creative",
+        "max_tokens": 33000,
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "thinking": false
       }
     }
   },
-    "openrouter": {
+  "openrouter": {
     "name": "OpenRouter",
     "type": "openai",
     "base_url": "https://openrouter.ai/api/v1/chat/completions",
@@ -173,6 +181,22 @@
         "thinking": false,
         "include_reasoning": true,
         "reasoning": false
+      },
+      "gpt-oss-120b": {
+        "name": "GPT OSS 120B",
+        "endpoint": "openai/gpt-oss-120b",
+        "temperature": 1,
+        "thinking": false,
+        "include_reasoning": true,
+        "reasoning": true
+      },
+      "mistral-small-3.2": {
+        "name": "Mistral Small",
+        "endpoint": "mistralai/mistral-small-3.2-24b-instruct",
+        "max_tokens": 128000,
+        "temperature": 0.3,
+        "top_p": 1,
+        "thinking": false
       }
     }
   }
