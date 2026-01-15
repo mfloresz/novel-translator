@@ -40,6 +40,14 @@ Estas traducciones tienen prioridad sobre sinónimos creativos o reinterpretacio
     - Conserva todos los dobles saltos de línea y la estructura de párrafos originales.
     - Aplica siempre la terminología de referencia cuando corresponda.
   </mandatory_rules>
+  <dialogue_formatting>
+    - REGLA ABSOLUTA: Mantén siempre el mismo formato de diálogo que usa el texto original.
+    - Si el original usa comillas dobles ("..."), conserva comillas dobles en español.
+    - Si el original usa guiones largos (—...), conserva guiones largos en español.
+    - Si el original usa comillas simples ('...'), usa las comillas tipográficas correctas ('...').
+    - NUNCA cambies el sistema de puntuación de diálogos del texto fuente.
+    - Preserva la estructura exacta: si hay diálogo + acotación + diálogo, mantén el mismo patrón.
+  </dialogue_formatting>
 </spanish_specifications>
 
 <structure_preservation>
