@@ -73,6 +73,11 @@ Estas traducciones tienen prioridad sobre sinónimos creativos o reinterpretacio
     <original>Chapter 44: Chapter 45: The Path</original>
     <translation>Capítulo 45: El camino</translation>
   </example>
+
+  <example type="title_with_series_name">
+    <original>Jacob's tales - Chapter 1</original>
+    <translation>Los cuentos de Jacob - Capítulo 1</translation>
+  </example>
 </structure_preservation>
 
 <special_elements>

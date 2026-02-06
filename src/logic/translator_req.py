@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Dict, Optional
 
 import requests
@@ -113,11 +114,20 @@ def _translate_gemini(
         }
         response = requests.post(url, headers=headers, json=data, timeout=timeout)
         response.raise_for_status()
-        return _process_response(
-            provider_config["type"],
-            response.json(),
-            model_config.get("thinking", False),
-        )
+        
+        # Procesar respuesta según si es streaming o no
+        if model_config.get("stream", False):
+            return _process_streaming_response(
+                provider_config["type"],
+                response,
+                model_config.get("thinking", False),
+            )
+        else:
+            return _process_response(
+                provider_config["type"],
+                response.json(),
+                model_config.get("thinking", False),
+            )
     except requests.exceptions.RequestException as e:
         error_msg = f"Error HTTP Gemini: {str(e)}"
         response_text = None
@@ -173,7 +183,7 @@ def _translate_openai_like(
                 if model_config.get("max_tokens") is not None
                 else {}
             ),
-            "stream": False,
+            "stream": model_config.get("stream", False),
         }
 
         # Incluir parámetro 'reasoning' si está configurado en el modelo
@@ -182,11 +192,20 @@ def _translate_openai_like(
 
         response = requests.post(url, headers=headers, json=data, timeout=timeout)
         response.raise_for_status()
-        return _process_response(
-            provider_config["type"],
-            response.json(),
-            model_config.get("thinking", False),
-        )
+        
+        # Procesar respuesta según si es streaming o no
+        if model_config.get("stream", False):
+            return _process_streaming_response(
+                provider_config["type"],
+                response,
+                model_config.get("thinking", False),
+            )
+        else:
+            return _process_response(
+                provider_config["type"],
+                response.json(),
+                model_config.get("thinking", False),
+            )
     except Exception as e:
         error_msg = f"Error {provider_config['name']}: {str(e)}"
         response_text = None
@@ -247,6 +266,59 @@ def _process_response(
             raise ValueError(f"Tipo de proveedor no soportado: {provider_type}")
     except Exception as e:
         error_msg = f"Error procesando respuesta del tipo {provider_type}: {str(e)}"
+        print(error_msg)
+        return None
+
+
+def _process_streaming_response(
+    provider_type: str, response, thinking: bool = False
+) -> Optional[str]:
+    """
+    Procesa la respuesta en streaming del proveedor basado en su tipo y configuración de thinking.
+
+    Args:
+        provider_type (str): Tipo de proveedor ('openai' o 'gemini')
+        response: Respuesta HTTP con streaming
+        thinking (bool): Si True, maneja respuestas con thinking tokens
+
+    Returns:
+        Optional[str]: Texto traducido limpio o None si hay error
+    """
+    try:
+        if provider_type == "openai":
+            full_content = ""
+            # Usar iter_lines() para manejar correctamente el buffering de líneas SSE
+            for line in response.iter_lines():
+                if line:
+                    # Decodificar bytes a string si es necesario
+                    line_str = line.decode('utf-8') if isinstance(line, bytes) else line
+                    line_str = line_str.strip()
+                    
+                    if line_str.startswith('data:'):
+                        # Extraer el JSON de los datos
+                        json_str = line_str[5:].strip()  # Remover 'data: ' y espacios
+                        if json_str == '[DONE]':
+                            break
+                        try:
+                            data = json.loads(json_str)
+                            if data.get('choices'):
+                                choice = data['choices'][0]
+                                if 'delta' in choice:
+                                    delta = choice['delta']
+                                    if 'content' in delta and delta['content']:
+                                        full_content += delta['content']
+                        except json.JSONDecodeError:
+                            # Ignorar líneas que no son JSON válido
+                            pass
+            
+            if not full_content:
+                return None
+            
+            return _clean_translation(full_content)
+        else:
+            raise ValueError(f"Streaming no soportado para tipo de proveedor: {provider_type}")
+    except Exception as e:
+        error_msg = f"Error procesando respuesta en streaming del tipo {provider_type}: {str(e)}"
         print(error_msg)
         return None
 

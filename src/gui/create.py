@@ -404,6 +404,14 @@ class CreateEpubPanel(QWidget):
             return
 
         try:
+            # Limpiar campos de texto primero para evitar que persistan datos del directorio anterior
+            self.title_input.clear()
+            self.author_input.clear()
+            self.description_input.clear()
+            self.language_input.clear()
+            # Nota: No limpiamos la portada aquí porque auto_load_cover() se llama antes
+            # y podría haber encontrado una portada automáticamente
+
             metadata = self.db.get_book_metadata()
             if metadata.get('title'):
                 self._set_text_and_show_start(self.title_input, metadata['title'])
@@ -445,6 +453,11 @@ class CreateEpubPanel(QWidget):
         """Busca automáticamente una imagen de portada en el directorio de trabajo"""
         if not self.working_directory:
             return
+
+        # Limpiar portada anterior primero
+        self.cover_path = None
+        self.cover_preview.clear()
+        self.cover_preview.setText(self._get_string("create_panel.cover_label"))
 
         import os
         # Patrones comunes de nombres de portada

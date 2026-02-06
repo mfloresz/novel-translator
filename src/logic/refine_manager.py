@@ -72,8 +72,8 @@ class RefineWorker(QObject):
                 # Registrar inicio de refinamiento
                 session_logger.log_refine_start(filename, self.source_lang, self.target_lang)
 
-                # Refinar el archivo
-                success = self._refine_single_file(filename)
+                # Refinar el archivo usando el prompt alternativo
+                success = self._refine_single_file(filename, prompt_name="refine_alt.txt")
 
                 if success:
                     successful_refines += 1
@@ -98,7 +98,7 @@ class RefineWorker(QObject):
         finally:
             self.all_refines_completed.emit()
 
-    def _refine_single_file(self, filename: str) -> bool:
+    def _refine_single_file(self, filename: str, prompt_name: str = "refine.txt") -> bool:
         try:
             # Asegurar que la estructura de carpetas exista
             NovelFolderStructure.ensure_structure(self.working_directory)
@@ -145,7 +145,8 @@ class RefineWorker(QObject):
                 custom_terms=self.custom_terms,
                 temp_api_keys=self.temp_api_keys,
                 timeout=self.timeout,
-                stop_callback=self.is_stop_requested
+                stop_callback=self.is_stop_requested,
+                prompt_name=prompt_name
             )
 
             if not refined_text:

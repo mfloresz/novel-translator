@@ -2,6 +2,7 @@ import time
 import json
 import os
 import re
+import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
 from typing import Optional, Dict, List, Callable
 from pathlib import Path
@@ -351,8 +352,8 @@ class TranslatorLogic:
         return {"messages": messages}
 
     def _build_refine_prompt(self, source_lang: str, target_lang: str,
-                            source_text: str, translated_text: str,
-                            custom_terms: str = "") -> Dict:
+                              source_text: str, translated_text: str,
+                              custom_terms: str = "", prompt_name: str = "refine.txt") -> Dict:
         """
         Construye el prompt para refinar la traducción.
 
@@ -362,22 +363,149 @@ class TranslatorLogic:
             source_text (str): Texto original
             translated_text (str): Texto traducido a refinar
             custom_terms (str): Términos personalizados para la traducción
+            prompt_name (str): Nombre del archivo de prompt a usar
 
         Returns:
             Dict: Prompt estructurado con roles system y user
         """
-        refine_prompt_template = self._load_prompt("refine.txt", source_lang, target_lang)
+        refine_prompt_template = self._load_prompt(prompt_name, source_lang, target_lang)
         prompt_content = self._handle_terminology_section(refine_prompt_template, custom_terms)
         prompt_content = prompt_content.replace("{source_lang}", source_lang)
         prompt_content = prompt_content.replace("{target_lang}", target_lang)
-        
+
+        # Preparar el contenido del texto traducido
+        # Formato consistente para todos los prompts
+        user_content = f"Original text ({source_lang}):\n{source_text.strip()}\n\nPreliminary translation ({target_lang}):\n{translated_text.strip()}"
+
         # Crear estructura con roles
         messages = [
             {"role": "system", "content": prompt_content},
-            {"role": "user", "content": f"Original text ({source_lang}):\n{source_text.strip()}\n\nPreliminary translation ({target_lang}):\n{translated_text.strip()}"}
+            {"role": "user", "content": user_content}
         ]
-        
+
         return {"messages": messages}
+
+    def _apply_refinement_changes(self, translated_text: str, xml_response: str) -> str:
+        """
+        Aplica los cambios de refinamiento desde la respuesta XML al texto traducido.
+        Busca y reemplaza cadenas exactas en lugar de trabajar con líneas numeradas.
+
+        Args:
+            translated_text (str): Texto traducido original
+            xml_response (str): Respuesta XML con instrucciones de cambios
+
+        Returns:
+            str: Texto refinado con cambios aplicados
+        """
+        try:
+            # Limpiar el XML de posibles errores comunes
+            cleaned_xml = self._clean_xml_response(xml_response)
+
+            # Parsear el XML
+            root = ET.fromstring(cleaned_xml)
+
+            # Lista de cambios a aplicar
+            changes = []
+            for change_elem in root.findall('.//change'):
+                change_type = change_elem.get('type')
+
+                if change_type == 'delete':
+                    original = change_elem.find('original')
+                    if original is not None and original.text:
+                        original_text = original.text.strip()
+                        changes.append(('delete', original_text, None, None))
+                elif change_type == 'replace':
+                    original = change_elem.find('original')
+                    replacement = change_elem.find('replacement')
+                    if original is not None and original.text and replacement is not None:
+                        original_text = original.text.strip()
+                        replacement_text = replacement.text.strip()
+                        changes.append(('replace', original_text, replacement_text, None))
+                elif change_type == 'add':
+                    position = change_elem.find('position')
+                    replacement = change_elem.find('replacement')
+                    if position is not None and replacement is not None and replacement.text:
+                        position_text = position.text.strip()
+                        replacement_text = replacement.text.strip()
+                        changes.append(('add', position_text, replacement_text, None))
+
+            # Aplicar cambios en orden inverso para no afectar posiciones
+            applied_changes = 0
+            result_text = translated_text
+
+            # Procesar cambios de eliminación y reemplazo primero
+            for change_type, original, replacement, _ in reversed(changes):
+                try:
+                    if change_type == 'delete':
+                        if original and original in result_text:
+                            result_text = result_text.replace(original, '', 1)  # Reemplazar solo la primera ocurrencia
+                            applied_changes += 1
+                            session_logger.log_info(f"Eliminado: '{original}'")
+                        else:
+                            session_logger.log_warning(f"No se pudo eliminar: '{original}' no encontrado o vacío")
+                    elif change_type == 'replace':
+                        if original and replacement and original in result_text:
+                            result_text = result_text.replace(original, replacement, 1)  # Reemplazar solo la primera ocurrencia
+                            applied_changes += 1
+                            session_logger.log_info(f"Reemplazado: '{original}' → '{replacement}'")
+                        else:
+                            session_logger.log_warning(f"No se pudo reemplazar: '{original}' o '{replacement}' no encontrado/vacío")
+                except Exception as e:
+                    session_logger.log_error(f"Error aplicando cambio {change_type}: {e}")
+
+            # Procesar adiciones después
+            for change_type, position, replacement, _ in changes:
+                try:
+                    if change_type == 'add':
+                        if position and replacement and position in result_text:
+                            # Insertar después de la posición de referencia
+                            pos = result_text.find(position) + len(position)
+                            result_text = result_text[:pos] + replacement + result_text[pos:]
+                            applied_changes += 1
+                            session_logger.log_info(f"Agregado después de: '{position}' → '{replacement}'")
+                        else:
+                            session_logger.log_warning(f"No se pudo agregar: posición '{position}' no encontrada o datos incompletos")
+                except Exception as e:
+                    session_logger.log_error(f"Error aplicando adición: {e}")
+
+            session_logger.log_info(f"Cambios aplicados exitosamente: {applied_changes}")
+            return result_text
+
+        except ET.ParseError as e:
+            session_logger.log_error(f"Error parseando respuesta XML: {e}")
+            session_logger.log_error(f"XML recibido: {xml_response[:500]}...")
+            return translated_text
+        except Exception as e:
+            session_logger.log_error(f"Error aplicando cambios de refinamiento: {e}")
+            return translated_text
+
+    def _clean_xml_response(self, xml_response: str) -> str:
+        """
+        Limpia la respuesta XML de errores comunes que pueden cometer los modelos.
+
+        Args:
+            xml_response (str): Respuesta XML cruda
+
+        Returns:
+            str: XML limpiado
+        """
+        # Eliminar cualquier texto antes de <refinement_instructions>
+        start_tag = "<refinement_instructions>"
+        if start_tag in xml_response:
+            xml_response = xml_response[xml_response.find(start_tag):]
+
+        # Eliminar cualquier texto después de </refinement_instructions>
+        end_tag = "</refinement_instructions>"
+        if end_tag in xml_response:
+            xml_response = xml_response[:xml_response.find(end_tag) + len(end_tag)]
+
+        # Corregir tags mal cerrados comunes
+        # Ejemplo: <replacement>texto</original> -> <replacement>texto</replacement>
+        import re
+        # Buscar patrones donde un tag de cierre no coincide con el de apertura
+        xml_response = re.sub(r'<(\w+)[^>]*>([^<]*)</(\w+)>', lambda m: f'<{m.group(1)}>{m.group(2)}</{m.group(1)}>' if m.group(1) != m.group(3) else m.group(0), xml_response)
+
+        return xml_response
 
     def _get_api_key_for_provider(self, provider: str) -> str:
         """
@@ -557,10 +685,10 @@ class TranslatorLogic:
             return False
 
     def _refine_translation(self, source_text: str, translated_text: str,
-                             source_lang: str, target_lang: str,
-                             main_api_key: str, refine_provider: str, refine_model: str,
-                             custom_terms: str = "", temp_api_keys: dict = None, timeout: int = 120,
-                             stop_callback: Optional[Callable[[], bool]] = None) -> Optional[str]:
+                              source_lang: str, target_lang: str,
+                              main_api_key: str, refine_provider: str, refine_model: str,
+                              custom_terms: str = "", temp_api_keys: dict = None, timeout: int = 120,
+                              stop_callback: Optional[Callable[[], bool]] = None, prompt_name: str = "refine.txt") -> Optional[str]:
         """
         Refina la traducción usando la API.
 
@@ -574,6 +702,7 @@ class TranslatorLogic:
             refine_model (str): Modelo para refinamiento
             custom_terms (str): Términos personalizados para la traducción
             temp_api_keys (dict): Diccionario de API keys temporales (opcional)
+            prompt_name (str): Nombre del archivo de prompt a usar
 
         Returns:
             Optional[str]: Texto refinado si tiene éxito, None si falla o error
@@ -589,7 +718,7 @@ class TranslatorLogic:
             return None
 
         session_logger.log_info(f"Iniciando refinamiento con Proveedor: {refine_provider}, Modelo: {refine_model}")
-        prompt = self._build_refine_prompt(source_lang, target_lang, source_text, translated_text, custom_terms)
+        prompt = self._build_refine_prompt(source_lang, target_lang, source_text, translated_text, custom_terms, prompt_name)
 
         provider_config = self.models_config.get(refine_provider)
         if not provider_config:
@@ -621,7 +750,13 @@ class TranslatorLogic:
                 session_logger.log_error("Error en el refinamiento de la traducción (respuesta nula)")
                 return None
 
-            return response
+            # Si es el prompt alternativo, aplicar cambios desde XML
+            if prompt_name == "refine_alt.txt":
+                refined_text = self._apply_refinement_changes(translated_text, response)
+                return refined_text
+            else:
+                # Para el prompt normal, devolver la respuesta completa
+                return response
 
         except Exception as e:
             session_logger.log_error(f"Error al hacer el refinamiento: {str(e)}")
