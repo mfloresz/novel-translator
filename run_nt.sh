@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Cambiar al directorio donde está main.py
 cd "$(dirname "$0")"
 

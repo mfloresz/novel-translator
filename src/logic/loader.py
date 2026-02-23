@@ -69,7 +69,7 @@ class FileLoader(QObject):
                 })
 
             if not txt_files:
-                self.loading_error.emit("No se encontraron archivos .txt en las carpetas originals o translated")
+                self.loading_error.emit("No se encontraron archivos .txt o .md en las carpetas originals o translated")
                 return
 
             # Cargar metadatos del libro si existen

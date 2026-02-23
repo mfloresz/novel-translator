@@ -14,11 +14,11 @@ class TextProcessingOptions:
 class EpubTextProcessor:
     """Procesador de texto para EPUB.
 
-    Centraliza el procesamiento de markdown usando las reglas “Python” (más completas)
+    Centraliza el procesamiento de markdown usando las reglas "Python" (más completas)
     y expone un único método ``process_chapter`` que aplica:
-        1️⃣ Patrones personalizados
-        2️⃣ Reglas de markdown (opcionalmente las de Python)
-        3️⃣ Conversión a párrafos HTML
+        1. Patrones personalizados
+        2. Reglas de markdown (opcionalmente las de Python)
+        3. Conversión a párrafos HTML
     Los métodos antiguos ``process_chapter_content`` y
     ``process_chapter_with_python_rules`` se conservan como wrappers
     para mantener compatibilidad.
@@ -29,8 +29,12 @@ class EpubTextProcessor:
         self.markdown_rules = []
 
     def apply_markdown_formatting(self, text: str) -> str:
-        """Reglas básicas de markdown (negrita **, cursiva *)."""
+        """Reglas básicas de markdown (negrita **, cursiva *, negrita+cursiva ***)."""
+        # Bold + Italic: ***texto*** (debe ir primero antes que ** y *)
+        text = re.sub(r"\*\*\*([^*\n]+)\*\*\*", r"<b><i>\1</i></b>", text)
+        # Negrita: **texto**
         text = re.sub(r"(?<!\*)\*\*([^*\n]+)\*\*(?!\*)", r"<b>\1</b>", text)
+        # Cursiva: *texto*
         text = re.sub(r"(?<!\*)\*([^*\n]+)\*(?!\*)", r"<i>\1</i>", text)
         return text
 
@@ -129,13 +133,13 @@ class EpubTextProcessor:
         if patterns is None:
             patterns = []
 
-        # 1️⃣ Patrones personalizados
+        # 1. Patrones personalizados
         txt = self.apply_custom_patterns(content, patterns)
 
-        # 2️⃣ Reglas de markdown
+        # 2. Reglas de markdown
         txt = self._apply_markdown_rules(txt, use_python_rules)
 
-        # 3️⃣ Conversión a párrafos HTML
+        # 3. Conversión a párrafos HTML
         paragraphs = self.convert_paragraphs_to_html(txt)
         return self._process_paragraphs(paragraphs)
 
@@ -149,9 +153,14 @@ class EpubTextProcessor:
         return re.sub(r"^\*\*(.*)\*\*$", r"\1", title).strip()
 
     def apply_python_markdown_rules(self, text: str) -> str:
-        """Reglas de markdown “Python” (negrita **, cursiva *, subrayado _)."""
+        """Reglas de markdown "Python" (negrita **, cursiva *, subrayado _, negrita+cursiva ***)."""
+        # Bold + Italic: ***texto*** (debe ir primero antes que ** y *)
+        text = re.sub(r"\*\*\*([^*\n]+)\*\*\*", r"<b><i>\1</i></b>", text)
+        # Negrita: **texto**
         text = re.sub(r"(?<!\*)\*\*([^*\n]+)\*\*(?!\*)", r"<b>\1</b>", text)
+        # Cursiva: *texto*
         text = re.sub(r"(?<!\*)\*([^*\n]+)\*(?!\*)", r"<i>\1</i>", text)
+        # Subrayado: _texto_
         text = re.sub(r"(?<!_)_([^_\n]+)_(?!_)", r"<i>\1</i>", text)
         return text
 

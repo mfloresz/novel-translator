@@ -167,7 +167,7 @@ def get_epub_files(table, start_index=None, end_index=None):
     for row in range(start_index - 1, end_index):
         if row < table.rowCount():
             name_item = table.item(row, 0)
-            if name_item and name_item.text().endswith('.txt'):
+            if name_item and name_item.text().lower().endswith(('.txt', '.md')):
                 files.append({
                     'name': name_item.text(),
                     'chapter': row + 1

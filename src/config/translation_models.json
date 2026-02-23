@@ -158,5 +158,19 @@
         "thinking": false
       }
     }
+  },
+  "lightingai": {
+    "name": "Lighting AI",
+    "type": "openai",
+    "base_url": "https://lightning.ai/api/v1/chat/completions",
+    "models": {
+      "gpt-oss-120b": {
+        "name": "GPT OSS 120B",
+        "endpoint": "lightning-ai/gpt-oss-120b",
+        "thinking": false,
+        "include_reasoning": true,
+        "reasoning": false
+      }
+    }
   }
 }

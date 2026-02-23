@@ -188,7 +188,7 @@ class NovelFolderStructure:
                 return []
 
             return [f for f in os.listdir(originals_path)
-                   if f.lower().endswith('.txt') and (originals_path / f).is_file()]
+                   if f.lower().endswith(('.txt', '.md')) and (originals_path / f).is_file()]
 
         except Exception:
             return []
@@ -210,7 +210,7 @@ class NovelFolderStructure:
                 return []
 
             return [f for f in os.listdir(translated_path)
-                   if f.lower().endswith('.txt') and (translated_path / f).is_file()]
+                   if f.lower().endswith(('.txt', '.md')) and (translated_path / f).is_file()]
 
         except Exception:
             return []
