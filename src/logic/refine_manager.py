@@ -51,8 +51,38 @@ class RefineWorker(QObject):
         """Retorna True si se ha solicitado detener el refinamiento"""
         return self._stop_requested
 
+    def _check_model_supports_tools(self) -> bool:
+        """
+        Verifica si el modelo seleccionado soporta function calling (tools).
+        
+        Returns:
+            bool: True si el modelo soporta tools, False en caso contrario
+        """
+        try:
+            # Obtener configuración del modelo
+            models_config = self.translator.models_config
+            provider_config = models_config.get(self.provider, {})
+            model_config = provider_config.get('models', {}).get(self.model, {})
+            
+            # Retornar el valor de supports_tools (default False)
+            return model_config.get('supports_tools', False)
+        except Exception as e:
+            # En caso de error, asumir que no soporta tools
+            return False
+
     def run(self):
         try:
+            # Verificar si el modelo soporta tools al inicio del proceso
+            if not self._check_model_supports_tools():
+                error_msg = self._get_status_string(
+                    "refine_manager.error.model_no_tools_support",
+                    "El modelo seleccionado no soporta el uso de herramientas (tools). Por favor, seleccione un modelo que soporte tools para el refinamiento."
+                )
+                session_logger.log_error(error_msg)
+                self.error_occurred.emit(error_msg)
+                self.all_refines_completed.emit()
+                return
+
             total_files = len(self.files_to_refine)
             successful_refines = 0
 
@@ -134,6 +164,9 @@ class RefineWorker(QObject):
                 translated_text = file.read()
 
             # Refinar la traducción
+            # Detectar automáticamente si el modelo soporta tools
+            use_tools = self._check_model_supports_tools()
+            
             refined_text = self.translator._refine_translation(
                 source_text=source_text,
                 translated_text=translated_text,
@@ -146,7 +179,8 @@ class RefineWorker(QObject):
                 temp_api_keys=self.temp_api_keys,
                 timeout=self.timeout,
                 stop_callback=self.is_stop_requested,
-                prompt_name=prompt_name
+                prompt_name=prompt_name,
+                use_tools=use_tools
             )
 
             if not refined_text:

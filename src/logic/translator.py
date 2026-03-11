@@ -2,6 +2,7 @@ import time
 import json
 import os
 import re
+import difflib
 import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
 from typing import Optional, Dict, List, Callable
@@ -507,6 +508,213 @@ class TranslatorLogic:
 
         return xml_response
 
+    def _find_best_match(self, text: str, search_string: str, threshold: float = 0.75) -> tuple:
+        """
+        Busca la mejor coincidencia de search_string dentro de text usando 3 niveles de tolerancia.
+        Version optimizada para mitigar cuellos de botella de CPU.
+        """
+        if not search_string or not text:
+            return None
+
+        search_string = search_string.strip()
+      
+        # Nivel 1: Busqueda exacta (Mas rapida)
+        exact_pos = text.find(search_string)
+        if exact_pos != -1:
+            return (exact_pos, exact_pos + len(search_string), 1.0)
+
+        # Nivel 2: Busqueda normalizada por espacios/saltos de linea
+        try:
+            parts = search_string.split()
+            if parts:
+                escaped_parts = [re.escape(p) for p in parts]
+                space_tolerant_pattern = r'\s+'.join(escaped_parts)
+              
+                match = re.search(space_tolerant_pattern, text)
+                if match:
+                    return (match.start(), match.end(), 0.95)
+        except Exception:
+            pass
+
+        # Nivel 3: Busqueda difusa anclada (Altamente optimizada)
+        # Identificar las palabras mas largas para usarlas como anclas de busqueda
+        words = [w for w in search_string.split() if len(w) > 4]
+        if not words:
+            words = search_string.split()
+          
+        anchor_words = sorted(words, key=len, reverse=True)[:3]
+        candidate_indices = set()
+      
+        # Encontrar indices donde aparecen las palabras ancla
+        for word in anchor_words:
+            idx = 0
+            while True:
+                idx = text.find(word, idx)
+                if idx == -1:
+                    break
+                candidate_indices.add(idx)
+                idx += 1
+              
+        search_len = len(search_string)
+        best_ratio = 0.0
+        best_start = 0
+        best_end = 0
+      
+        # Si no hay anclas, iterar por bloques de texto (fallback seguro)
+        if not candidate_indices:
+            candidate_indices = set(range(0, len(text), search_len // 2))
+
+        # Evaluar ventanas unicamente alrededor de los indices candidatos
+        min_window = max(1, int(search_len * 0.8))
+        max_window = min(len(text), int(search_len * 1.2))
+      
+        for base_idx in candidate_indices:
+            # Ampliar el rango de busqueda alrededor del ancla
+            start_range = max(0, base_idx - search_len)
+            end_range = min(len(text), base_idx + search_len)
+          
+            for i in range(start_range, end_range, max(1, search_len // 10)):
+                for window_size in (min_window, search_len, max_window):
+                    if i + window_size > len(text):
+                        continue
+                      
+                    candidate = text[i:i + window_size]
+                    ratio = difflib.SequenceMatcher(None, search_string, candidate).ratio()
+                  
+                    if ratio > best_ratio:
+                        best_ratio = ratio
+                        best_start = i
+                        best_end = i + window_size
+                  
+                    if best_ratio > 0.95:
+                        return (best_start, best_end, best_ratio)
+
+        if best_ratio >= threshold:
+            return (best_start, best_end, best_ratio)
+      
+        return None
+
+
+    def _apply_tool_refinement(self, translated_text: str, tool_response: str) -> str:
+        """
+        Aplica los cambios de refinamiento desde tool calls al texto traducido
+        utilizando búsqueda difusa (fuzzy matching) para tolerar variaciones del LLM.
+        """
+        try:
+            response_data = json.loads(tool_response)
+
+            if "text_response" in response_data:
+                session_logger.log_warning(
+                    "El modelo respondió con texto en lugar de usar tools. "
+                    "Retornando texto original sin cambios."
+                )
+                return translated_text
+
+            tool_calls = response_data.get("tool_calls", [])
+
+            if not tool_calls:
+                session_logger.log_info("No se recibieron tool calls - sin cambios necesarios")
+                return translated_text
+
+            result_text = translated_text
+            applied = 0
+            failed = 0
+
+            for call in tool_calls:
+                name = call.get("name")
+                args = call.get("arguments", {})
+
+                try:
+                    if name == "no_changes_needed":
+                        confidence = args.get("confidence", "unknown")
+                        session_logger.log_info(
+                            f"Modelo indica que no se necesitan cambios (confianza: {confidence})"
+                        )
+                        return result_text
+
+                    elif name == "replace_text":
+                        original = args.get("original", "")
+                        replacement = args.get("replacement", "")
+                        reason = args.get("reason", "")
+
+                        match = self._find_best_match(result_text, original)
+                        
+                        if match:
+                            start, end, ratio = match
+                            matched_text = result_text[start:end]
+                            # Aplicar reemplazo mediante slicing
+                            result_text = result_text[:start] + replacement + result_text[end:]
+                            applied += 1
+                            
+                            match_type = "Exact" if ratio == 1.0 else f"Fuzzy ({ratio:.2f})"
+                            session_logger.log_info(
+                                f"[{match_type} replace] '{matched_text[:40]}...' → '{replacement[:40]}...' | Razón: {reason}"
+                            )
+                        else:
+                            failed += 1
+                            session_logger.log_warning(f"[replace] No encontrado en texto: '{original[:80]}...'")
+
+                    elif name == "delete_text":
+                        original = args.get("original", "")
+                        reason = args.get("reason", "")
+
+                        match = self._find_best_match(result_text, original)
+                        
+                        if match:
+                            start, end, ratio = match
+                            matched_text = result_text[start:end]
+                            # Aplicar eliminación mediante slicing
+                            result_text = result_text[:start] + result_text[end:]
+                            applied += 1
+                            
+                            match_type = "Exact" if ratio == 1.0 else f"Fuzzy ({ratio:.2f})"
+                            session_logger.log_info(
+                                f"[{match_type} delete] Eliminado: '{matched_text[:40]}...' | Razón: {reason}"
+                            )
+                        else:
+                            failed += 1
+                            session_logger.log_warning(f"[delete] No encontrado en texto: '{original[:80]}...'")
+
+                    elif name == "insert_text":
+                        anchor = args.get("anchor", "")
+                        content = args.get("content", "")
+                        reason = args.get("reason", "")
+
+                        match = self._find_best_match(result_text, anchor)
+                        
+                        if match and content:
+                            start, end, ratio = match
+                            # Insertar después del ancla
+                            result_text = result_text[:end] + content + result_text[end:]
+                            applied += 1
+                            
+                            match_type = "Exact" if ratio == 1.0 else f"Fuzzy ({ratio:.2f})"
+                            session_logger.log_info(
+                                f"[{match_type} insert] Después de '{anchor[:40]}...' → '{content[:40]}...' | Razón: {reason}"
+                            )
+                        else:
+                            failed += 1
+                            session_logger.log_warning(f"[insert] Anchor no encontrado: '{anchor[:80]}...'")
+
+                    else:
+                        session_logger.log_warning(f"Tool desconocido: {name}")
+
+                except Exception as e:
+                    failed += 1
+                    session_logger.log_error(f"Error aplicando tool call '{name}': {e}")
+
+            session_logger.log_info(
+                f"Refinamiento por tools completado: {applied} aplicados, {failed} fallidos de {len(tool_calls)} total"
+            )
+            return result_text
+
+        except json.JSONDecodeError as e:
+            session_logger.log_error(f"Error parseando respuesta de tools: {e}")
+            return translated_text
+        except Exception as e:
+            session_logger.log_error(f"Error general aplicando refinamiento por tools: {e}")
+            return translated_text
+
     def _get_api_key_for_provider(self, provider: str) -> str:
         """
         Obtiene la API key para un proveedor específico, priorizando temporales y luego .env.
@@ -688,9 +896,15 @@ class TranslatorLogic:
                               source_lang: str, target_lang: str,
                               main_api_key: str, refine_provider: str, refine_model: str,
                               custom_terms: str = "", temp_api_keys: dict = None, timeout: int = 120,
-                              stop_callback: Optional[Callable[[], bool]] = None, prompt_name: str = "refine.txt") -> Optional[str]:
+                              stop_callback: Optional[Callable[[], bool]] = None, 
+                              prompt_name: str = "refine.txt",
+                              use_tools: bool = False) -> Optional[str]:
         """
         Refina la traducción usando la API.
+        Soporta tres modos:
+          - refine.txt: regeneración completa del texto
+          - refine_alt.txt: cambios XML parciales
+          - use_tools=True: function calling para cambios quirúrgicos
 
         Args:
             source_text (str): Texto original
@@ -703,6 +917,7 @@ class TranslatorLogic:
             custom_terms (str): Términos personalizados para la traducción
             temp_api_keys (dict): Diccionario de API keys temporales (opcional)
             prompt_name (str): Nombre del archivo de prompt a usar
+            use_tools (bool): Si True, usa function calling en lugar de otros métodos
 
         Returns:
             Optional[str]: Texto refinado si tiene éxito, None si falla o error
@@ -730,30 +945,63 @@ class TranslatorLogic:
             print(f"Modelo no soportado para refinamiento: {refine_model}")
             return None
 
+        # Determinar si usar tools automáticamente según soporte del modelo
+        # Solo usar tools si:
+        # 1. use_tools=True explícitamente Y
+        # 2. El modelo soporta tools
+        # De lo contrario, fallback a refine_alt.txt
+        tools_to_use = None
+        actual_prompt_name = prompt_name
+        
+        if use_tools:
+            if model_config.get('supports_tools', False):
+                # El modelo soporta tools, importar y usar
+                from src.logic.refine_tools import REFINE_TOOLS
+                tools_to_use = REFINE_TOOLS
+                actual_prompt_name = "refine_tools.txt"
+                session_logger.log_info(
+                    f"Usando function calling para refinamiento con {refine_model}"
+                )
+            else:
+                # El modelo no soporta tools, hacer fallback a refine_alt.txt
+                session_logger.log_warning(
+                    f"{refine_model} no soporta tools, usando refine_alt.txt"
+                )
+                actual_prompt_name = "refine_alt.txt"
+                use_tools = False
+
         try:
             # Verificar si se ha solicitado detener antes de hacer la llamada API
             if stop_callback and stop_callback():
                 session_logger.log_info("Refinamiento cancelado por solicitud del usuario")
                 return None
 
+            # Construir el prompt
+            prompt = self._build_refine_prompt(
+                source_lang, target_lang, source_text, translated_text, 
+                custom_terms, actual_prompt_name
+            )
+
             response = translator_req.translate_segment(
                 refine_provider,
-                "",  # texto ya incluido en prompt, pasar vacío para evitar doble agregado
+                "",  # texto ya incluido en prompt
                 api_key,
                 model_config,
                 prompt,
                 self.models_config,
-                timeout
+                timeout,
+                tools=tools_to_use
             )
 
             if response is None:
                 session_logger.log_error("Error en el refinamiento de la traducción (respuesta nula)")
                 return None
 
-            # Si es el prompt alternativo, aplicar cambios desde XML
-            if prompt_name == "refine_alt.txt":
-                refined_text = self._apply_refinement_changes(translated_text, response)
-                return refined_text
+            # Procesar según el modo
+            if use_tools:
+                return self._apply_tool_refinement(translated_text, response)
+            elif actual_prompt_name == "refine_alt.txt":
+                return self._apply_refinement_changes(translated_text, response)
             else:
                 # Para el prompt normal, devolver la respuesta completa
                 return response

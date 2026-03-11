@@ -74,9 +74,20 @@ class EpubImporter(QObject):
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(markdown_content)
                     
-                self.progress_updated.emit(self.lang_manager.get_string("epub_importer.progress.chapter_saved", "Capítulo {index} de {total} guardado").format(index=i, total=len(chapters)))
+            self.progress_updated.emit(self.lang_manager.get_string("epub_importer.progress.chapter_saved", "Capítulo {index} de {total} guardado").format(index=i, total=len(chapters)))
 
-            self._save_book_metadata(output_dir, book_title, author)
+            # Guardar metadatos incluyendo colección si existe
+            metadata = converter.get_metadata()
+            self._save_book_metadata(
+                output_dir, 
+                book_title or metadata.get('title'), 
+                author or metadata.get('author'),
+                description=metadata.get('description', ''),
+                language=metadata.get('language', 'es'),
+                collection=metadata.get('collection', ''),
+                collection_type=metadata.get('collection_type', 'series'),
+                collection_position=metadata.get('collection_position', '1')
+            )
 
             success_msg = self.lang_manager.get_string("epub_importer.success.base", "EPUB importado exitosamente. {chapters_count} capítulos extraídos.").format(chapters_count=len(chapters))
             if cover_image:
@@ -86,11 +97,19 @@ class EpubImporter(QObject):
         except Exception as e:
             self.import_finished.emit(False, self.lang_manager.get_string("epub_importer.error.general", "Error al importar EPUB: {error}").format(error=str(e)), "")
 
-    def _save_book_metadata(self, output_dir: str, title: str, author: str) -> None:
+    def _save_book_metadata(self, output_dir: str, title: str, author: str, description: str = "", 
+                           language: str = "es", collection: str = "", collection_type: str = "", 
+                           collection_position: str = "") -> None:
         try:
             db = TranslationDatabase(output_dir)
-            if title or author:
-                success = db.save_book_metadata(title, author)
+            if title or author or collection:
+                success = db.save_book_metadata(
+                    title, author, description, 
+                    language=language,
+                    collection=collection, 
+                    collection_type=collection_type, 
+                    collection_position=collection_position
+                )
                 if success:
                     self.progress_updated.emit(self.lang_manager.get_string("epub_importer.progress.metadata_saved", "Metadatos del libro guardados"))
                 else:

@@ -33,19 +33,12 @@ Estas traducciones tienen prioridad sobre sinónimos creativos o reinterpretacio
     - En ausencia total de contexto sobre el género del sujeto, utiliza el masculino solo cuando el español lo exija gramaticalmente. Evita forzarlo si existe una alternativa neutra natural.
     - Prohibido usar españolismos europeos: follar, joder, vosotros, terminaciones -éis/-óis, pediros, id, pedid.
     - Las preguntas y exclamaciones deben usar signos de apertura y cierre: ¿? ¡!
-    - Las comillas simples deben representarse exclusivamente con los caracteres tipográficos correctos:
-        ‘ (U+2018 LEFT SINGLE QUOTATION MARK) para apertura
-        ’ (U+2019 RIGHT SINGLE QUOTATION MARK) para cierre
     - Adapta modismos a equivalentes naturales del español latinoamericano.
     - Conserva todos los dobles saltos de línea y la estructura de párrafos originales.
     - Aplica siempre la terminología de referencia cuando corresponda.
   </mandatory_rules>
   <dialogue_formatting>
-    - REGLA ABSOLUTA: Mantén siempre el mismo formato de diálogo que usa el texto original.
-    - Si el original usa comillas dobles ("..."), conserva comillas dobles en español.
-    - Si el original usa guiones largos (—...), conserva guiones largos en español.
-    - Si el original usa comillas simples ('...'), usa las comillas tipográficas correctas ('...').
-    - NUNCA cambies el sistema de puntuación de diálogos del texto fuente.
+    - REGLA ABSOLUTA: Usa siempre el formato de diálogo del español: guiones largos (—...)
     - Preserva la estructura exacta: si hay diálogo + acotación + diálogo, mantén el mismo patrón.
   </dialogue_formatting>
 </spanish_specifications>

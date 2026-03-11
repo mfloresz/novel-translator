@@ -100,17 +100,70 @@ class EpubConverter:
                 metadata['title'] = "Libro Sin Título"
 
             # Obtener autor
-            creator = self.book.get_metadata('DC', 'creator')
+            creator = self.book.get_metadata("DC", "creator")
             if creator:
-                metadata['author'] = creator[0][0]
+                metadata["author"] = creator[0][0]
             else:
-                metadata['author'] = "Autor Desconocido"
+                metadata["author"] = "Autor Desconocido"
+
+            # Obtener idioma
+            language = self.book.get_metadata("DC", "language")
+            if language:
+                # ebooklib devuelve una lista de tuplas (contenido, atributos)
+                metadata["language"] = language[0][0]
+            else:
+                metadata["language"] = "es"
+
+            # Obtener metadatos de Calibre (Serie)
+            series = self.book.get_metadata("OPF", "calibre:series")
+            if series:
+                metadata["collection"] = series[0][0]
+                metadata["collection_type"] = "series"
+
+                series_index = self.book.get_metadata("OPF", "calibre:series_index")
+                if series_index:
+                    metadata["collection_position"] = series_index[0][0]
+                else:
+                    metadata["collection_position"] = "1"
+            else:
+                # Intentar extraer de etiquetas meta estándar de EPUB 3 si existen
+                belongs_to = self.book.get_metadata("OPF", "belongs-to-collection")
+                if belongs_to:
+                    metadata["collection"] = belongs_to[0][0]
+                    metadata["collection_type"] = "series"
+                    # Buscar la posición si existe (refines)
+                    # Esto es más complejo en ebooklib, por ahora priorizamos Calibre
+                    metadata["collection_position"] = "1"
+
+            # Si aún no hay colección, intentar extraer del contenido HTML (patrón específico del usuario)
+            if "collection" not in metadata:
+                self._extract_series_from_html(metadata)
+
         except Exception as e:
             print(f"Error obteniendo metadatos: {e}")
-            metadata['title'] = "Libro Sin Título"
-            metadata['author'] = "Autor Desconocido"
+            metadata["title"] = metadata.get("title", "Libro Sin Título")
+            metadata["author"] = metadata.get("author", "Autor Desconocido")
 
         return metadata
+
+    def _extract_series_from_html(self, metadata: Dict) -> None:
+        """
+        Intenta extraer información de la serie buscando patrones específicos en los capítulos.
+        """
+        # Patrón: Serie <span class="class4">El príncipe cautivo</span> 1
+        series_re = re.compile(r"Serie\s+<span[^>]*class\s*=\s*[\"']class4[\"'][^>]*>(.*?)</span>\s*(\d+)", re.IGNORECASE)
+        
+        for chapter in self.chapters[:3]:  # Solo revisar los primeros capítulos (usualmente la página de título)
+            try:
+                html_content = chapter.get_content().decode("utf-8")
+                match = series_re.search(html_content)
+                if match:
+                    metadata["collection"] = match.group(1).strip()
+                    metadata["collection_type"] = "series"
+                    metadata["collection_position"] = match.group(2).strip()
+                    break
+            except Exception:
+                continue
     
     def _get_cover_image(self) -> Dict:
         """

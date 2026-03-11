@@ -56,6 +56,7 @@ class TranslationDatabase:
                         author TEXT,
                         description TEXT,
                         notes TEXT,
+                        language TEXT,
                         collection TEXT,
                         collection_type TEXT,
                         collection_position TEXT,
@@ -104,6 +105,26 @@ class TranslationDatabase:
 
                 try:
                     cursor.execute("ALTER TABLE book_metadata ADD COLUMN notes TEXT")
+                except sqlite3.OperationalError:
+                    pass
+
+                try:
+                    cursor.execute("ALTER TABLE book_metadata ADD COLUMN language TEXT")
+                except sqlite3.OperationalError:
+                    pass
+
+                try:
+                    cursor.execute("ALTER TABLE book_metadata ADD COLUMN collection TEXT")
+                except sqlite3.OperationalError:
+                    pass
+
+                try:
+                    cursor.execute("ALTER TABLE book_metadata ADD COLUMN collection_type TEXT")
+                except sqlite3.OperationalError:
+                    pass
+
+                try:
+                    cursor.execute("ALTER TABLE book_metadata ADD COLUMN collection_position TEXT")
                 except sqlite3.OperationalError:
                     pass
 
@@ -282,7 +303,7 @@ class TranslationDatabase:
         except (FileNotFoundError, json.JSONDecodeError):
             return ""
 
-    def save_book_metadata(self, title: str, author: str, description: str = "", notes: str = "",
+    def save_book_metadata(self, title: str, author: str, description: str = "", notes: str = "", language: str = "",
                          collection: str = "", collection_type: str = "", collection_position: str = "") -> bool:
         """Guarda los metadatos del libro para el proyecto actual."""
         try:
@@ -290,13 +311,13 @@ class TranslationDatabase:
                 cursor = conn.cursor()
                 cursor.execute('''
                     INSERT OR REPLACE INTO book_metadata
-                    (id, title, author, description, notes, collection, collection_type, collection_position, last_updated)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ''', ('project_settings', title, author, description, notes, collection, collection_type, collection_position))
+                    (id, title, author, description, notes, language, collection, collection_type, collection_position, last_updated)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', ('project_settings', title, author, description, notes, language, collection, collection_type, collection_position))
                 conn.commit()
                 return True
         except sqlite3.Error:
-            return self._save_metadata_to_json(title, author, description, notes, collection, collection_type, collection_position)
+            return self._save_metadata_to_json(title, author, description, notes, language, collection, collection_type, collection_position)
 
     def get_book_metadata(self) -> Dict[str, str]:
         """Recupera los metadatos del libro para el proyecto actual."""
@@ -304,7 +325,7 @@ class TranslationDatabase:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT title, author, description, notes, collection, collection_type, collection_position FROM book_metadata WHERE id = ?",
+                    "SELECT title, author, description, notes, language, collection, collection_type, collection_position FROM book_metadata WHERE id = ?",
                     ('project_settings',)
                 )
                 result = cursor.fetchone()
@@ -314,9 +335,10 @@ class TranslationDatabase:
                         "author": result[1] or "",
                         "description": result[2] or "",
                         "notes": result[3] or "",
-                        "collection": result[4] or "",
-                        "collection_type": result[5] or "",
-                        "collection_position": result[6] or ""
+                        "language": result[4] or "",
+                        "collection": result[5] or "",
+                        "collection_type": result[6] or "",
+                        "collection_position": result[7] or ""
                     }
                 return {
                     "title": "",
@@ -330,7 +352,7 @@ class TranslationDatabase:
         except sqlite3.Error:
             return self._get_metadata_from_json()
 
-    def _save_metadata_to_json(self, title: str, author: str, description: str = "", notes: str = "",
+    def _save_metadata_to_json(self, title: str, author: str, description: str = "", notes: str = "", language: str = "",
                              collection: str = "", collection_type: str = "", collection_position: str = "") -> bool:
         """Guarda los metadatos en el archivo JSON de respaldo"""
         json_path = NovelFolderStructure.get_db_path(self.directory).with_suffix('.json')
@@ -346,6 +368,7 @@ class TranslationDatabase:
                 "author": author,
                 "description": description,
                 "notes": notes,
+                "language": language,
                 "collection": collection,
                 "collection_type": collection_type,
                 "collection_position": collection_position,
@@ -371,6 +394,7 @@ class TranslationDatabase:
                     "author": metadata.get('author', ''),
                     "description": metadata.get('description', ''),
                     "notes": metadata.get('notes', ''),
+                    "language": metadata.get('language', ''),
                     "collection": metadata.get('collection', ''),
                     "collection_type": metadata.get('collection_type', ''),
                     "collection_position": metadata.get('collection_position', '')

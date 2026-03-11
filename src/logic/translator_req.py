@@ -15,6 +15,7 @@ def translate_segment(
     prompt: str,
     models_config: Dict,
     timeout: int = 120,
+    tools: list = None,
 ) -> Optional[str]:
     """
     Envía el prompt al proveedor seleccionado y maneja la respuesta.
@@ -56,12 +57,17 @@ def translate_segment(
 
         result = None
         if provider_config["type"] == "gemini":
-            result = _translate_gemini(
-                provider_config, api_key, model_config, prompt, timeout
-            )
+            if tools:
+                result = _translate_gemini_with_tools(
+                    provider_config, api_key, model_config, prompt, tools, timeout
+                )
+            else:
+                result = _translate_gemini(
+                    provider_config, api_key, model_config, prompt, timeout
+                )
         elif provider_config["type"] == "openai":
             result = _translate_openai_like(
-                provider_config, api_key, model_config, prompt, timeout
+                provider_config, api_key, model_config, prompt, timeout, tools
             )
         else:
             raise ValueError(
@@ -147,6 +153,7 @@ def _translate_openai_like(
     model_config: Dict,
     prompt: str,
     timeout: int = 120,
+    tools: list = None,
 ) -> Optional[str]:
     try:
         url = provider_config["base_url"]
@@ -190,11 +197,18 @@ def _translate_openai_like(
         if model_config.get("include_reasoning", False):
             data["reasoning"] = {"enabled": model_config.get("reasoning", False)}
 
+        # Agregar tools si se proporcionan
+        if tools:
+            data["tools"] = tools
+            data["tool_choice"] = "auto"
+
         response = requests.post(url, headers=headers, json=data, timeout=timeout)
         response.raise_for_status()
-        
+
         # Procesar respuesta según si es streaming o no
-        if model_config.get("stream", False):
+        if tools:
+            return _process_tool_response(response.json())
+        elif model_config.get("stream", False):
             return _process_streaming_response(
                 provider_config["type"],
                 response,
@@ -356,3 +370,154 @@ def _clean_translation(text: str) -> str:
             actual_translation.append(line)
 
     return "\n".join(actual_translation).strip()
+
+
+def _process_tool_response(response: Dict) -> Optional[str]:
+    """
+    Procesa la respuesta de la API cuando se usan tools.
+    Retorna un JSON serializado con la lista de tool calls para que
+    el caller las aplique sobre el texto.
+
+    Args:
+        response (Dict): Respuesta JSON del proveedor
+
+    Returns:
+        Optional[str]: JSON string con las tool calls, o None si hay error
+    """
+    try:
+        if "choices" not in response or not response["choices"]:
+            return None
+
+        message = response["choices"][0]["message"]
+
+        # Si el modelo respondió con tool calls
+        if "tool_calls" in message and message["tool_calls"]:
+            tool_calls = []
+            for tc in message["tool_calls"]:
+                function_data = tc.get("function", {})
+                tool_calls.append({
+                    "name": function_data.get("name"),
+                    "arguments": json.loads(function_data.get("arguments", "{}"))
+                })
+            return json.dumps({"tool_calls": tool_calls}, ensure_ascii=False)
+
+        # Si el modelo respondió con texto normal (no usó tools)
+        if "content" in message and message["content"]:
+            return json.dumps({"text_response": message["content"]}, ensure_ascii=False)
+
+        return None
+    except Exception as e:
+        error_msg = f"Error procesando respuesta de tools: {str(e)}"
+        print(error_msg)
+        return None
+
+
+def _translate_gemini_with_tools(
+    provider_config: Dict,
+    api_key: str,
+    model_config: Dict,
+    prompt: str,
+    tools: list,
+    timeout: int = 120,
+) -> Optional[str]:
+    """
+    Maneja llamadas a Gemini con function calling.
+    Convierte el formato OpenAI de tools al formato nativo de Gemini.
+    """
+    try:
+        url = f"{provider_config['base_url']}/{model_config['endpoint']}?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+
+        # Construir contents
+        contents = []
+        if isinstance(prompt, dict) and "messages" in prompt:
+            for message in prompt["messages"]:
+                contents.append({"parts": [{"text": message.get("content", "")}]})
+        else:
+            contents = [{"parts": [{"text": prompt}]}]
+
+        # Convertir tools de formato OpenAI a formato Gemini
+        gemini_tools = _convert_tools_to_gemini_format(tools)
+
+        data = {
+            "contents": contents,
+            "generationConfig": {
+                "temperature": model_config.get("temperature", 0.6)
+            },
+            "tools": gemini_tools,
+        }
+
+        response = requests.post(url, headers=headers, json=data, timeout=timeout)
+        response.raise_for_status()
+
+        return _process_gemini_tool_response(response.json())
+
+    except requests.exceptions.RequestException as e:
+        error_msg = f"Error HTTP Gemini (tools): {str(e)}"
+        if hasattr(e, "response") and e.response:
+            error_msg += f"\nDetalle: {e.response.text}"
+        print(error_msg)
+        return None
+
+
+def _convert_tools_to_gemini_format(openai_tools: list) -> list:
+    """
+    Convierte la definición de tools del formato OpenAI al formato Gemini.
+
+    OpenAI usa:
+        {"type": "function", "function": {"name": ..., "parameters": ...}}
+    Gemini usa:
+        {"functionDeclarations": [{"name": ..., "parameters": ...}]}
+    """
+    declarations = []
+    for tool in openai_tools:
+        func = tool.get("function", {})
+        declarations.append({
+            "name": func.get("name"),
+            "description": func.get("description", ""),
+            "parameters": func.get("parameters", {}),
+        })
+    return [{"functionDeclarations": declarations}]
+
+
+def _process_gemini_tool_response(response: Dict) -> Optional[str]:
+    """
+    Procesa la respuesta de Gemini cuando se usan function declarations.
+    Convierte al mismo formato JSON que _process_tool_response para
+    mantener compatibilidad con _apply_tool_refinement.
+    """
+    try:
+        if "candidates" not in response or not response["candidates"]:
+            return None
+
+        candidate = response["candidates"][0]
+        if "content" not in candidate or "parts" not in candidate["content"]:
+            return None
+
+        parts = candidate["content"]["parts"]
+        tool_calls = []
+
+        for part in parts:
+            if "functionCall" in part:
+                fc = part["functionCall"]
+                tool_calls.append({
+                    "name": fc.get("name"),
+                    "arguments": fc.get("args", {})
+                })
+            elif "text" in part:
+                # El modelo respondió con texto en vez de tools
+                return json.dumps(
+                    {"text_response": part["text"]},
+                    ensure_ascii=False
+                )
+
+        if tool_calls:
+            return json.dumps(
+                {"tool_calls": tool_calls},
+                ensure_ascii=False
+            )
+
+        return None
+    except Exception as e:
+        print(f"Error procesando respuesta Gemini tools: {e}")
+        return None

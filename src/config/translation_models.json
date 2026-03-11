@@ -23,56 +23,58 @@
     "type": "openai",
     "base_url": "https://llm.chutes.ai/v1/chat/completions",
     "models": {
-      "mistral-small-3.2": {
-        "name": "Mistral Small 3.2",
-        "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
-        "max_tokens": 6000,
+      "mistral-small-3.1": {
+        "name": "Mistral Small 3.1",
+        "endpoint": "chutesai/Mistral-Small-3.1-24B-Instruct-2503",
+        "max_tokens": 40000,
         "temperature": 1,
         "top_p": 1,
         "thinking": false,
-        "include_reasoning": false
+        "include_reasoning": false,
+        "supports_tools": false
       },
-      "qwen3-235b-a22b": {
-        "name": "Qwen3 235B A22B",
-        "endpoint": "Qwen/Qwen3-235B-A22B-Instruct-2507",
-        "max_tokens": 40000,
-        "temperature": 0.7,
-        "top_p": 0.95,
-        "thinking": true,
-        "include_reasoning": false
-      },
-      "gemma-3-27b": {
-        "name": "Gemma 3 27B",
-        "endpoint": "unsloth/gemma-3-27b-ith",
-        "max_tokens": 15000,
+      "mistral-small-3.2": {
+        "name": "Mistral Small 3.2",
+        "endpoint": "chutesai/Mistral-Small-3.2-24B-Instruct-2506",
+        "max_tokens": 16384,
         "thinking": false,
-        "stream": true,
-        "include_reasoning": false
+        "include_reasoning": false,
+        "supports_tools": false
       },
       "gpt-oss-120b": {
         "name": "GPT OSS 120B",
         "endpoint": "openai/gpt-oss-120b-TEE",
-        "max_tokens": 100000,
+        "max_tokens": 15000,
         "thinking": false,
-        "include_reasoning": false
+        "stream": false,
+        "include_reasoning": false,
+        "supports_tools": true
       },
-      "hermes-4-70b": {
-        "name": "Hermes 4 405B",
-        "endpoint": "NousResearch/Hermes-4-405B-FP8-TEE",
-        "max_tokens": 40000,
-        "temperature": 0.7,
-        "top_p": 0.95,
-        "thinking": false,
-        "include_reasoning": false
-      },
-      "deepseek-3.2-tee": {
+      "deepseek-3.2": {
         "name": "DeepSeek 3.2",
-        "endpoint": "deepseek-ai/DeepSeek-V3.1-TEE",
-        "max_tokens": 6000,
+        "endpoint": "deepseek-ai/DeepSeek-V3.2-TEE",
+        "max_tokens": 8192,
+        "thinking": false,
+        "include_reasoning": false,
+        "supports_tools": true
+      },
+      "deepseek-3.1": {
+        "name": "DeepSeek 3.1",
+        "endpoint": "deepseek-ai/DeepSeek-V3.1-Terminus-TEE",
+        "max_tokens": 8192,
+        "thinking": false,
+        "include_reasoning": false,
+        "supports_tools": true
+      },
+      "xiaomi-mimo": {
+        "name": "Xiaomi MiMo",
+        "endpoint": "XiaomiMiMo/MiMo-V2-Flash-TEE",
+        "max_tokens": 8192,
         "temperature": 0.7,
         "top_p": 0.95,
         "thinking": false,
-        "include_reasoning": false
+        "include_reasoning": false,
+        "supports_tools": true
       },
       "qwen3-80b-a3b": {
         "name": "Qwen3 80B A3B",
@@ -81,7 +83,8 @@
         "temperature": 0.7,
         "top_p": 0.95,
         "thinking": false,
-        "include_reasoning": false
+        "include_reasoning": false,
+        "supports_tools": true
       }
     }
   },
@@ -100,7 +103,8 @@
         "name": "Mistral Small",
         "endpoint": "mistral-small-latest",
         "max_tokens": 128000,
-        "thinking": false
+        "thinking": false,
+        "supports_tools": true
       },
       "mistral-creative": {
         "name": "Mistral Creative",
@@ -137,7 +141,8 @@
         "max_tokens": 128000,
         "temperature": 0.3,
         "top_p": 1,
-        "thinking": false
+        "thinking": false,
+        "supports_tools": true
       },
       "gemini-flash-lite": {
         "name": "Gemini Flash Lite",
@@ -168,8 +173,56 @@
         "name": "GPT OSS 120B",
         "endpoint": "lightning-ai/gpt-oss-120b",
         "thinking": false,
-        "include_reasoning": true,
-        "reasoning": false
+        "include_reasoning": false,
+        "reasoning": false,
+        "supports_tools": false
+      },
+      "deepseek-v-3.1": {
+        "name": "DeepSeek 3.1",
+        "endpoint": "lightning-ai/DeepSeek-V3.1",
+        "thinking": false,
+        "include_reasoning": false,
+        "reasoning": false,
+        "supports_tools": false
+      },
+      "claude-haiku-4.5": {
+        "name": "Claude Haiku 4.5",
+        "endpoint": "anthropic/claude-haiku-4-5-20251001",
+        "thinking": false,
+        "include_reasoning": false,
+        "reasoning": false,
+        "supports_tools": true
+      },
+      "geimini-3-flash": {
+        "name": "Gemini 3 Flash",
+        "endpoint": "google/gemini-3-flash-preview",
+        "thinking": false,
+        "include_reasoning": false,
+        "reasoning": false,
+        "supports_tools": true
+      }
+    }
+  },
+  "deepinfra": {
+    "name": "Deepinfra",
+    "type": "openai",
+    "base_url": "https://api.deepinfra.com/v1/openai/chat/completions",
+    "models": {
+      "mistral-small": {
+        "name": "Mistral Small",
+        "endpoint": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+        "thinking": false,
+        "include_reasoning": false,
+        "reasoning": false,
+        "supports_tools": false
+      },
+      "deepseek-3.2": {
+        "name": "DeepSeek 3.2",
+        "endpoint": "deepseek-ai/DeepSeek-V3.2",
+        "thinking": false,
+        "include_reasoning": false,
+        "reasoning": false,
+        "supports_tools": false
       }
     }
   }

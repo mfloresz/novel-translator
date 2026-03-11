@@ -419,6 +419,25 @@ class CreateEpubPanel(QWidget):
                 self._set_text_and_show_start(self.author_input, metadata['author'])
             if metadata.get('description'):
                 self.description_input.setPlainText(metadata['description'])
+            if metadata.get('language'):
+                self.language_input.setText(metadata['language'])
+            
+            # Cargar datos de colección
+            if metadata.get('collection'):
+                self.collection_enabled.setChecked(True)
+                self.collection_input.setText(metadata['collection'])
+                if metadata.get('collection_type'):
+                    # Traducir tipo si es necesario o buscar en el dropdown
+                    index = self.collection_type_dropdown.findText(metadata['collection_type'])
+                    if index >= 0:
+                        self.collection_type_dropdown.setCurrentIndex(index)
+                if metadata.get('collection_position'):
+                    self.collection_position_input.setText(metadata['collection_position'])
+            else:
+                self.collection_enabled.setChecked(False)
+                self.collection_input.clear()
+                self.collection_position_input.clear()
+
         except Exception as e:
             print(f"Error cargando metadatos: {e}")
 
@@ -430,14 +449,30 @@ class CreateEpubPanel(QWidget):
         title = self.title_input.text().strip()
         author = self.author_input.text().strip()
         description = self.description_input.toPlainText().strip()
+        language = self.language_input.text().strip()
+        
+        collection = ""
+        collection_type = ""
+        collection_position = ""
+        
+        if self.collection_enabled.isChecked():
+            collection = self.collection_input.text().strip()
+            collection_type = self.collection_type_dropdown.currentText()
+            collection_position = self.collection_position_input.text().strip()
 
-        if not title and not author and not description:
+        if not title and not author and not description and not collection:
             from src.logic.functions import show_error_dialog
             show_error_dialog(self._get_string("create_panel.metadata.save_empty"))
             return
 
         try:
-            success = self.db.save_book_metadata(title, author, description)
+            success = self.db.save_book_metadata(
+                title, author, description, 
+                language=language,
+                collection=collection, 
+                collection_type=collection_type, 
+                collection_position=collection_position
+            )
             if success:
                 # Emitir señal para mostrar mensaje en barra de estado
                 self.status_message_requested.emit(self._get_string("create_panel.metadata.save_success"), 3000)

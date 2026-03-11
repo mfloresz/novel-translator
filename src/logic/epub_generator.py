@@ -295,14 +295,16 @@ th {
         # EPUB/content.opf
         content_opf = f'''<?xml version="1.0" encoding="UTF-8"?>
   <package version="3.0" xml:lang="{metadata.language}" xmlns="http://www.idpf.org/2007/opf" unique-identifier="book-id">
-    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf" xmlns:calibre="http://calibre.kovidgoyal.net/2009/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dcterms="http://purl.org/dc/terms/">
       <dc:identifier id="book-id">{book_id}</dc:identifier>
       <dc:title>{self._escape_xml(metadata.title)}</dc:title>
-      <dc:creator>{self._escape_xml(metadata.author)}</dc:creator>
+      <dc:creator opf:role="aut" opf:file-as="{self._escape_xml(metadata.author)}">{self._escape_xml(metadata.author)}</dc:creator>
       <dc:publisher>{metadata.publisher}</dc:publisher>
       <dc:language>{metadata.language}</dc:language>
       <dc:date>{now.split("T")[0]}</dc:date>
-      <meta property="dcterms:modified">{now}</meta>'''
+      <meta property="dcterms:modified">{now}</meta>
+      <meta name="publisher" content="{metadata.publisher}"/>
+      <meta name="calibre:title_sort" content="{self._escape_xml(metadata.title)}"/>'''
 
         if metadata.description:
             # Convertir saltos de línea a entidades XML para preservar en metadatos
@@ -312,10 +314,23 @@ th {
 
         # Agregar metadatos de serie/colección
         if metadata.collection:
+            # Metadatos estándar EPUB 3 (Readest v0.9.100+)
             content_opf += f"""
       <meta property="belongs-to-collection" id="collection">{self._escape_xml(metadata.collection["name"])}</meta>
       <meta refines="#collection" property="collection-type">{metadata.collection["type"]}</meta>
       <meta refines="#collection" property="group-position">{metadata.collection["position"]}</meta>"""
+            
+            # Metadatos específicos de Calibre (Legacy y máxima compatibilidad)
+            # Asegurar que la posición sea un float para mayor compatibilidad (ej: 1.0)
+            try:
+                pos_float = float(metadata.collection["position"])
+                pos_str = f"{pos_float:.1f}" if pos_float.is_integer() else str(pos_float)
+            except (ValueError, TypeError):
+                pos_str = metadata.collection["position"]
+
+            content_opf += f"""
+      <meta name="calibre:series" content="{self._escape_xml(metadata.collection["name"])}"/>
+      <meta name="calibre:series_index" content="{pos_str}"/>"""
 
         content_opf += f"""
     </metadata>
