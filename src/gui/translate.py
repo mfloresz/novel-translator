@@ -74,7 +74,7 @@ class PresetTermsDialog(QDialog):
                 item = QListWidgetItem(term)
                 self.terms_list.addItem(item)
         except Exception as e:
-            QMessageBox.warning(self, self._get_string("error_dialog.title"), 
+            QMessageBox.warning(self, self._get_string("error_dialog.title"),
                               self._get_string("translate_panel.preset_terms_dialog.load_error").format(error=str(e)))
 
     def on_term_double_clicked(self, item):
@@ -89,7 +89,7 @@ class PresetTermsDialog(QDialog):
             self.selected_term = current_item.text()
             self.accept()
         else:
-            QMessageBox.information(self, self._get_string("information_dialog.title", "Información"), 
+            QMessageBox.information(self, self._get_string("information_dialog.title", "Información"),
                                   self._get_string("translate_panel.preset_terms_dialog.no_selection"))
 
     def get_selected_term(self):
@@ -784,12 +784,13 @@ class TranslatePanel(QWidget):
                 self._get_string("translate_panel.error.no_files"))
             return
 
-        # Verificar si hay capítulos ya traducidos en el rango
+        # Verificar cuántos capítulos ya están traducidos en el rango
+        # (una sola consulta, no una por archivo)
         db = TranslationDatabase(self.main_window.current_directory)
-        translated_count = 0
-        for file_info in files_to_translate:
-            if db.is_file_translated(file_info['name']):
-                translated_count += 1
+        all_records = db.get_all_translated_files()
+        translated_names = set(r['filename'] for r in all_records)
+
+        translated_count = sum(1 for f in files_to_translate if f['name'] in translated_names)
 
         allow_retranslation = False
         if translated_count > 0:
@@ -801,7 +802,7 @@ class TranslatePanel(QWidget):
                     # Filtrar la lista para omitir los ya traducidos
                     files_to_translate = [
                         file_info for file_info in files_to_translate
-                        if not db.is_file_translated(file_info['name'])
+                        if file_info['name'] not in translated_names
                     ]
                     if not files_to_translate:
                         self.main_window.statusBar().showMessage(

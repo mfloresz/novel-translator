@@ -4,6 +4,7 @@ import os
 from .database import TranslationDatabase
 from .status_manager import STATUS_UNPROCESSED, STATUS_TRANSLATED, get_status_text
 from .folder_structure import NovelFolderStructure
+from .functions import natural_sort_key
 
 class FileLoader(QObject):
     files_loaded = pyqtSignal(list)
@@ -49,18 +50,27 @@ class FileLoader(QObject):
             # Obtener todos los archivos únicos (translated tienen prioridad)
             all_files = set(translated_files + original_files)
 
-            # Ordenar alfabéticamente por nombre
-            sorted_files = sorted(all_files)
+            # Ordenar naturalmente por nombre (soporta números en el nombre)
+            sorted_files = sorted(all_files, key=natural_sort_key)
+
+            # Cargar todos los registros de traducción de una sola vez
+            # (evita N conexiones SQLite para N archivos)
+            translated_in_db = set()
+            if self.db:
+                records = self.db.get_all_translated_files()
+                translated_in_db = set(r['filename'] for r in records)
 
             # Para cada archivo, determinar su estado
             for filename in sorted_files:
                 if filename in translated_files:
                     # Está en translated, por lo tanto traducido
                     status_code = STATUS_TRANSLATED
+                elif filename in translated_in_db:
+                    # Está en originals pero registrado como traducido en la DB
+                    status_code = STATUS_TRANSLATED
                 else:
-                    # Está solo en originals, verificar DB
-                    is_translated = self.db.is_file_translated(filename) if self.db else False
-                    status_code = STATUS_TRANSLATED if is_translated else STATUS_UNPROCESSED
+                    # No traducido
+                    status_code = STATUS_UNPROCESSED
 
                 status = get_status_text(status_code, self.lang_manager)
                 txt_files.append({

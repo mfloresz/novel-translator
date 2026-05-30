@@ -30,8 +30,12 @@ I created this application because I have some novels that were translated to Sp
 #### **Multi-Provider AI Support**
 - **Google Gemini**: Flash and Flash Lite models
 - **Hyperbolic**: GPT OSS 120B, Qwen3 80B A3B Thinking models
-- **Chutes AI**: Mistral Small 3.2, Qwen3 235B A22B Thinking, GPT OSS 20B/120B, Ling 1T FP8, Hermes 4 70B
-- **Mistral AI**: Magistral Small, Mistral Small with thinking capabilities
+- **Chutes AI**: Mistral Small 3.1/3.2, GPT OSS 120B, DeepSeek 3.1/3.2, Xiaomi MiMo, Qwen3 80B A3B
+- **Mistral AI**: Ministral 8B, Mistral Small, Mistral Creative
+- **OpenRouter**: Grok 4.1 Fast, GPT OSS 120B, Mistral Small 3.2, Gemini Flash Lite
+- **OpenAI**: GPT 5 Mini
+- **OpenCode GO**: DeepSeek V4 Flash, MiMo 2.5, Qwen 3.5 Plus
+- **Deepinfra**: Mistral Small, DeepSeek 3.2
 
 #### **Intelligent Text Processing**
 - **Smart Segmentation**: Respects narrative structure, sentences, and paragraphs with backward search algorithm
@@ -87,6 +91,8 @@ I created this application because I have some novels that were translated to Sp
 
 ## 🔧 **Technical Architecture**
 
+See [docs/CODEMAPS/INDEX.md](docs/CODEMAPS/INDEX.md) for the complete architecture documentation, including detailed codemaps for each subsystem.
+
 ### **Hybrid Database System**
 - **SQLite Primary**: Fast, ACID-compliant database for project data
 - **JSON Backup**: Automatic JSON fallback for data persistence
@@ -98,6 +104,11 @@ I created this application because I have some novels that were translated to Sp
 - **Error Recovery**: Robust retry mechanisms with exponential backoff
 - **State Persistence**: Real-time status tracking across sessions
 - **Performance Monitoring**: Rate limit control and resource management
+
+### **Background Workers**
+- **TranslationWorker** (QThread): Sequential batch translation with stop support
+- **RefineWorker** (QThread): Tool-based refinement with function calling
+- **EpubImportWorker** (QRunnable): EPUB import via thread pool
 
 ### **Advanced UI Features**
 - **System Theme Detection**: Automatic icon adaptation to light/dark themes
@@ -163,12 +174,19 @@ For Windows users, automated installation scripts are provided:
 5. **Quality Assurance**: Enable check and refine with separate models
 6. **Batch Processing**: Translate multiple chapters with progress tracking
 
+### **Advanced Refinement Workflow**
+1. **Select File(s)**: Choose translated chapters that need refinement
+2. **Configure**: Set a separate provider/model with tool support (function calling)
+3. **Refine**: Apply surgical text improvements via replace, delete, or insert operations
+4. **Verify**: Review changes applied only where needed
+
 ### **Interface Overview**
 - **Main Panel**: File browser with status indicators and chapter management
 - **Library Browser**: Quick access to organized novel collections
 - **Recent Projects**: Smart navigation with folder management
 - **Translate Tab**: Advanced translation configuration with multi-provider support
-- **Clean Tab**: Comprehensive text cleaning operations
+- **Refine Tab**: Tool-based quality refinement with function calling
+- **Clean Tab**: Comprehensive text cleaning operations (5 modes)
 - **Ebook Tab**: Professional EPUB creation with metadata management
 
 ## ⚙️ **Configuration**
@@ -219,29 +237,72 @@ MISTRAL_API_KEY=your_mistral_key_here
 ## 📁 **Project Structure**
 ```
 novel-translator/
+├── main.py                     # Application Entry Point (NovelManagerApp)
+├── pyproject.toml              # Package configuration
+├── .env / .env.example         # API key configuration
+├──
 ├── src/
-│   ├── gui/              # User Interface Components
-│   │   ├── icons/        # Theme-aware SVG icons
-│   │   ├── translate.py  # Advanced translation panel
-│   │   ├── clean.py      # Text cleaning interface
-│   │   ├── create.py     # EPUB creation panel
-│   │   ├── settings_gui.py # Configuration interface
-│   │   └── ...
-│   ├── logic/            # Business Logic
-│   │   ├── translator.py # Core translation engine
-│   │   ├── database.py   # Hybrid database system
-│   │   ├── epub_converter.py # EPUB processing
-│   │   ├── session_logger.py # Detailed logging
-│   │   └── ...
-│   └── config/           # Configuration Files
-│       ├── translation_models.json # AI provider models
-│       ├── languages.json         # Language mappings
-│       ├── i18n/                  # Interface translations
-│       └── prompts/               # Custom prompt templates
-├── main.py               # Application Entry Point
-├── clean.sh              # Python cache cleanup
-├── install.bat/.sh       # Platform-specific installers
-└── run_nt.*              # Launch scripts
+│   ├── gui/                    # User Interface Components
+│   │   ├── icons/              # Theme-aware SVG/PNG icons
+│   │   ├── translate.py        # Translation panel
+│   │   ├── refine.py           # Refinement panel
+│   │   ├── clean.py            # Text cleaning panel
+│   │   ├── create.py           # EPUB creation panel
+│   │   ├── settings_gui.py     # Configuration dialog
+│   │   ├── epub_preview.py     # EPUB import preview
+│   │   ├── log_window.py       # Session log viewer
+│   │   ├── notes_dialog.py     # Project notes editor
+│   │   └── prompt_refine_settings.py
+│   │
+│   ├── logic/                  # Business Logic
+│   │   ├── translator.py       # Core translation engine
+│   │   ├── translator_req.py   # AI provider HTTP requests
+│   │   ├── translation_manager.py # Batch translation worker
+│   │   ├── refine_manager.py   # Batch refinement worker
+│   │   ├── refine_tools.py     # Function calling tool defs
+│   │   ├── database.py         # Hybrid SQLite + JSON persistence
+│   │   ├── folder_structure.py # File system organization
+│   │   ├── cleaner.py          # Text cleaning operations
+│   │   ├── creator.py          # EPUB creation orchestration
+│   │   ├── epub_converter.py   # EPUB → Markdown conversion
+│   │   ├── epub_generator.py   # EPUB generation (OPF, NCX, CSS)
+│   │   ├── epub_importer.py    # EPUB import with preview
+│   │   ├── epub_text_processor.py # Markdown → HTML processing
+│   │   ├── session_logger.py   # Session logging
+│   │   ├── status_manager.py   # Chapter status constants
+│   │   ├── language_manager.py # UI i18n string loading
+│   │   ├── loader.py           # File discovery & status
+│   │   ├── functions.py        # Shared UI utilities
+│   │   ├── get_path.py         # Cross-platform directory picker
+│   │   └── xml_utils.py        # XML escaping utilities
+│   │
+│   └── config/                 # Configuration Files
+│       ├── config.json         # Application settings
+│       ├── translation_models.json # AI provider/model definitions
+│       ├── languages.json      # Language mappings
+│       ├── markdown_rules.json # Text formatting rules
+│       ├── recents.json        # Recent folders history
+│       ├── i18n/               # UI translations (en_US, es_MX)
+│       └── prompts/            # AI prompt templates
+│           ├── prompts-base/   # Default prompts
+│           ├── en-US_es-MX/    # English→Spanish prompts
+│           └── en-US_es-US/    # English→Spanish (US) prompts
+│
+├── docs/
+│   ├── CODEMAPS/               # Architecture documentation
+│   │   ├── INDEX.md            # Overview and dataflows
+│   │   ├── frontend.md         # GUI components
+│   │   ├── backend.md          # Business logic modules
+│   │   ├── database.md         # Database schema
+│   │   ├── integrations.md     # AI providers
+│   │   └── workers.md          # Background workers
+│   └── plan_refinamiento_selectivo.md
+│
+├── assets/                     # Screenshots
+├── clean.sh                    # Python cache cleanup
+├── install.sh / install_test.sh# Linux installers
+├── run_nt.sh / run_nt.bat / run_nt.exe  # Launch scripts
+└── create_shortcut.ps1         # Windows shortcut creator
 ```
 
 ## 🌍 **Multilingual Support**
@@ -305,11 +366,25 @@ novel-translator/
 ## ⚠️ **Disclaimer**
 While this project works reliably, I cannot guarantee its functionality as it was created with the help of AI. The application includes comprehensive error handling and recovery mechanisms, but users should always backup their work regularly.
 
+## 📚 **Documentation**
+
+Comprehensive architecture documentation is available in [docs/CODEMAPS/](docs/CODEMAPS/INDEX.md):
+
+| Document | Description |
+|----------|-------------|
+| [INDEX.md](docs/CODEMAPS/INDEX.md) | Architecture overview, dataflows, and project map |
+| [frontend.md](docs/CODEMAPS/frontend.md) | GUI components, panels, dialogs, and theming |
+| [backend.md](docs/CODEMAPS/backend.md) | Translation engine, EPUB processing, text cleaning |
+| [database.md](docs/CODEMAPS/database.md) | SQLite schema, JSON backup, and data flow |
+| [integrations.md](docs/CODEMAPS/integrations.md) | AI providers, API configurations, and prompt system |
+| [workers.md](docs/CODEMAPS/workers.md) | Background QThread workers and threading model |
+
 ## 🔄 **Version History**
 - **v1.0.0**: Initial release with full translation, cleaning, and EPUB creation features
 - **Advanced Features**: Hybrid database, auto-segmentation, multi-provider support
 - **Quality Assurance**: Check & refine with retry logic and separate models
 - **Professional Tools**: Comprehensive project management and metadata handling
+- **Refinement System**: Tool-based refinement with function calling support
 
 ---
 

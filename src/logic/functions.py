@@ -2,8 +2,24 @@ from PyQt6.QtWidgets import QMessageBox, QFileDialog, QDialog, QVBoxLayout, QHBo
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtCore import Qt
 import os
+import re
 import json
 from pathlib import Path
+
+def natural_sort_key(s):
+    """
+    Genera una clave para ordenamiento natural de strings.
+    Permite ordenar nombres que contienen números de forma humana
+    (ej: capítulo 2 antes que capítulo 10).
+
+    Args:
+        s (str): Cadena a convertir en clave de ordenamiento.
+
+    Returns:
+        list: Lista de segmentos de texto y enteros.
+    """
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split(r'(\d+)', s)]
 
 # Funciones existentes
 def show_confirmation_dialog(message, title="Confirmación", parent=None):

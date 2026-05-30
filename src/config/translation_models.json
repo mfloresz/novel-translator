@@ -60,7 +60,7 @@
       },
       "deepseek-3.1": {
         "name": "DeepSeek 3.1",
-        "endpoint": "deepseek-ai/DeepSeek-V3.1-Terminus-TEE",
+        "endpoint": "deepseek-ai/DeepSeek-V3.1-TEE",
         "max_tokens": 8192,
         "thinking": false,
         "include_reasoning": false,
@@ -164,42 +164,37 @@
       }
     }
   },
-  "lightingai": {
-    "name": "Lighting AI",
+  "opencode": {
+    "name": "OpenCode GO",
     "type": "openai",
-    "base_url": "https://lightning.ai/api/v1/chat/completions",
+    "base_url": "https://opencode.ai/zen/go/v1/chat/completions",
     "models": {
-      "gpt-oss-120b": {
-        "name": "GPT OSS 120B",
-        "endpoint": "lightning-ai/gpt-oss-120b",
+      "deepseek-v4-flash": {
+        "name": "DeepSeek V4 Flash",
+        "endpoint": "deepseek-v4-flash",
+        "stream": true,
         "thinking": false,
         "include_reasoning": false,
         "reasoning": false,
         "supports_tools": false
       },
-      "deepseek-v-3.1": {
-        "name": "DeepSeek 3.1",
-        "endpoint": "lightning-ai/DeepSeek-V3.1",
+      "mimo-v2.5": {
+        "name": "MiMo 2.5",
+        "endpoint": "mimo-v2.5",
+        "stream": true,
         "thinking": false,
         "include_reasoning": false,
         "reasoning": false,
         "supports_tools": false
       },
-      "claude-haiku-4.5": {
-        "name": "Claude Haiku 4.5",
-        "endpoint": "anthropic/claude-haiku-4-5-20251001",
+      "qwen3.5-plus": {
+        "name": "Qwen 3.5 Plus",
+        "endpoint": "qwen3.5-plus",
+        "stream": true,
         "thinking": false,
         "include_reasoning": false,
         "reasoning": false,
-        "supports_tools": true
-      },
-      "geimini-3-flash": {
-        "name": "Gemini 3 Flash",
-        "endpoint": "google/gemini-3-flash-preview",
-        "thinking": false,
-        "include_reasoning": false,
-        "reasoning": false,
-        "supports_tools": true
+        "supports_tools": false
       }
     }
   },
