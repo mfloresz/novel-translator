@@ -31,3 +31,4 @@ translator.db-wal
 server/docs/*.md
 run_nt.exe
 uv.lock
+server/server

@@ -660,6 +660,9 @@ func registerImportRoutes(api *pbrouter.RouterGroup[*core.RequestEvent], s *Serv
 			if newAvailable > 0 {
 				withUpdates++
 			}
+			if newAvailable == 0 {
+				continue
+			}
 			results = append(results, store.BatchCheckNovelResult{
 				NovelID:         novel.ID,
 				SourceTitle:     novel.SourceTitle,
@@ -777,8 +780,8 @@ func registerImportRoutes(api *pbrouter.RouterGroup[*core.RequestEvent], s *Serv
 			}
 			if pendingChapters > 0 {
 				withPending++
+				results = append(results, result)
 			}
-			results = append(results, result)
 		}
 		return e.JSON(http.StatusOK, store.BatchTranslateResponse{
 			Results:     results,

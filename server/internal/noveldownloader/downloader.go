@@ -16,12 +16,12 @@ const (
 	// DefaultMinChapterDelay is the default minimum wait between two
 	// consecutive chapter fetches. Used to stay below the rate limits of
 	// upstream sites like novelfire.net and novelbin.com.
-	DefaultMinChapterDelay = 3 * time.Second
+	DefaultMinChapterDelay = 5 * time.Second
 	// DefaultMaxChapterDelay is the default maximum wait between two
 	// consecutive chapter fetches. A new random value in
 	// [min, max] is picked for each gap so the request pattern is less
 	// recognizable by upstream defences.
-	DefaultMaxChapterDelay = 7 * time.Second
+	DefaultMaxChapterDelay = 10 * time.Second
 )
 
 type Downloader struct {
