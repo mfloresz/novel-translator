@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,11 +14,18 @@ import (
 	"translator-server/internal/store"
 )
 
+var Version = "dev"
+
 func main() {
+	showVersion := flag.Bool("version", false, "print version and exit")
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
+	}
+	if *showVersion {
+		fmt.Println(Version)
+		os.Exit(0)
 	}
 
 	encryptor, err := secure.NewEncryptorFromConfig(cfg.AppEncryptionKey, cfg.AppEncryptionPath)
