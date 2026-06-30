@@ -39,12 +39,6 @@ jobs:
             goarch: arm64
             suffix: android-arm64
 
-          - os: ubuntu-latest
-            goos: android
-            goarch: arm
-            goarm: 7
-            suffix: android-armv7
-
     runs-on: ubuntu-latest
 
     steps:

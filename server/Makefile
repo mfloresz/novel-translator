@@ -19,8 +19,15 @@ linux-armv7: frontend
 android: frontend
 	CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -trimpath -ldflags="$(LDFLAGS)" -o bin/$(BIN)-android-arm64-$(VERSION) ./cmd/server
 
+## android-armv7: Requiere NDK o CGO habilitado con cross-compiler.
+## No funciona en CI sin el NDK de Android.
 android-armv7: frontend
-	CGO_ENABLED=0 GOOS=android GOARCH=arm GOARM=7 go build -trimpath -ldflags="$(LDFLAGS)" -o bin/$(BIN)-android-armv7-$(VERSION) ./cmd/server
+	CGO_ENABLED=1 \
+	CC=arm-linux-androideabi-clang \
+	CXX=arm-linux-androideabi-clang++ \
+	GOOS=android GOARCH=arm GOARM=7 \
+	go build -trimpath -ldflags="$(LDFLAGS)" \
+		-o bin/$(BIN)-android-armv7-$(VERSION) ./cmd/server
 
 ## all: Compila para todas las plataformas
 all: build linux-arm64 linux-armv7 android android-armv7
