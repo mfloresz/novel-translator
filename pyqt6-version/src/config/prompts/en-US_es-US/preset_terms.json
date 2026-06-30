@@ -1,0 +1,6 @@
+{
+  "_comment": "Escribe cada término, regla o par de palabras como un string separado por comas dentro de la lista 'terms'. Cada string será una línea en la aplicación.",
+  "terms": [
+    ""
+  ]
+}

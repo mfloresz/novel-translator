@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yara</title>
+    <script is:inline>
+      (function(){try{var d=document.documentElement;var K='theme';function apply(){var t=localStorage.getItem(K);if(t==='dark'){d.classList.add('dark');return}if(t==='light'){d.classList.remove('dark');return}window.matchMedia('(prefers-color-scheme: dark)').matches?d.classList.add('dark'):d.classList.remove('dark')}apply();window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){if(!localStorage.getItem(K))apply()})}catch(e){}})()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "bold": {
+    "pattern": "\\*\\*([^*]+)\\*\\*",
+    "replacement": "<b>\\1</b>"
+  },
+  "italic": {
+    "pattern": "\\*([^*]+)\\*",
+    "replacement": "<i>\\1</i>"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "default_directory": "",
+  "last_used_directories": [],
+  "provider": "opencode",
+  "model": "deepseek-v4-flash",
+  "source_language": "en-US",
+  "target_language": "es-MX",
+  "ui_language": "en_US",
+  "check_refine_settings": {
+    "use_separate_model": true,
+    "provider": "mistral",
+    "model": "ministral-8b"
+  },
+  "auto_segmentation": {
+    "enabled": true,
+    "threshold": 20000,
+    "segment_size": 10000
+  },
+  "timeout": 600
+}
