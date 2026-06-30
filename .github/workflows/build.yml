@@ -93,11 +93,14 @@ jobs:
             ./cmd/server
 
       - name: Compress with UPX
-        uses: crazy-max/ghaction-upx@v3
-        with:
-          files: |
-            server/bin/translator-server-${{ matrix.suffix }}-${{ steps.version.outputs.value }}
-          args: --best --lzma
+        shell: bash
+        working-directory: server/bin
+        run: |
+          if command -v upx &>/dev/null; then
+            upx --best --lzma "translator-server-${{ matrix.suffix }}-${{ steps.version.outputs.value }}" || true
+          else
+            echo "UPX not available, skipping compression"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
