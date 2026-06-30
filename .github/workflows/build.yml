@@ -96,6 +96,10 @@ jobs:
             echo "UPX not available, skipping compression"
           fi
 
+      - name: Fix permissions
+        shell: bash
+        run: chmod +x server/bin/translator-server-${{ matrix.suffix }}-${{ steps.version.outputs.value }}
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
