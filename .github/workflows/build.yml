@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: write
     inputs:
       version:
         description: 'Version override (e.g. 0.1)'

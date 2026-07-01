@@ -14,6 +14,7 @@
               optionLabel="label"
               optionValue="value"
               class="sort-select"
+              placeholder="Ordenar por"
               @change="onSortChange"
             />
             <Button
@@ -21,17 +22,18 @@
               severity="secondary"
               text
               rounded
+              :aria-label="sortOrder === 'asc' ? 'Cambiar a orden descendente' : 'Cambiar a orden ascendente'"
               @click="toggleSortOrder"
             />
           </div>
           <Button
-              :icon="groupBySeries ? 'pi pi-tag' : 'pi pi-tags'"
+              :icon="groupBySeries ? 'pi pi-tags' : 'pi pi-tag'"
               :severity="groupBySeries ? 'primary' : 'secondary'"
               :outlined="!groupBySeries"
               text
               rounded
               class="group-toggle"
-              title="Agrupar por serie"
+              :aria-label="groupBySeries ? 'Desagrupar por serie' : 'Agrupar por serie'"
               @click="groupBySeries = !groupBySeries"
             />
           <Button
@@ -71,7 +73,7 @@
             </div>
             <div>
               <h2 class="empty-state-title">Sin novelas</h2>
-              <p class="muted empty-state-body">Crea una novela manualmente, importa un EPUB o descarga una desde internet.</p>
+              <p class="muted empty-state-body">Crea una novela manualmente, importa un EPUB o descarga uno desde internet.</p>
             </div>
             <div class="empty-state-actions">
               <Button icon="pi pi-plus" label="Nueva novela" @click="createOpen = true" />
@@ -555,7 +557,7 @@ function onBackToUrlDialog() {
 .page-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
@@ -566,7 +568,7 @@ function onBackToUrlDialog() {
 .sort-controls {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.5rem;
 }
 
 .sort-select {
@@ -612,7 +614,7 @@ function onBackToUrlDialog() {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .library-grid {

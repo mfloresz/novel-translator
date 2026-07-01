@@ -451,9 +451,18 @@ func (s *Store) ensureJobsCollection(users, novels *core.Collection) (*core.Coll
 	return c, nil
 }
 
+// epubFileMaxSize overrides PocketBase's 5MB default for the epubs "file"
+// field, since exported epubs for long novels (1000+ chapters) can easily
+// exceed that.
+const epubFileMaxSize int64 = 200 << 20 // 200MB
+
 func (s *Store) ensureEpubsCollection(novels *core.Collection) (*core.Collection, error) {
 	if existing, err := s.App.FindCollectionByNameOrId(EpubsCollection); err == nil {
-		return s.migrateSystemDateFields(existing)
+		c, err := s.migrateSystemDateFields(existing)
+		if err != nil {
+			return nil, err
+		}
+		return s.migrateEpubFileMaxSize(c)
 	}
 	c := core.NewBaseCollection(EpubsCollection)
 	ownerOnly := "@request.auth.id != '' && novel.owner = @request.auth.id"
@@ -466,9 +475,24 @@ func (s *Store) ensureEpubsCollection(novels *core.Collection) (*core.Collection
 	c.Fields.Add(&core.SelectField{Name: "file_kind", Values: []string{"original", "translated"}, MaxSelect: 1})
 	c.Fields.Add(&core.TextField{Name: "source_variant", Max: 64})
 	c.Fields.Add(&core.TextField{Name: "label", Max: 250})
-	c.Fields.Add(&core.FileField{Name: "file", Required: true, MaxSelect: 1})
+	c.Fields.Add(&core.FileField{Name: "file", Required: true, MaxSelect: 1, MaxSize: epubFileMaxSize})
 	addSystemDateFields(c)
 	c.AddIndex("idx_epubs_unique_variant", true, "novel,file_kind,source_variant", "")
+	if err := s.App.Save(c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// migrateEpubFileMaxSize raises the max upload size of the "file" field on
+// pre-existing epubs collections that were created before epubFileMaxSize
+// was introduced (they default to PocketBase's 5MB limit).
+func (s *Store) migrateEpubFileMaxSize(c *core.Collection) (*core.Collection, error) {
+	field, ok := c.Fields.GetByName("file").(*core.FileField)
+	if !ok || field.MaxSize >= epubFileMaxSize {
+		return c, nil
+	}
+	field.MaxSize = epubFileMaxSize
 	if err := s.App.Save(c); err != nil {
 		return nil, err
 	}
