@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-01T00:00:00.000Z",
+  "title": "Design System: Yara",
+  "extensions": {
+    "colorMeta": {
+      "warm-ink": {
+        "role": "primary",
+        "displayName": "Warm Ink",
+        "canonical": "#141413",
+        "tonalRamp": ["#0a0a09", "#141413", "#1c1917", "#3d3b35", "#57544c", "#706c63", "#8c887f", "#a8a49c"]
+      },
+      "bone-paper": {
+        "role": "neutral",
+        "displayName": "Bone Paper",
+        "canonical": "#fafaf9",
+        "tonalRamp": ["#e8e6e2", "#f5f4f2", "#fafaf9", "#ffffff"]
+      },
+      "page-stone": {
+        "role": "neutral",
+        "displayName": "Page Stone",
+        "canonical": "#f5f4f2",
+        "tonalRamp": ["#ddd9d3", "#e8e6e2", "#f5f4f2", "#fafaf9"]
+      },
+      "aged-stone": {
+        "role": "primary",
+        "displayName": "Aged Stone",
+        "canonical": "#57544c",
+        "tonalRamp": ["#1c1917", "#3d3b35", "#57544c", "#706c63", "#8c887f"]
+      },
+      "aged-stone-deep": {
+        "role": "primary",
+        "displayName": "Aged Stone Deep",
+        "canonical": "#3d3b35",
+        "tonalRamp": ["#141413", "#1c1917", "#3d3b35", "#57544c"]
+      },
+      "block-elevated": {
+        "role": "neutral",
+        "displayName": "Block Elevated",
+        "canonical": "#e8e6e2",
+        "tonalRamp": ["#ddd9d3", "#e8e6e2", "#f5f4f2"]
+      },
+      "mock-surface": {
+        "role": "neutral",
+        "displayName": "Mock Surface",
+        "canonical": "#ddd9d3",
+        "tonalRamp": ["#c4c0b9", "#ddd9d3", "#e8e6e2"]
+      },
+      "info-blue": { "role": "info", "displayName": "Info Blue", "canonical": "#2563eb", "tonalRamp": ["#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#93c5fd"] },
+      "success-green": { "role": "success", "displayName": "Success Green", "canonical": "#16a34a", "tonalRamp": ["#14532d", "#15803d", "#16a34a", "#22c55e", "#86efac"] },
+      "warn-amber": { "role": "warning", "displayName": "Warn Amber", "canonical": "#a16207", "tonalRamp": ["#713f12", "#854d0e", "#a16207", "#ca8a04", "#eab308"] },
+      "danger-red": { "role": "danger", "displayName": "Danger Red", "canonical": "#dc2626", "tonalRamp": ["#7f1d1d", "#991b1b", "#dc2626", "#ef4444", "#fca5a5"] }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Page-level headers, e.g. 'Biblioteca', novel titles. Never a second typeface — weight and size only." },
+      "body": { "displayName": "Body", "purpose": "Default UI copy, forms, lists, buttons." },
+      "reading": { "displayName": "Reading", "purpose": "Chapter/reader content only — larger, looser line-height than UI body for long-form comfort." },
+      "label": { "displayName": "Label", "purpose": "Secondary/muted text, metadata, badges." }
+    },
+    "shadows": [
+      { "name": "cover-rest", "value": "0 8px 20px rgba(0,0,0,0.1)", "purpose": "Default elevation for novel cover art in the library grid." },
+      { "name": "cover-lift", "value": "0 14px 32px rgba(0,0,0,0.14)", "purpose": "Hover/focus-visible state on a cover, paired with translateY(-3px)." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "0.15s ease", "purpose": "Default hover/focus transitions (buttons, cover lift, menu button opacity)." },
+      { "name": "ease-drawer", "value": "0.2s ease-out", "purpose": "Mobile nav drawer slide-in." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Pill-shaped, Warm Ink fill, no border or shadow.",
+      "html": "<button class=\"ds-btn-primary\">Traducir</button>",
+      "css": ".ds-btn-primary { background: #1c1917; color: #fafaf9; border: none; border-radius: 999px; padding: 0.5rem 1rem; font-weight: 600; font-size: 0.9375rem; cursor: pointer; transition: background 0.15s ease; } .ds-btn-primary:hover { background: #292524; } .ds-btn-primary:focus-visible { outline: 2.5px solid #57544c; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(87,84,76,0.18); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Pill-shaped, Page Stone fill, bordered.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary { background: #f5f4f2; color: #141413; border: 1px solid rgba(20,20,19,0.14); border-radius: 999px; padding: 0.5rem 1rem; font-weight: 600; font-size: 0.9375rem; cursor: pointer; transition: background 0.15s ease; } .ds-btn-secondary:hover { background: #e8e6e2; }"
+    },
+    {
+      "name": "Novel Cover Card",
+      "kind": "card",
+      "refersTo": "novel-cover-card",
+      "description": "The library's signature object: 2:3 cover art, flat-bordered frame at rest, real shadow + lift on hover.",
+      "html": "<article class=\"ds-cover-card\"><div class=\"ds-cover-frame\"><img src=\"\" alt=\"\" /></div><div class=\"ds-cover-title\">Título de la Novela</div></article>",
+      "css": ".ds-cover-card { display: flex; flex-direction: column; width: 160px; } .ds-cover-frame { aspect-ratio: 2/3; border-radius: 12px; overflow: hidden; border: 1px solid rgba(20,20,19,0.14); background: #f5f4f2; box-shadow: 0 8px 20px rgba(0,0,0,0.1); transition: transform 0.15s ease, box-shadow 0.15s ease; } .ds-cover-frame img { width: 100%; height: 100%; object-fit: cover; display: block; } .ds-cover-card:hover .ds-cover-frame, .ds-cover-card:focus-within .ds-cover-frame { transform: translateY(-3px); box-shadow: 0 14px 32px rgba(0,0,0,0.14); } .ds-cover-title { margin-top: 0.375rem; font-weight: 600; font-size: 0.8125rem; line-height: 1.3; color: #141413; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Flat bordered field, neutral focus ring.",
+      "html": "<input class=\"ds-input\" placeholder=\"Buscar novela...\" />",
+      "css": ".ds-input { background: #ffffff; color: #141413; border: 1px solid rgba(20,20,19,0.14); border-radius: 12px; padding: 0.5rem 0.75rem; font-size: 1rem; } .ds-input::placeholder { color: rgba(20,20,19,0.48); } .ds-input:focus-visible { outline: 2.5px solid #57544c; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(87,84,76,0.18); }"
+    },
+    {
+      "name": "Top Navigation",
+      "kind": "nav",
+      "refersTo": "nav",
+      "description": "Sticky, translucent, blurred top bar — recedes over scroll content.",
+      "html": "<header class=\"ds-topbar\"><span class=\"ds-brand\">Yara</span></header>",
+      "css": ".ds-topbar { position: sticky; top: 0; display: flex; align-items: center; min-height: 56px; padding: 0.5rem 1.25rem; background: rgba(250,250,249,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(20,20,19,0.14); } .ds-brand { font-weight: 700; font-size: 1.0625rem; color: #141413; }"
+    },
+    {
+      "name": "Status Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Semantic-only color usage — job/status labels.",
+      "html": "<span class=\"ds-tag ds-tag-success\">Completado</span>",
+      "css": ".ds-tag { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; } .ds-tag-success { background: color-mix(in oklab, #16a34a 18%, #e8e6e2); color: #141413; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Shelf",
+    "overview": "Yara is built on the calm materiality of a physical bookshelf: warm stone and ink tones, no color for color's sake, no chrome that competes with the spine of the book. Per PRODUCT.md, \"chrome recedes; the text and cover art lead\" — the interface behaves like Readest or Calibre for library polish, and like Mihon/Tachiyomi for the \"manage and consume\" duality across desktop and mobile. Nothing here performs for attention; everything is furniture in a reading room. The palette is a single warm-neutral ramp (bone paper to warm ink) rather than a saturated brand hue, because the \"brand\" is the reading experience itself, not a marketing identity. Color is reserved almost entirely for semantic state (job status, danger actions) — never for decoration. This system explicitly rejects the dense \"admin dashboard\" look (data-tables-everywhere, SaaS metric cards) and any layout that treats mobile as a shrunk-down desktop view.",
+    "keyCharacteristics": [
+      "Warm-stone monochrome palette; color appears only as semantic signal, never decoration.",
+      "Flat by default; the one deliberate exception is the novel cover, which gets real elevation because it's the object being handled, not the chrome around it.",
+      "Full light/dark/system theming via a single token layer, not a bolted-on dark mode.",
+      "Motion is short and functional (0.15–0.2s), never choreographed."
+    ],
+    "rules": [
+      { "name": "The One Ramp Rule", "body": "There is exactly one hue family (warm stone/graphite). If a screen needs a second color, it must be a semantic state color from the fixed set — never a new decorative hue.", "section": "colors" },
+      { "name": "The One Voice Rule", "body": "Geist is the only typeface in the system. Emphasis comes from weight (400/600/700) and size, never from switching families or adding a display serif.", "section": "typography" },
+      { "name": "The Flat-Except-The-Book Rule", "body": "Every surface is flat and bordered at rest. The only thing allowed to lift off the page is a book cover, because that's the one object the user is meant to reach for.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the entire UI on one hue family (warm stone/graphite); introduce color only via the fixed semantic set (info/success/warn/danger).",
+      "Do let the novel cover be the only element with real box-shadow and hover lift; every other surface stays flat with a 1px border.",
+      "Do size touch targets to at least 44px and treat mobile layouts as first-class, not shrunk desktop.",
+      "Do keep transitions short (0.15–0.2s) and purposeful — a hover lift, a drawer slide, a focus ring — never a choreographed entrance.",
+      "Do use the pill radius (999px) for buttons and tags, and the 12–20px scale for cards/surfaces.",
+      "Do respect prefers-reduced-motion for every transition."
+    ],
+    "donts": [
+      "Don't introduce a second decorative hue or gradient — this is explicitly a one-ramp system.",
+      "Don't build a dense \"admin dashboard\" look (data-tables-everywhere, SaaS metric cards).",
+      "Don't add drop shadows to generic cards, dialogs, or buttons — depth comes from tonal surface steps and borders, not shadow, except the novel cover.",
+      "Don't mix in a second typeface for \"display\" moments — Geist carries every role via weight and size.",
+      "Don't design mobile as an afterthought breakpoint; reading and library browsing must feel native-smooth on a phone.",
+      "Don't use side-stripe borders, gradient text, or glassmorphism as decoration — the one blur in the system (topbar/menu-button backdrop-filter) is functional legibility-over-scroll, not decoration."
+    ]
+  }
+}
