@@ -20,18 +20,18 @@
     </div>
 
     <div class="row-wrap">
-      <div style="flex: 1; min-width: 180px">
+      <div class="form-group" style="flex: 1; min-width: 180px">
         <label class="small muted">Título</label>
         <InputText :model-value="metadataTitle" fluid @update:model-value="emit('update:metadataTitle', String($event || ''))" />
       </div>
-      <div style="flex: 1; min-width: 180px">
+      <div class="form-group" style="flex: 1; min-width: 180px">
         <label class="small muted">Autor</label>
         <InputText :model-value="metadataAuthor" fluid @update:model-value="emit('update:metadataAuthor', String($event || ''))" />
       </div>
     </div>
 
     <div class="row-wrap">
-      <div style="flex: 1; min-width: 180px; position: relative">
+      <div class="form-group" style="flex: 1; min-width: 180px; position: relative">
         <label class="small muted">Serie</label>
         <InputText
           ref="seriesInputRef"
@@ -55,19 +55,19 @@
           </button>
         </div>
       </div>
-      <div style="flex: 1; min-width: 180px">
+      <div class="form-group" style="flex: 1; min-width: 180px">
         <label class="small muted">Número</label>
         <InputText :model-value="metadataNumber" fluid @update:model-value="emit('update:metadataNumber', String($event || ''))" />
       </div>
     </div>
 
-    <div>
+    <div class="form-group">
       <label class="small muted">Descripción</label>
       <Textarea :model-value="metadataDescription" rows="4" fluid @update:model-value="emit('update:metadataDescription', String($event || ''))" />
     </div>
 
     <template v-if="showNovelMeta">
-      <div style="max-width: 220px">
+      <div class="form-group" style="max-width: 220px">
         <label class="small muted">Estatus</label>
         <Select
           :model-value="resolvedStatus"
@@ -319,20 +319,27 @@ function confirmDelete() {
 </script>
 
 <style scoped>
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
 .cover-editor {
-  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 .cover-preview {
   width: 140px;
   height: 200px;
-  border-radius: 8px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--p-content-border-color);
-  background: var(--p-surface-50);
+  border: 1px solid var(--divide);
+  background: var(--surface-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 0.25rem;
 }
 .cover-preview img {
   width: 100%;
@@ -341,31 +348,32 @@ function confirmDelete() {
 }
 .cover-placeholder {
   font-size: 2rem;
-  color: var(--p-text-muted-color);
+  color: var(--text-secondary);
 }
 .tag-editor-section {
   position: relative;
 }
 .tag-editor {
   min-height: 2.75rem;
-  border: 1px solid var(--p-content-border-color);
-  border-radius: 8px;
-  padding: 0.4rem;
+  border: 1px solid var(--divide);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-  background: var(--p-surface-0);
+  background: var(--surface-base);
+  cursor: text;
 }
 .tag-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   padding: 0.35rem 0.7rem;
-  background: var(--p-primary-color);
-  color: var(--p-primary-contrast-color);
-  font-size: 0.9rem;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  font-size: 0.875rem;
   line-height: 1;
 }
 .tag-chip-remove {
@@ -377,6 +385,11 @@ function confirmDelete() {
   justify-content: center;
   cursor: pointer;
   padding: 0;
+  opacity: 0.8;
+  transition: opacity 0.15s ease-out;
+}
+.tag-chip-remove:hover {
+  opacity: 1;
 }
 .tag-input {
   flex: 1;
@@ -386,43 +399,22 @@ function confirmDelete() {
   background: transparent;
   color: inherit;
   font: inherit;
+  padding: 0.25rem 0;
 }
-.tag-suggestions {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  left: 0;
-  right: 0;
-  z-index: 10;
-  border: 1px solid var(--p-content-border-color);
-  border-radius: 10px;
-  background: var(--p-surface-0);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
-}
-.tag-suggestion-item {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  padding: 0.75rem 0.9rem;
-  cursor: pointer;
-  color: inherit;
-}
-.tag-suggestion-item:hover {
-  background: var(--p-surface-100);
-}
+.tag-suggestions,
 .series-suggestions {
   position: absolute;
   top: calc(100% + 0.35rem);
   left: 0;
   right: 0;
-  z-index: 10;
-  border: 1px solid var(--p-content-border-color);
-  border-radius: 10px;
-  background: var(--p-surface-0);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+  border: 1px solid var(--divide);
+  border-radius: var(--radius-md);
+  background: var(--surface-base);
+  box-shadow: 0 4px 12px color-mix(in oklab, var(--text-primary) 10%, transparent);
   overflow: hidden;
 }
+.tag-suggestion-item,
 .series-suggestion-item {
   width: 100%;
   border: 0;
@@ -431,8 +423,11 @@ function confirmDelete() {
   padding: 0.75rem 0.9rem;
   cursor: pointer;
   color: inherit;
+  font: inherit;
+  transition: background 0.15s ease-out;
 }
+.tag-suggestion-item:hover,
 .series-suggestion-item:hover {
-  background: var(--p-surface-100);
+  background: var(--mock-row);
 }
 </style>

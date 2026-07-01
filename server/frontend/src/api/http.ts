@@ -57,6 +57,25 @@ export function createHttpClient(config: HttpClientConfig) {
     return (await response.json()) as T;
   }
 
+  async function downloadBlob(path: string): Promise<Blob> {
+    const headers = new Headers();
+    const token = getAuthToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    const response = await fetch(`${config.baseUrl}${path}`, { headers });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearAuth();
+      }
+      throw new ApiError(`HTTP ${response.status}`, response.status);
+    }
+
+    return response.blob();
+  }
+
   return {
     get: <T>(path: string) => request<T>(path),
     post: <T>(path: string, body?: BodyInit | object) =>
@@ -84,5 +103,6 @@ export function createHttpClient(config: HttpClientConfig) {
             : JSON.stringify(body ?? {}),
       }),
     delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+    downloadBlob: downloadBlob,
   };
 }

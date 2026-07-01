@@ -337,7 +337,9 @@ export function createApiClient(defaultsRef: Ref<ServerDefaults | null>) {
         return withDefaults(novel);
       },
       async checkBatchUpdates(): Promise<BatchCheckResponse> {
-        return http.get<BatchCheckResponse>("/api/db/novels/check-batch-updates");
+        return http.get<BatchCheckResponse>(
+          "/api/db/novels/check-batch-updates",
+        );
       },
       async batchUpdateFromUrl(
         selections: BatchUpdateSelection[],
@@ -348,7 +350,9 @@ export function createApiClient(defaultsRef: Ref<ServerDefaults | null>) {
         );
       },
       async batchTranslatePreview(): Promise<BatchTranslateResponse> {
-        return http.get<BatchTranslateResponse>("/api/db/novels/batch-translate-preview");
+        return http.get<BatchTranslateResponse>(
+          "/api/db/novels/batch-translate-preview",
+        );
       },
       async batchTranslate(
         selections: BatchTranslateSelection[],
@@ -536,6 +540,12 @@ export function createApiClient(defaultsRef: Ref<ServerDefaults | null>) {
           `/api/epubs?novelId=${encodeURIComponent(novelId)}`,
         );
       },
+      build(input: {
+        novelId: string;
+        source: "original" | "translated" | "refined";
+      }) {
+        return http.post<NovelEpubRecord>("/api/epubs/build", input);
+      },
       save(input: {
         novelId: string;
         fileKind: "original" | "translated";
@@ -563,8 +573,9 @@ export function createApiClient(defaultsRef: Ref<ServerDefaults | null>) {
         );
         return http.post<EpubPreviewResult>("/api/epubs/preview", form);
       },
-      buildDownloadUrl(id: string) {
-        return `${getApiBaseUrl()}/api/epubs/${id}/download`;
+      download(id: string, cacheBust?: string) {
+        const suffix = cacheBust ? `?v=${encodeURIComponent(cacheBust)}` : "";
+        return http.downloadBlob(`/api/epubs/${id}/download${suffix}`);
       },
     },
   };

@@ -68,7 +68,7 @@
           <Button v-if="isOwner" label="Configuración" icon="pi pi-cog" severity="secondary" outlined fluid @click="settingsOpen = true" />
           <Button v-else label="Copiar novela" icon="pi pi-copy" severity="secondary" outlined fluid @click="copyCurrentNovel" />
           <Button v-if="isOwner" :label="novel.isPublic ? 'Despublicar' : 'Publicar'" icon="pi pi-globe" severity="secondary" outlined fluid @click="toggleVisibility" />
-          <Button v-if="isOwner && novel.url" label="Actualizar" icon="pi pi-refresh" severity="secondary" outlined fluid @click="updateUrlOpen = true" />
+          <Button v-if="isOwner && novel.url" label="Actualizar desde URL" icon="pi pi-refresh" severity="secondary" outlined fluid @click="updateUrlOpen = true" />
         </div>
 
         <div class="novel-sidebar-tags">
@@ -128,7 +128,8 @@
           </button>
         </div>
 
-      <section v-if="activeTab === 'chapters'" class="stack-md">
+      <section v-if="activeTab === 'chapters'" class="stack-md" aria-labelledby="tab-chapters">
+        <h2 id="tab-chapters" class="sr-only">Capítulos</h2>
         <ChapterList
           :chapters="chapterSummaries"
           :total="chapterSummaryTotal"
@@ -145,7 +146,8 @@
         />
       </section>
 
-      <section v-else-if="activeTab === 'translate'" class="stack-md">
+      <section v-else-if="activeTab === 'translate'" class="stack-md" aria-labelledby="tab-translate">
+        <h2 id="tab-translate" class="sr-only">{{ translateOperation === 'translate' ? 'Traducción' : 'Refinamiento' }}</h2>
         <Card>
           <template #title>{{ translateOperation === 'translate' ? 'Traducción automática' : 'Refinamiento' }}</template>
           <template #content>
@@ -167,7 +169,7 @@
                 <span>{{ eligibleChapters.length }} capítulos elegibles</span>
               </div>
 
-              <div v-if="eligibleChapters.length === 0" class="muted small">No hay capítulos elegibles para esta operación.</div>
+              <div v-if="eligibleChapters.length === 0" class="muted small">Todos los capítulos ya fueron {{ translateOperation === 'translate' ? 'traducidos' : 'refinados' }}.</div>
               <div v-else style="border: 1px solid var(--p-content-border-color); border-radius: 12px; overflow: auto; max-height: 420px">
                 <div v-for="chapter in eligibleChapters" :key="chapter.id" style="display: flex; gap: 0.75rem; align-items: center; padding: 0.875rem 1rem; border-bottom: 1px solid var(--p-content-border-color)">
                   <Checkbox :model-value="translateSelectedIds.has(chapter.id)" binary :disabled="translateSubmitting" @update:model-value="toggleTranslateChapter(chapter.id, $event)" />
@@ -181,7 +183,8 @@
         </Card>
       </section>
 
-      <section v-else-if="activeTab === 'clean'" class="stack-md">
+      <section v-else-if="activeTab === 'clean'" class="stack-md" aria-labelledby="tab-clean">
+        <h2 id="tab-clean" class="sr-only">Limpieza de texto</h2>
         <Card>
           <template #title>Limpieza de texto</template>
           <template #content>
@@ -241,7 +244,7 @@
 
               <Message v-if="cleanFeedback" severity="success">{{ cleanFeedback }}</Message>
 
-              <div v-if="cleanEligibleChapters.length === 0" class="muted small">No hay capítulos con contenido para esta selección.</div>
+              <div v-if="cleanEligibleChapters.length === 0" class="muted small">Selecciona primero el tipo de limpieza arriba para ver capítulos disponibles.</div>
               <div v-else style="border: 1px solid var(--p-content-border-color); border-radius: 12px; overflow: auto; max-height: 320px">
                 <div v-for="chapter in cleanEligibleChapters" :key="chapter.id" style="display: flex; gap: 0.75rem; align-items: center; padding: 0.875rem 1rem; border-bottom: 1px solid var(--p-content-border-color)">
                   <Checkbox :model-value="cleanSelectedIds.has(chapter.id)" binary @update:model-value="toggleCleanChapter(chapter.id, $event)" />
@@ -271,85 +274,34 @@
         </Card>
       </section>
 
-      <section v-else-if="activeTab === 'export'" class="stack-md">
+      <section v-else-if="activeTab === 'export'" class="stack-md" aria-labelledby="tab-export">
+        <h2 id="tab-export" class="sr-only">Exportar</h2>
         <Card>
           <template #title>Exportar a EPUB</template>
           <template #content>
-            <div v-if="chaptersLoading && !fullChaptersLoaded" class="stack-md">
-              <Skeleton width="100%" height="10rem" borderRadius="12px" />
-              <Skeleton width="100%" height="8rem" borderRadius="12px" />
-            </div>
-            <div v-else class="stack-md">
-              <div class="row-wrap">
-                <div style="min-width: 220px; flex: 1">
-                  <label class="small muted">Fuente del contenido</label>
-                  <Select v-model="exportSource" :options="exportSourceOptions" optionLabel="label" optionValue="value" fluid />
-                </div>
-                <div style="min-width: 220px; flex: 1">
-                  <label class="small muted">Idioma del EPUB</label>
-                  <Select v-model="exportLanguage" :options="languageOptionsNoAuto" optionLabel="name" optionValue="code" fluid />
-                </div>
-              </div>
-
-              <div class="row-wrap">
-                <div style="min-width: 220px; flex: 1">
-                  <label class="small muted">Título</label>
-                  <InputText v-model="exportTitle" fluid />
-                </div>
-                <div style="min-width: 220px; flex: 1">
-                  <label class="small muted">Autor</label>
-                  <InputText v-model="exportAuthor" fluid />
-                </div>
-              </div>
-
-              <div class="row-wrap">
-                <div style="min-width: 220px; flex: 1">
-                  <label class="small muted">Publisher</label>
-                  <InputText v-model="exportPublisher" fluid />
-                </div>
-                <div style="min-width: 220px; flex: 1">
-                  <label class="small muted">Portada</label>
-                  <input type="file" accept="image/*" @change="handleExportCover" />
-                </div>
-              </div>
-
-              <div>
-                <label class="small muted">Descripción</label>
-                <Textarea v-model="exportDescription" rows="4" fluid />
-              </div>
-
-              <div class="row-wrap">
-                <div style="display: flex; align-items: center; gap: 0.5rem">
-                  <Checkbox v-model="exportCompletedOnly" binary />
-                  <span class="small muted">Solo capítulos finalizados</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem">
-                  <Checkbox :model-value="true" binary disabled />
-                  <span class="small muted">Tabla de contenidos (siempre activa)</span>
-                </div>
-              </div>
-
-              <div class="row-between">
-                <div class="small muted">{{ exportEligibleChapters.length }} de {{ chapters.length }} capítulos serán exportados.</div>
-                <Tag severity="info" :value="getLanguageName(exportLanguage)" />
+            <div class="stack-md">
+              <div style="min-width: 220px; max-width: 320px">
+                <label class="small muted">Fuente del contenido</label>
+                <Select v-model="exportSource" :options="exportSourceOptions" optionLabel="label" optionValue="value" fluid />
               </div>
 
               <ProgressBar v-if="exportBuilding" :value="exportProgress" />
               <Message v-if="exportFeedback" :severity="exportFeedback.startsWith('Error:') ? 'error' : 'success'">{{ exportFeedback }}</Message>
-              <Button label="Construir y descargar EPUB" icon="pi pi-download" :loading="exportBuilding" :disabled="exportEligibleChapters.length === 0" @click="buildAndDownloadEpub" />
+              <Button label="Descargar EPUB" icon="pi pi-download" :loading="exportBuilding" :disabled="exportBuilding" @click="buildAndDownloadEpub" />
             </div>
           </template>
         </Card>
       </section>
 
-      <section v-else class="stack-md">
+      <section v-else class="stack-md" aria-labelledby="tab-errors">
+        <h2 id="tab-errors" class="sr-only">Historial de errores</h2>
         <Card v-if="failedJobs.length === 0">
           <template #content>
             <div class="stack-md" style="align-items: center; text-align: center; padding: 2rem 1rem">
               <i class="pi pi-clock" style="font-size: 2rem; color: var(--p-text-muted-color)" />
               <div>
-                <h3 style="margin: 0 0 0.5rem">Sin historial con errores</h3>
-                <p class="muted">Aquí solo se muestran trabajos que fallaron o tuvieron capítulos fallidos.</p>
+                <h3 style="margin: 0 0 0.5rem">Aún no hay errores</h3>
+                <p class="muted">Cuando un trabajo falle, verás los detalles aquí.</p>
               </div>
             </div>
           </template>
@@ -384,7 +336,7 @@
                     <i :class="expandedJobId === job.id ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" style="font-size: 0.85rem" />
                     <strong>Capítulos fallidos ({{ jobFailedChapters(job).length }})</strong>
                   </div>
-                  <span class="small muted">Click para {{ expandedJobId === job.id ? 'ocultar' : 'ver detalles' }}</span>
+                  <span class="small muted">{{ expandedJobId === job.id ? 'Ocultar' : 'Ver' }} detalles</span>
                 </div>
                 <div v-if="expandedJobId === job.id" class="stack-sm" style="margin-top: 0.5rem">
                   <div v-for="chapter in jobFailedChapters(job)" :key="chapter.id" class="job-failed-chapter-item">
@@ -400,7 +352,7 @@
                           {{ chapter.errorMessage }}
                         </div>
                         <div v-else class="small muted" style="font-style: italic">
-                          Sin mensaje de error registrado.
+                          Sin detalles disponibles para este error.
                         </div>
                       </div>
                       <Tag severity="danger" :value="chapterStatusLabel(resolvedChapterStatus(chapter))" />
@@ -507,7 +459,6 @@ import InputText from "primevue/inputtext";
 import Message from "primevue/message";
 import Popover from "primevue/popover";
 import ProgressBar from "primevue/progressbar";
-import ProgressSpinner from "primevue/progressspinner";
 import Select from "primevue/select";
 import SelectButton from "primevue/selectbutton";
 import Skeleton from "primevue/skeleton";
@@ -521,7 +472,6 @@ import { useChapters } from "@/composables/useChapters";
 import { useNovels } from "@/composables/useNovels";
 import { useActiveJobStatus } from "@/composables/useActiveJobStatus";
 import { useTranslationJobs } from "@/composables/useTranslationJobs";
-import { LANGUAGES, getLanguageName } from "@/config/languages";
 import {
   getNovelDisplayAuthor,
   getNovelDisplayDescription,
@@ -536,7 +486,6 @@ import {
   type TranslationJob,
 } from "@/domain";
 import { CLEAN_MODE_DESCRIPTIONS, CLEAN_MODE_LABELS, type CleanMode } from "@/utils/cleaner";
-import { buildEpub, downloadBlob, type EpubChapter } from "@/utils/epub-generator";
 
 const router = useRouter();
 const route = useRoute();
@@ -605,13 +554,6 @@ const cleanFeedback = ref<string | null>(null);
 const cleanPreview = ref<{ chapterTitle: string; result: { original: string; cleaned: string; changed: boolean; removedLines: number } } | null>(null);
 
 const exportSource = ref<"refined" | "translated" | "original">("refined");
-const exportCompletedOnly = ref(false);
-const exportTitle = ref("");
-const exportAuthor = ref("");
-const exportDescription = ref("");
-const exportLanguage = ref("es");
-const exportPublisher = ref("TranslatorApp");
-const exportCoverDataUrl = ref<string | undefined>();
 const exportBuilding = ref(false);
 const exportProgress = ref(0);
 const exportFeedback = ref<string | null>(null);
@@ -739,19 +681,10 @@ const cleanEligibleChapters = computed(() => allSummaries.value.filter((chapter)
   return chapter.hasRefinedContent;
 }));
 const exportSourceOptions = [
-  { value: "refined", label: "Texto refinado" },
-  { value: "translated", label: "Traducción" },
-  { value: "original", label: "Original" },
+  { value: "refined", label: "Refinados" },
+  { value: "translated", label: "Traducidos" },
+  { value: "original", label: "Originales" },
 ];
-const exportEligibleChapters = computed(() => chapters.value.filter((chapter) => {
-  const text = exportSource.value === "refined" ? chapter.refinedContent : exportSource.value === "translated" ? chapter.translatedContent : chapter.originalContent;
-  if (!text || text.trim().length === 0) return false;
-  if (!exportCompletedOnly.value) return true;
-  if (exportSource.value === "refined") return chapter.status === "refined" || chapter.status === "done";
-  if (exportSource.value === "translated") return chapter.status === "translated" || chapter.status === "refined" || chapter.status === "done";
-  return true;
-}).sort((a, b) => a.chapterOrder - b.chapterOrder));
-const languageOptionsNoAuto = LANGUAGES.filter((item) => item.code !== "auto");
 
 onMounted(() => {
   void refreshNovelAndChapterMeta();
@@ -778,8 +711,8 @@ function checkDescriptionOverflow() {
 
 window.addEventListener("resize", checkDescriptionOverflow);
 
-function tabNeedsFullChapters(tab: string) {
-  return tab === "export";
+function tabNeedsFullChapters(_tab: string) {
+  return false;
 }
 
 function tabNeedsAllSummaries(tab: string) {
@@ -989,16 +922,6 @@ watch(translateOperation, () => {
   userTouchedTranslateSelection = false;
   translateSelectedIds.value = new Set(eligibleChapters.value.map((chapter) => chapter.id));
 });
-
-watch(novel, (current, prev) => {
-  if (!current) return;
-  if (!prev || prev.id !== current.id) {
-    exportTitle.value = getNovelDisplayTitle(current);
-    exportAuthor.value = getNovelDisplayAuthor(current) || "";
-    exportDescription.value = getNovelDisplayDescription(current) || "";
-    exportLanguage.value = current.targetLanguage || "es";
-  }
-}, { immediate: true });
 
 watch(hasActive, (active, previous) => {
   if (!previous || active || !hasProcessingChapters.value) return;
@@ -1352,59 +1275,28 @@ async function applyCleaningToSelected() {
   }
 }
 
-function handleExportCover(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file) {
-    exportCoverDataUrl.value = undefined;
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = () => {
-    if (typeof reader.result === "string") exportCoverDataUrl.value = reader.result;
-  };
-  reader.readAsDataURL(file);
-}
-
 async function buildAndDownloadEpub() {
-  if (!novel.value || exportEligibleChapters.value.length === 0) return;
+  if (!novel.value) return;
   exportBuilding.value = true;
   exportFeedback.value = null;
-  exportProgress.value = 5;
+  exportProgress.value = 10;
   try {
-    const epubChapters: EpubChapter[] = exportEligibleChapters.value.map((chapter, index) => ({
-      id: chapter.id,
-      title: chapter.title || `Capítulo ${chapter.chapterOrder}`,
-      content: exportSource.value === "refined" ? chapter.refinedContent ?? "" : exportSource.value === "translated" ? chapter.translatedContent ?? "" : chapter.originalContent ?? "",
-      order: index + 1,
-    }));
-    exportProgress.value = 40;
-    const blob = await buildEpub({
-      metadata: {
-        title: exportTitle.value || getNovelDisplayTitle(novel.value),
-        author: exportAuthor.value || getNovelDisplayAuthor(novel.value) || "Desconocido",
-        description: exportDescription.value || getNovelDisplayDescription(novel.value) || "",
-        language: exportLanguage.value || "es",
-        publisher: exportPublisher.value,
-        coverDataUrl: exportCoverDataUrl.value,
-      },
-      chapters: epubChapters,
+    const result = await api.epubs.build({
+      novelId: novel.value.id,
+      source: exportSource.value,
     });
-    exportProgress.value = 90;
-    const fileName = `${(exportTitle.value || getNovelDisplayTitle(novel.value)).replace(/[\\/:*?"<>|]+/g, "_").slice(0, 120) || "libro"}.epub`;
-    if (exportSource.value !== "original") {
-      await api.epubs.save({
-        novelId: novel.value.id,
-        fileKind: "translated",
-        sourceVariant: exportSource.value,
-        fileName,
-        blob,
-      });
-    }
-    downloadBlob(blob, fileName);
+    exportProgress.value = 80;
+    const blob = await api.epubs.download(result.id, result.updatedAt);
+    const fileName = result.fileName || `${novel.value.sourceTitle || "libro"}.epub`;
+    const anchor = document.createElement("a");
+    anchor.href = URL.createObjectURL(blob);
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(anchor.href);
     exportProgress.value = 100;
-    exportFeedback.value = exportSource.value !== "original"
-      ? `EPUB generado con ${epubChapters.length} capítulos y guardado en el servidor.`
-      : `EPUB generado con ${epubChapters.length} capítulos.`;
+    exportFeedback.value = `EPUB generado y guardado en el servidor.`;
   } catch (err) {
     exportFeedback.value = `Error: ${err instanceof Error ? err.message : String(err)}`;
   } finally {
@@ -1472,7 +1364,7 @@ function formatDate(value: string) {
 .novel-sidebar-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.5rem;
 }
 
 .novel-sidebar-actions :deep(.p-button) {
@@ -1483,7 +1375,7 @@ function formatDate(value: string) {
 .novel-sidebar-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: 0.5rem;
 }
 
 .novel-sidebar-tags :deep(.p-tag) {
@@ -1500,7 +1392,7 @@ function formatDate(value: string) {
 .novel-main-header {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.5rem;
 }
 
 .novel-title {
@@ -1628,15 +1520,15 @@ function formatDate(value: string) {
 }
 
 .job-failed-chapters {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: 12px;
+  border: 1px solid var(--divide);
+  border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
-  background: color-mix(in oklab, var(--p-content-background) 96%, var(--p-red-500) 4%);
+  background: color-mix(in oklab, var(--text-primary) 4%, transparent);
 }
 
 .job-failed-chapter-item {
   padding: 0.65rem 0;
-  border-bottom: 1px solid var(--p-content-border-color);
+  border-bottom: 1px solid var(--divide);
 }
 
 .job-failed-chapter-item:last-child {
@@ -1647,12 +1539,13 @@ function formatDate(value: string) {
 .job-failed-chapter-error {
   margin-top: 0.35rem;
   padding: 0.5rem 0.65rem;
-  background: color-mix(in oklab, var(--p-red-500) 10%, transparent);
-  border-left: 3px solid var(--p-red-500);
-  border-radius: 6px;
-  color: var(--p-red-700);
+  background: color-mix(in oklab, #dc2626 10%, transparent);
+  border-left: 3px solid #dc2626;
+  border-radius: var(--radius-sm);
+  color: #7f1d1d;
   white-space: pre-wrap;
   word-break: break-word;
+  font-size: 0.875rem;
 }
 
 @media (max-width: 768px) {
@@ -1673,12 +1566,13 @@ function formatDate(value: string) {
   }
 
   .novel-sidebar-actions {
-    gap: 0.3rem;
+    gap: 0.375rem;
   }
 
   .novel-sidebar-actions :deep(.p-button) {
     font-size: 0.8rem;
     padding: 0.4rem 0.6rem;
+    min-height: 40px;
   }
 
   .novel-sidebar-tags {

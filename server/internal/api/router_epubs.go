@@ -76,6 +76,12 @@ func registerEpubRoutes(api *pbrouter.RouterGroup[*core.RequestEvent], s *Server
 			return e.InternalServerError("filesystem init failure", err)
 		}
 		defer fsys.Close()
+		// Epubs are regenerated in-place under the same record/download URL
+		// (see UpsertEpub), so disable caching entirely to avoid ever serving
+		// a stale copy after a rebuild. The frontend also cache-busts this
+		// URL with the epub's updatedAt, but this header protects any other
+		// caller (curl, other clients) too.
+		e.Response.Header().Set("Cache-Control", "no-store")
 		return fsys.Serve(e.Response, e.Request, record.BaseFilesPath()+"/"+fileName, fileName)
 	})
 }
