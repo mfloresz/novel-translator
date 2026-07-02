@@ -2,7 +2,9 @@
 __pycache__
 chapters
 __init__.py
-.env
+**/.env
+**/.env.*
+!.env.example
 .gitkeep
 recents.json
 src/config/recents.json
@@ -18,7 +20,6 @@ translator.dev.db-shm
 translator.dev.db-wal
 test/
 bin/
-.env
 server/frontend-react/dist/*
 node_modules
 server/frontend/dist/*

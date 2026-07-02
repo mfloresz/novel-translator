@@ -1,13 +1,14 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { authState } from "@/app/auth";
-import DashboardPage from "@/pages/DashboardPage.vue";
-import SettingsPage from "@/pages/SettingsPage.vue";
-import OperationsPage from "@/pages/OperationsPage.vue";
-import NovelDetailPage from "@/pages/NovelDetailPage.vue";
-import ChapterPage from "@/pages/ChapterPage.vue";
-import ReaderPage from "@/pages/ReaderPage.vue";
-import LoginPage from "@/pages/LoginPage.vue";
-import RegisterPage from "@/pages/RegisterPage.vue";
+
+const LoginPage = () => import("@/pages/LoginPage.vue");
+const RegisterPage = () => import("@/pages/RegisterPage.vue");
+const DashboardPage = () => import("@/pages/DashboardPage.vue");
+const SettingsPage = () => import("@/pages/SettingsPage.vue");
+const OperationsPage = () => import("@/pages/OperationsPage.vue");
+const NovelDetailPage = () => import("@/pages/NovelDetailPage.vue");
+const ChapterPage = () => import("@/pages/ChapterPage.vue");
+const ReaderPage = () => import("@/pages/ReaderPage.vue");
 
 export const router = createRouter({
   history: createWebHistory(),

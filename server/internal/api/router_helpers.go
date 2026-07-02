@@ -91,8 +91,11 @@ func isValidApplyTo(applyTo string) bool {
 
 func bearerToken(r *http.Request) string {
 	header := strings.TrimSpace(r.Header.Get("Authorization"))
-	if !strings.HasPrefix(strings.ToLower(header), "bearer ") {
-		return ""
+	if strings.HasPrefix(strings.ToLower(header), "bearer ") {
+		return strings.TrimSpace(header[7:])
 	}
-	return strings.TrimSpace(header[7:])
+	if cookie, err := r.Cookie(authCookieName); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+	return ""
 }

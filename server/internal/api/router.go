@@ -95,6 +95,7 @@ func registerRoutes(router *pbrouter.Router[*core.RequestEvent], s *Server) {
 
 func registerProtectedRoutes(router *pbrouter.Router[*core.RequestEvent], s *Server) {
 	api := router.Group("/api")
+	api.Bind(loadAuthFromCookie())
 	api.Bind(apis.RequireAuth())
 
 	registerSettingsRoutes(api, s)

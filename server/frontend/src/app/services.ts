@@ -65,10 +65,6 @@ export function createAppServices(): AppServices {
   }
 
   async function restoreSession() {
-    if (!authState.token.value) {
-      setAuthReady();
-      return;
-    }
     try {
       const result = await api.auth.refresh();
       setAuth(result);

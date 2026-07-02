@@ -207,6 +207,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } from "vue";
+import "@fontsource-variable/merriweather";
 import { useRoute, useRouter } from "vue-router";
 import Button from "primevue/button";
 import Card from "primevue/card";
@@ -797,7 +798,7 @@ function applyTypography() {
 /* ── Article ── */
 .reader-article {
   max-width: 100%;
-  font-family: 'EB Garamond', 'Garamond', 'Georgia', serif;
+  font-family: 'Merriweather Variable', 'Merriweather', 'Georgia', serif;
   font-size: var(--reader-fs-body);
   line-height: var(--reader-lh-body);
   color: var(--reader-ink);
@@ -809,7 +810,7 @@ function applyTypography() {
 }
 
 .reader-chapter-heading {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Merriweather Variable', 'Merriweather', serif;
   font-size: 2.6em;
   font-weight: 700;
   font-style: italic;
@@ -845,7 +846,7 @@ function applyTypography() {
 }
 
 .reader-body :deep(p:first-of-type)::first-letter {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Merriweather Variable', 'Merriweather', serif;
   font-size: 4.2em;
   font-weight: 700;
   color: var(--accent-link);
@@ -856,7 +857,7 @@ function applyTypography() {
 }
 
 .reader-body :deep(h1) {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Merriweather Variable', 'Merriweather', serif;
   font-size: 2.6em;
   font-weight: 700;
   font-style: italic;
@@ -868,7 +869,7 @@ function applyTypography() {
 }
 
 .reader-body :deep(h2) {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Merriweather Variable', 'Merriweather', serif;
   font-size: 1.75em;
   font-weight: 600;
   font-style: italic;
@@ -886,7 +887,7 @@ function applyTypography() {
 }
 
 .reader-body :deep(h3) {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Merriweather Variable', 'Merriweather', serif;
   font-size: 1.3em;
   font-weight: 600;
   margin: 36px 0 14px;
@@ -897,7 +898,7 @@ function applyTypography() {
 .reader-body :deep(h4),
 .reader-body :deep(h5),
 .reader-body :deep(h6) {
-  font-family: 'EB Garamond', serif;
+  font-family: 'Merriweather Variable', 'Merriweather', serif;
   font-size: 1.05em;
   font-weight: 600;
   font-variant: small-caps;

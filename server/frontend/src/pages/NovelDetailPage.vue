@@ -57,7 +57,7 @@
     <div v-else class="novel-detail-layout">
       <aside class="novel-sidebar">
         <div class="novel-cover-large">
-          <img v-if="novel.coverPath" :src="novel.coverPath" :alt="`Portada de ${getNovelDisplayTitle(novel)}`" />
+          <img v-if="novel.coverPath" :src="novel.coverPath" :alt="`Portada de ${getNovelDisplayTitle(novel)}`" loading="lazy" />
           <div v-else class="novel-cover-placeholder-large">
             <i class="pi pi-image" aria-hidden="true" />
           </div>
@@ -128,7 +128,7 @@
           </button>
         </div>
 
-      <section v-if="activeTab === 'chapters'" class="stack-md" aria-labelledby="tab-chapters">
+      <section v-if="activeTab === 'chapters'" class="stack-md tab-panel" aria-labelledby="tab-chapters">
         <h2 id="tab-chapters" class="sr-only">Capítulos</h2>
         <ChapterList
           :chapters="chapterSummaries"
@@ -146,7 +146,7 @@
         />
       </section>
 
-      <section v-else-if="activeTab === 'translate'" class="stack-md" aria-labelledby="tab-translate">
+      <section v-else-if="activeTab === 'translate'" class="stack-md tab-panel" aria-labelledby="tab-translate">
         <h2 id="tab-translate" class="sr-only">{{ translateOperation === 'translate' ? 'Traducción' : 'Refinamiento' }}</h2>
         <Card>
           <template #title>{{ translateOperation === 'translate' ? 'Traducción automática' : 'Refinamiento' }}</template>
@@ -183,7 +183,7 @@
         </Card>
       </section>
 
-      <section v-else-if="activeTab === 'clean'" class="stack-md" aria-labelledby="tab-clean">
+      <section v-else-if="activeTab === 'clean'" class="stack-md tab-panel" aria-labelledby="tab-clean">
         <h2 id="tab-clean" class="sr-only">Limpieza de texto</h2>
         <Card>
           <template #title>Limpieza de texto</template>
@@ -274,7 +274,7 @@
         </Card>
       </section>
 
-      <section v-else-if="activeTab === 'export'" class="stack-md" aria-labelledby="tab-export">
+      <section v-else-if="activeTab === 'export'" class="stack-md tab-panel" aria-labelledby="tab-export">
         <h2 id="tab-export" class="sr-only">Exportar</h2>
         <Card>
           <template #title>Exportar a EPUB</template>
@@ -293,7 +293,7 @@
         </Card>
       </section>
 
-      <section v-else class="stack-md" aria-labelledby="tab-errors">
+      <section v-else class="stack-md tab-panel" aria-labelledby="tab-errors">
         <h2 id="tab-errors" class="sr-only">Historial de errores</h2>
         <Card v-if="failedJobs.length === 0">
           <template #content>
@@ -709,7 +709,12 @@ function checkDescriptionOverflow() {
   descriptionOverflow.value = el.scrollHeight > el.clientHeight + 1;
 }
 
-window.addEventListener("resize", checkDescriptionOverflow);
+let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedCheckOverflow() {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(checkDescriptionOverflow, 150);
+}
+window.addEventListener("resize", debouncedCheckOverflow);
 
 function tabNeedsFullChapters(_tab: string) {
   return false;
@@ -934,7 +939,8 @@ watch(hasActive, (active, previous) => {
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener("resize", checkDescriptionOverflow);
+  if (resizeTimer) clearTimeout(resizeTimer);
+  window.removeEventListener("resize", debouncedCheckOverflow);
 });
 
 async function copyCurrentNovel() {
@@ -1505,6 +1511,11 @@ function formatDate(value: string) {
   background: var(--surface-elevated);
   color: var(--foreground);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.tab-panel {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
 }
 
 .novel-series {

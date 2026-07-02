@@ -1,5 +1,5 @@
 import type { ApiErrorPayload } from "@/api/types";
-import { clearAuth, getAuthToken } from "@/app/auth";
+import { clearAuth } from "@/app/auth";
 
 export class ApiError extends Error {
   status: number;
@@ -22,18 +22,15 @@ export function createHttpClient(config: HttpClientConfig) {
     const headers = new Headers(init?.headers ?? undefined);
     const isFormData =
       typeof FormData !== "undefined" && init?.body instanceof FormData;
-    const token = getAuthToken();
 
     if (!isFormData && !headers.has("Content-Type") && init?.body) {
       headers.set("Content-Type", "application/json");
-    }
-    if (token && !headers.has("Authorization")) {
-      headers.set("Authorization", `Bearer ${token}`);
     }
 
     const response = await fetch(`${config.baseUrl}${path}`, {
       ...init,
       headers,
+      credentials: "include",
     });
 
     if (!response.ok) {
@@ -58,13 +55,9 @@ export function createHttpClient(config: HttpClientConfig) {
   }
 
   async function downloadBlob(path: string): Promise<Blob> {
-    const headers = new Headers();
-    const token = getAuthToken();
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-
-    const response = await fetch(`${config.baseUrl}${path}`, { headers });
+    const response = await fetch(`${config.baseUrl}${path}`, {
+      credentials: "include",
+    });
 
     if (!response.ok) {
       if (response.status === 401) {

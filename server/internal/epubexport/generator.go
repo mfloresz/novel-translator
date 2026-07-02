@@ -24,6 +24,24 @@ type ChapterData struct {
 	Content string
 }
 
+func deterministicBookID(meta EpubMetadata) string {
+	hash := meta.Title + meta.Author + meta.Language + meta.Publisher + meta.Series + meta.Number
+	return fmt.Sprintf("book-%d", hashFunc(hash))
+}
+
+func hashFunc(input string) int64 {
+	h := int64(0)
+	for _, b := range []byte(input) {
+		h = h*31 + int64(b)
+	}
+	if h == 0 {
+		h = 1
+	} else if h < 0 {
+		h = -h
+	}
+	return h
+}
+
 func GenerateEpubFile(meta EpubMetadata, chapters []ChapterData, coverBytes []byte, coverMime string) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	w := zip.NewWriter(buf)
@@ -110,10 +128,40 @@ func buildChapterXHTML(ch ChapterData) string {
   <link rel="stylesheet" type="text/css" href="css/styles.css"/>
 </head>
 <body>
-  <h1>%s</h1>
+  <h1 class="chapter-title">%s</h1>
   %s
 </body>
 </html>`, escapeXML(ch.Title), escapeXML(ch.Title), body)
+}
+
+// descriptionToEscapedHTML converts a plain-text/blank-line-separated
+// description into escaped HTML paragraphs embedded inside dc:description.
+// This mirrors the de-facto convention used by Calibre and most EPUB
+// tooling/catalogs: line breaks alone are not preserved by HTML renderers,
+// but real <p> markup (escaped so it stays valid XML text content) is.
+func descriptionToEscapedHTML(desc string) string {
+	normalized := strings.ReplaceAll(desc, "\r\n", "\n")
+	paragraphs := strings.Split(normalized, "\n\n")
+	var parts []string
+	for _, p := range paragraphs {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		lines := strings.Split(p, "\n")
+		var cleanLines []string
+		for _, l := range lines {
+			l = strings.TrimSpace(l)
+			if l != "" {
+				cleanLines = append(cleanLines, l)
+			}
+		}
+		if len(cleanLines) == 0 {
+			continue
+		}
+		parts = append(parts, "<p>"+strings.Join(cleanLines, "<br/>")+"</p>")
+	}
+	return escapeXML(strings.Join(parts, ""))
 }
 
 func buildCoverXHTML(coverExt, coverMime string) string {
@@ -136,7 +184,7 @@ func buildCoverXHTML(coverExt, coverMime string) string {
 }
 
 func buildContentOPF(meta EpubMetadata, chapters []ChapterData, hasCover bool, coverMime, coverExt string) string {
-	bookID := fmt.Sprintf("book-%d", time.Now().UnixNano())
+	bookID := deterministicBookID(meta)
 	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
 
 	var b strings.Builder
@@ -164,8 +212,7 @@ func buildContentOPF(meta EpubMetadata, chapters []ChapterData, hasCover bool, c
 	))
 
 	if meta.Description != "" {
-		escaped := strings.ReplaceAll(escapeXML(meta.Description), "\n", "&#10;")
-		b.WriteString(fmt.Sprintf("\n    <dc:description>%s</dc:description>", escaped))
+		b.WriteString(fmt.Sprintf("\n    <dc:description>%s</dc:description>", descriptionToEscapedHTML(meta.Description)))
 	}
 
 	if meta.Series != "" {
@@ -225,7 +272,7 @@ func buildContentOPF(meta EpubMetadata, chapters []ChapterData, hasCover bool, c
 }
 
 func buildTocNCX(meta EpubMetadata, chapters []ChapterData, hasCover bool) string {
-	bookID := fmt.Sprintf("book-%d", time.Now().UnixNano())
+	bookID := deterministicBookID(meta)
 	playOrder := 1
 
 	var b strings.Builder
@@ -365,8 +412,11 @@ h1 {
   font-weight: bold;
   text-align: center;
   margin: 2em 0 1em 0;
-  page-break-before: always;
   line-height: 1.2;
+}
+
+h1.chapter-title {
+  page-break-before: always;
 }
 
 h2 {
@@ -416,11 +466,18 @@ img {
 }
 
 hr {
-  margin: 2em auto;
   border: none;
-  border-top: 1px solid #666;
-  width: 50%;
+  margin: 2.75em 0;
+  text-align: center;
+  color: #57544c;
+  font-size: 1.1em;
+  letter-spacing: 0.4em;
+  opacity: 0.6;
   page-break-after: avoid;
+}
+
+hr::after {
+  content: "\2767  \2726  \2767";
 }
 
 blockquote {
